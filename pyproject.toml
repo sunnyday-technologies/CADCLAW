@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "cad-harness"
+version = "0.1.0"
+description = "The testing framework CAD never had. Automated validation for STEP assemblies."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Sunnyday Technologies", email = "info@sunn3d.com"},
+]
+keywords = ["cad", "step", "validation", "testing", "cadquery", "mechanical", "assembly"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Manufacturing",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "cadquery>=2.7",
+]
+
+[project.urls]
+Homepage = "https://github.com/sunnyday-technologies/cad-harness"
+Repository = "https://github.com/sunnyday-technologies/cad-harness"
+Issues = "https://github.com/sunnyday-technologies/cad-harness/issues"
+
+[tool.setuptools.packages.find]
+include = ["cadharness*"]
