@@ -114,10 +114,36 @@ Exit code 0 = passed. Exit code 1 = failed. Works in any CI system.
 
 ## Who This Is For
 
-- **Open-source hardware projects** (Voron, RatRig, Prusa) — catch assembly errors before builders hit them
+- **Open-source hardware projects** — catch assembly errors before builders hit them
 - **CadQuery/FreeCAD users** — the testing layer the ecosystem is missing
 - **Small manufacturing teams** — automated QA between design and procurement
 - **AI-assisted CAD workflows** — validate that AI-generated changes don't break the assembly
+
+## Running Tests
+
+```bash
+git clone https://github.com/sunnyday-technologies/cad-harness.git
+cd cad-harness
+pip install cadquery
+
+# Generate test fixture STEP assemblies (L1-L3, good + bad variants)
+python tests/generate_fixtures.py
+
+# Run the test suite (17 tests)
+python tests/test_harness.py
+```
+
+The test fixtures are generated from CadQuery — no external downloads needed.
+Three tiers of increasing complexity:
+
+| Level | Parts | Tests |
+|-------|-------|-------|
+| L1: Bracket assembly | 5 | Inventory, interference |
+| L2: Motor mount | 10 | Inventory, adjacency |
+| L3: Gantry corner | 18 | Full 4-gate harness |
+
+Each level has a "good" variant (should pass) and "bad" variant (deliberate errors
+for the harness to catch: clipping, missing parts, scattered motors).
 
 ## Requirements
 
@@ -129,4 +155,6 @@ Exit code 0 = passed. Exit code 1 = failed. Works in any CI system.
 
 MIT License. Copyright (c) 2026 Sunnyday Technologies.
 
-Built during the [M3-CRETE](https://m3-crete.com) project. Extracted and generalized for the community.
+Built during the [M3-CRETE](https://m3-crete.com) project — an open-source concrete
+3D printer where CAD Harness caught 53 interferences, reduced STEP file size from
+70 MB to 13 MB, and validated 150+ assembly changes across a human-AI design collaboration.
