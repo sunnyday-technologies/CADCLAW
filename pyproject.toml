@@ -3,9 +3,9 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
-name = "cad-harness"
+name = "cadclaw"
 version = "0.1.0"
-description = "The testing framework CAD never had. Automated validation for STEP assemblies."
+description = "CADCLAW — The testing framework CAD never had. Automated validation for STEP assemblies."
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
@@ -26,9 +26,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/sunnyday-technologies/cad-harness"
-Repository = "https://github.com/sunnyday-technologies/cad-harness"
-Issues = "https://github.com/sunnyday-technologies/cad-harness/issues"
+Homepage = "https://github.com/sunnyday-technologies/CADCLAW"
+Repository = "https://github.com/sunnyday-technologies/CADCLAW"
+Issues = "https://github.com/sunnyday-technologies/CADCLAW/issues"
 
 [tool.setuptools.packages.find]
 include = ["cadharness*"]

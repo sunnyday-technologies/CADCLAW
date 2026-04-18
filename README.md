@@ -1,4 +1,4 @@
-# CAD Harness
+# CADCLAW
 
 **The testing framework CAD never had.**
 
@@ -8,9 +8,9 @@ Automated validation, interference detection, and structural analysis for STEP a
 
 CAD assemblies break silently. Parts clip into each other, BOMs drift from geometry, motor mounts end up 600mm from the motor. Engineers catch these errors by eye — if they catch them at all. There is no `pytest` for CAD.
 
-## What CAD Harness Does
+## What CADCLAW Does
 
-CAD Harness validates STEP assemblies through a chain of automated gates:
+CADCLAW validates STEP assemblies through a chain of automated gates:
 
 | Gate | What it catches |
 |------|----------------|
@@ -26,7 +26,7 @@ All gates run against a single loaded STEP file. The harness passes only if ever
 
 ```bash
 pip install cadquery
-pip install cad-harness   # or: git clone + pip install -e .
+pip install CADCLAW   # or: git clone + pip install -e .
 ```
 
 ```python
@@ -71,7 +71,7 @@ This works because mechanical parts have characteristic dimensions. A NEMA23 is 
 
 ## Origin Story
 
-CAD Harness was extracted from the [M3-CRETE](https://github.com/sunnyday-technologies/M3-CRETE) open-source concrete 3D printer project, where it was developed during a human-AI collaboration between a mechanical engineer and Claude (Anthropic's AI). The harness:
+CADCLAW was extracted from the [M3-CRETE](https://github.com/sunnyday-technologies/M3-CRETE) open-source concrete 3D printer project, where it was developed during a human-AI collaboration between a mechanical engineer and Claude (Anthropic's AI). The harness:
 
 - Caught 53 solid-solid interferences in a single run
 - Reduced STEP file size from 70MB to 13MB by identifying geometry bloat
@@ -106,7 +106,7 @@ The runner. Chains gates, loads parts once, reports pass/fail with timing.
 # .github/workflows/cad-check.yml
 - name: Validate assembly
   run: |
-    pip install cadquery cad-harness
+    pip install cadquery CADCLAW
     python check.py assembly.step
 ```
 
@@ -122,8 +122,8 @@ Exit code 0 = passed. Exit code 1 = failed. Works in any CI system.
 ## Running Tests
 
 ```bash
-git clone https://github.com/sunnyday-technologies/cad-harness.git
-cd cad-harness
+git clone https://github.com/sunnyday-technologies/CADCLAW.git
+cd CADCLAW
 pip install cadquery
 
 # Generate test fixture STEP assemblies (L1-L3, good + bad variants)
@@ -156,5 +156,5 @@ for the harness to catch: clipping, missing parts, scattered motors).
 MIT License. Copyright (c) 2026 Sunnyday Technologies.
 
 Built during the [M3-CRETE](https://m3-crete.com) project — an open-source concrete
-3D printer where CAD Harness caught 53 interferences, reduced STEP file size from
+3D printer where CADCLAW caught 53 interferences, reduced STEP file size from
 70 MB to 13 MB, and validated 150+ assembly changes across a human-AI design collaboration.
