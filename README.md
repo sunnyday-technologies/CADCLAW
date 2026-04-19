@@ -1,5 +1,7 @@
 # CADCLAW
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19647391.svg)](https://doi.org/10.5281/zenodo.19647391)
+
 **The testing framework CAD never had.**
 
 Automated validation, interference detection, and structural analysis for STEP assemblies. Like pytest for mechanical design.
