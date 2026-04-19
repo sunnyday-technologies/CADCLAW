@@ -19,8 +19,12 @@ CADCLAW validates STEP assemblies through a chain of automated gates:
 | **Adjacency** | Parts that should be near each other but aren't (motor 600mm from mount). |
 | **Dimensional** | Wrong thickness, swapped `box()` args, impossible dimensions. |
 | **Kinematics** | Beam deflection, motor torque budgets, belt tension, racking. |
+| **Tolerance** | Worst-case, RSS, Monte Carlo tolerance stacking with Cpk and variance decomposition. |
+| **Disassembly** | Sequenced part removal, radial exploded views, animation frame export. |
 
 All gates run against a single loaded STEP file. The harness passes only if every gate passes.
+
+CADCLAW also includes an **MCP Server** for Claude integration — all modules exposed as native tools.
 
 ## Quick Start
 
@@ -97,8 +101,17 @@ Check part dimensions against expected ranges. Catches wrong thickness, swapped 
 ### `cadharness.kinematics`
 Structural analysis from assembly parameters. Beam deflection (Euler-Bernoulli), motor torque budgets, belt tension, GT2 tooth skip resistance.
 
+### `cadharness.tolerance`
+Tolerance stack analysis: define dimension chains, compute worst-case / RSS / Monte Carlo accumulation, report Cpk process capability and per-dimension variance contribution. Identifies which dimension dominates the stack.
+
+### `cadharness.disassembly`
+Disassembly sequence generation: auto-orders parts by type priority and distance from centroid, computes radial explosion vectors, exports individual STEP frames for animation or a single exploded-view STEP.
+
 ### `cadharness.harness`
 The runner. Chains gates, loads parts once, reports pass/fail with timing.
+
+### `cadclaw_mcp/`
+MCP Server exposing all modules as Claude-callable tools. Connect to Claude Code or Claude Desktop — user describes what to check, Claude calls the tools. No code generation needed.
 
 ## CI/CD Integration
 

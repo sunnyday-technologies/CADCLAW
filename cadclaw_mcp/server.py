@@ -436,7 +436,7 @@ TOOLS = [
     },
     {
         "name": "tolerance_stack",
-        "description": "Compute tolerance stack analysis along an assembly chain. Returns worst-case, RSS (3-sigma), and Monte Carlo results with Cpk process capability and per-dimension variance contribution. This is the analysis manufacturers pay $15K-$50K/year for.",
+        "description": "Compute tolerance stack analysis along an assembly chain. Returns worst-case, RSS (3-sigma), and Monte Carlo results with Cpk process capability and per-dimension variance contribution.",
         "inputSchema": {
             "type": "object",
             "properties": {
