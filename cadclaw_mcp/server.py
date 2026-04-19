@@ -36,6 +36,7 @@ from cadharness.interference import InterferenceCheck
 from cadharness.adjacency import AdjacencyCheck, AdjacencyRule
 from cadharness.dimensional import DimensionalCheck, DimRule
 from cadharness.kinematics import beam_deflection, motor_torque_budget, belt_tension
+from cadharness.tolerance import ToleranceChain
 
 # ============================================================
 # MCP Protocol Implementation (stdio transport)
@@ -241,6 +242,58 @@ def tool_compute_belt_tension(force_N: float, n_belts: int = 1) -> dict:
     }
 
 
+def tool_tolerance_stack(chain_name: str, dimensions: list,
+                          target: float = 0.0, tolerance: float = 0.5,
+                          mc_samples: int = 100000) -> dict:
+    """Compute tolerance stack analysis (worst-case, RSS, Monte Carlo).
+
+    Defines a chain of dimensions that accumulate to a critical result.
+    Reports whether the stack meets the functional tolerance requirement.
+    Includes Cpk process capability and per-dimension variance contribution.
+    """
+    chain = ToleranceChain(chain_name)
+    for d in dimensions:
+        chain.add(
+            name=d["name"],
+            nominal=d["nominal"],
+            plus=d.get("plus", 0.1),
+            minus=d.get("minus", d.get("plus", 0.1)),
+            distribution=d.get("distribution", "normal"),
+            direction=d.get("direction", 1.0),
+        )
+
+    result = chain.analyze(target=target, tolerance=tolerance,
+                            mc_samples=mc_samples)
+
+    return {
+        "chain_name": result.chain_name,
+        "nominal_result_mm": round(result.nominal_result, 3),
+        "target_mm": result.target,
+        "tolerance_mm": result.tolerance,
+        "worst_case": {
+            "min": round(result.worst_case_min, 3),
+            "max": round(result.worst_case_max, 3),
+            "range": round(result.worst_case_range, 3),
+            "passed": result.worst_case_passed,
+        },
+        "rss_3sigma": {
+            "min": round(result.rss_min, 3),
+            "max": round(result.rss_max, 3),
+            "range": round(result.rss_range, 3),
+            "passed": result.rss_passed,
+        },
+        "monte_carlo": {
+            "mean": round(result.mc_mean, 3),
+            "std": round(result.mc_std, 3),
+            "yield_pct": round(result.mc_yield_pct, 2),
+            "passed": result.mc_passed,
+        },
+        "cpk": round(result.cpk, 2),
+        "capable": result.cpk >= 1.33,
+        "contributors": result.contributors,
+    }
+
+
 # ============================================================
 # MCP Protocol: Tool definitions
 # ============================================================
@@ -381,6 +434,36 @@ TOOLS = [
             "required": ["force_N"],
         },
     },
+    {
+        "name": "tolerance_stack",
+        "description": "Compute tolerance stack analysis along an assembly chain. Returns worst-case, RSS (3-sigma), and Monte Carlo results with Cpk process capability and per-dimension variance contribution. This is the analysis manufacturers pay $15K-$50K/year for.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "chain_name": {"type": "string", "description": "Name for this tolerance chain (e.g. 'motor_alignment')"},
+                "dimensions": {
+                    "type": "array",
+                    "description": "List of dimensions in the chain",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "Dimension label"},
+                            "nominal": {"type": "number", "description": "Nominal value in mm"},
+                            "plus": {"type": "number", "description": "Plus tolerance in mm"},
+                            "minus": {"type": "number", "description": "Minus tolerance in mm (defaults to plus)"},
+                            "distribution": {"type": "string", "description": "normal, uniform, or triangular"},
+                            "direction": {"type": "number", "description": "+1 to add, -1 to subtract"},
+                        },
+                        "required": ["name", "nominal", "plus"],
+                    },
+                },
+                "target": {"type": "number", "description": "Target result value in mm (default 0)"},
+                "tolerance": {"type": "number", "description": "Functional requirement +/- in mm (default 0.5)"},
+                "mc_samples": {"type": "integer", "description": "Monte Carlo samples (default 100000)"},
+            },
+            "required": ["chain_name", "dimensions"],
+        },
+    },
 ]
 
 # Tool dispatch
@@ -393,6 +476,7 @@ TOOL_HANDLERS = {
     "compute_deflection": lambda args: tool_compute_deflection(**args),
     "compute_motor_budget": lambda args: tool_compute_motor_budget(**args),
     "compute_belt_tension": lambda args: tool_compute_belt_tension(**args),
+    "tolerance_stack": lambda args: tool_tolerance_stack(**args),
 }
 
 
