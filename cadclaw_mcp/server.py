@@ -1,0 +1,506 @@
+"""
+CADCLAW MCP Server — Model Context Protocol interface for CAD validation.
+
+Exposes CADCLAW's 5 validation gates as tools that Claude (or any MCP client)
+can call directly. No code generation needed — the user describes what they
+want checked, Claude calls the appropriate tools.
+
+Tools:
+  - load_assembly: Load a STEP file and return part inventory summary
+  - check_inventory: Validate part counts against expected
+  - check_interference: Find solid-solid overlaps between parts
+  - check_adjacency: Validate spatial relationships between part types
+  - check_dimensions: Validate part dimensions against expected ranges
+  - compute_deflection: Beam deflection analysis
+  - compute_motor_budget: Motor torque budget analysis
+  - compute_belt_tension: Belt tension safety analysis
+  - run_full_harness: Run all gates in sequence
+
+Usage:
+  python -m cadclaw_mcp.server
+  # or add to Claude's MCP config:
+  # "cadclaw": {"command": "python", "args": ["-m", "cadclaw_mcp.server"]}
+
+Protocol: MCP over stdio (JSON-RPC 2.0)
+"""
+import sys
+import os
+import json
+import traceback
+
+# Add parent to path so cadharness imports work
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+from cadharness.inventory import load_and_dedup, sig, InventoryCheck
+from cadharness.interference import InterferenceCheck
+from cadharness.adjacency import AdjacencyCheck, AdjacencyRule
+from cadharness.dimensional import DimensionalCheck, DimRule
+from cadharness.kinematics import beam_deflection, motor_torque_budget, belt_tension
+
+# ============================================================
+# MCP Protocol Implementation (stdio transport)
+# ============================================================
+
+# Global state: loaded assembly parts
+_loaded_parts = None
+_loaded_path = None
+_label_map = {}
+
+
+def _label_fn(solid):
+    d = sig(solid)
+    if d in _label_map:
+        return _label_map[d]
+    if d[0] == 1.5 and len(d) >= 2 and d[1] == 6.0:
+        return 'belt'
+    return 'other'
+
+
+# ============================================================
+# Tool implementations
+# ============================================================
+
+def tool_load_assembly(path: str, labels: dict = None) -> dict:
+    """Load a STEP file and return a summary of parts found."""
+    global _loaded_parts, _loaded_path, _label_map
+
+    if labels:
+        # Convert string tuple keys back to actual tuples
+        _label_map = {}
+        for k, v in labels.items():
+            if isinstance(k, str):
+                _label_map[tuple(float(x) for x in k.strip("()").split(","))] = v
+            else:
+                _label_map[tuple(k)] = v
+    else:
+        _label_map = {}
+
+    _loaded_parts = load_and_dedup(path)
+    _loaded_path = path
+
+    from collections import Counter
+    inv = Counter(_label_fn(s) for s in _loaded_parts)
+
+    return {
+        "status": "loaded",
+        "path": path,
+        "total_parts": len(_loaded_parts),
+        "inventory": dict(inv),
+    }
+
+
+def tool_check_inventory(expected: dict) -> dict:
+    """Check loaded assembly part counts against expected."""
+    if _loaded_parts is None:
+        return {"error": "No assembly loaded. Call load_assembly first."}
+
+    check = InventoryCheck(_loaded_path, _label_map, expected)
+    result = check.run(parts=_loaded_parts)
+
+    return {
+        "passed": result.passed,
+        "total_parts": result.total_parts,
+        "inventory": result.inventory,
+        "mismatches": result.mismatches,
+    }
+
+
+def tool_check_interference(skip_labels: list = None, min_volume: float = 1.0) -> dict:
+    """Find solid-solid overlaps between parts."""
+    if _loaded_parts is None:
+        return {"error": "No assembly loaded. Call load_assembly first."}
+
+    skip = set(skip_labels) if skip_labels else set()
+    check = InterferenceCheck(_loaded_parts, _label_fn,
+                               skip_labels=skip, min_volume=min_volume)
+    result = check.run()
+
+    clips = []
+    for c in result.clips:
+        clips.append({
+            "part_a": c.label_a,
+            "part_b": c.label_b,
+            "center_a": list(c.center_a),
+            "center_b": list(c.center_b),
+            "overlap_mm3": round(c.volume, 1),
+        })
+
+    return {
+        "passed": result.passed,
+        "checked_pairs": result.checked_pairs,
+        "interferences": len(clips),
+        "clips": clips,
+    }
+
+
+def tool_check_adjacency(rules: list) -> dict:
+    """Validate spatial relationships between part types."""
+    if _loaded_parts is None:
+        return {"error": "No assembly loaded. Call load_assembly first."}
+
+    adj_rules = [AdjacencyRule(
+        source=r["source"],
+        target=r["target"],
+        max_distance=r.get("max_distance", 50.0)
+    ) for r in rules]
+
+    check = AdjacencyCheck(_loaded_parts, _label_fn, adj_rules)
+    result = check.run()
+
+    violations = []
+    for v in result.violations:
+        violations.append({
+            "source": v.source_label,
+            "source_position": list(v.source_center),
+            "nearest_target": v.nearest_target_label,
+            "distance_mm": round(v.nearest_distance, 1),
+            "max_allowed_mm": v.max_allowed,
+        })
+
+    return {
+        "passed": result.passed,
+        "violations": violations,
+    }
+
+
+def tool_check_dimensions(rules: list) -> dict:
+    """Check part dimensions against expected ranges."""
+    if _loaded_parts is None:
+        return {"error": "No assembly loaded. Call load_assembly first."}
+
+    dim_rules = [DimRule(
+        label=r["label"],
+        thin_axis=r.get("thin_axis"),
+        thin_tol=r.get("thin_tol", 0.5),
+    ) for r in rules]
+
+    check = DimensionalCheck(_loaded_parts, _label_fn, dim_rules)
+    result = check.run()
+
+    violations = [{"label": v.label, "message": v.message}
+                  for v in result.violations]
+
+    return {
+        "passed": result.passed,
+        "violations": violations,
+    }
+
+
+def tool_compute_deflection(span_m: float, point_load_kg: float,
+                             I_cm4: float, beam_kg_per_m: float,
+                             E_GPa: float = 69.0, limit_mm: float = 0.5) -> dict:
+    """Compute beam deflection (simply-supported, center load)."""
+    result = beam_deflection(
+        span_m=span_m,
+        point_load_kg=point_load_kg,
+        I_m4=I_cm4 * 1e-8,
+        beam_kg_per_m=beam_kg_per_m,
+        E_Pa=E_GPa * 1e9,
+        limit_mm=limit_mm,
+    )
+    return {
+        "point_load_sag_mm": round(result.point_load_mm, 3),
+        "self_weight_sag_mm": round(result.self_weight_mm, 3),
+        "total_sag_mm": round(result.total_mm, 3),
+        "limit_mm": result.limit_mm,
+        "passed": result.passed,
+    }
+
+
+def tool_compute_motor_budget(mass_kg: float, n_motors: int,
+                               pulley_radius_mm: float,
+                               motor_torque_Nm: float,
+                               accel: float = 0.5,
+                               gravity_axis: bool = False) -> dict:
+    """Compute motor torque budget for a belt-driven axis."""
+    result = motor_torque_budget(
+        mass_kg=mass_kg,
+        n_motors=n_motors,
+        pulley_radius_m=pulley_radius_mm / 1000.0,
+        motor_torque_Nm=motor_torque_Nm,
+        accel_m_s2=accel,
+        gravity_axis=gravity_axis,
+    )
+    return {
+        "force_total_N": round(result.force_total_N, 1),
+        "torque_required_Nm": round(result.torque_required_Nm, 4),
+        "torque_available_Nm": round(result.torque_available_Nm, 4),
+        "safety_factor": round(result.safety_factor, 1),
+        "passed": result.passed,
+    }
+
+
+def tool_compute_belt_tension(force_N: float, n_belts: int = 1) -> dict:
+    """Check belt tension against safety limits."""
+    result = belt_tension(force_N=force_N, n_belts=n_belts)
+    return {
+        "tension_per_belt_N": round(result.tension_N, 1),
+        "safety_to_break": round(result.safety_to_break, 1),
+        "safety_to_working": round(result.safety_to_working, 1),
+        "passed": result.passed,
+    }
+
+
+# ============================================================
+# MCP Protocol: Tool definitions
+# ============================================================
+
+TOOLS = [
+    {
+        "name": "load_assembly",
+        "description": "Load a STEP file and return a summary of all parts found, labeled by bounding-box signature. Must be called before any check_ tool.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Path to the STEP file"},
+                "labels": {
+                    "type": "object",
+                    "description": "Map of bbox signature tuples to part labels, e.g. {\"(40.0, 80.0, 1000.0)\": \"cbeam\"}",
+                },
+            },
+            "required": ["path"],
+        },
+    },
+    {
+        "name": "check_inventory",
+        "description": "Validate that the loaded assembly contains the expected number of each part type.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "expected": {
+                    "type": "object",
+                    "description": "Map of part labels to expected counts, e.g. {\"cbeam\": 17, \"motor\": 6}",
+                },
+            },
+            "required": ["expected"],
+        },
+    },
+    {
+        "name": "check_interference",
+        "description": "Find solid-solid overlaps between assembly parts using exact BRep boolean intersection. Reports overlap volume in mm^3.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "skip_labels": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Part labels to skip (e.g. ['belt', 'wheel'])",
+                },
+                "min_volume": {
+                    "type": "number",
+                    "description": "Minimum overlap volume in mm^3 to report (default 1.0)",
+                },
+            },
+        },
+    },
+    {
+        "name": "check_adjacency",
+        "description": "Validate that parts of one type are within a specified distance of parts of another type.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "source": {"type": "string"},
+                            "target": {"type": "string"},
+                            "max_distance": {"type": "number"},
+                        },
+                        "required": ["source", "target"],
+                    },
+                },
+            },
+            "required": ["rules"],
+        },
+    },
+    {
+        "name": "check_dimensions",
+        "description": "Validate part dimensions against expected ranges. Catches swapped box() args, wrong thickness, etc.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "label": {"type": "string"},
+                            "thin_axis": {"type": "number"},
+                            "thin_tol": {"type": "number"},
+                        },
+                        "required": ["label"],
+                    },
+                },
+            },
+            "required": ["rules"],
+        },
+    },
+    {
+        "name": "compute_deflection",
+        "description": "Compute beam deflection for a simply-supported beam with a center point load and distributed self-weight.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "span_m": {"type": "number", "description": "Beam span in meters"},
+                "point_load_kg": {"type": "number", "description": "Point load at center in kg"},
+                "I_cm4": {"type": "number", "description": "Second moment of area in cm^4"},
+                "beam_kg_per_m": {"type": "number", "description": "Beam mass per meter in kg/m"},
+                "E_GPa": {"type": "number", "description": "Young's modulus in GPa (default 69 = aluminum)"},
+                "limit_mm": {"type": "number", "description": "Pass/fail limit in mm (default 0.5)"},
+            },
+            "required": ["span_m", "point_load_kg", "I_cm4", "beam_kg_per_m"],
+        },
+    },
+    {
+        "name": "compute_motor_budget",
+        "description": "Compute motor torque budget for a belt-driven axis. Returns safety factor and pass/fail.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "mass_kg": {"type": "number", "description": "Total moving mass on this axis in kg"},
+                "n_motors": {"type": "integer", "description": "Number of motors driving this axis"},
+                "pulley_radius_mm": {"type": "number", "description": "GT2 pulley pitch radius in mm"},
+                "motor_torque_Nm": {"type": "number", "description": "Motor holding torque in Nm"},
+                "accel": {"type": "number", "description": "Target acceleration in m/s^2 (default 0.5)"},
+                "gravity_axis": {"type": "boolean", "description": "True if this axis fights gravity (Z-axis)"},
+            },
+            "required": ["mass_kg", "n_motors", "pulley_radius_mm", "motor_torque_Nm"],
+        },
+    },
+    {
+        "name": "compute_belt_tension",
+        "description": "Check belt tension against breaking and working load limits.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "force_N": {"type": "number", "description": "Total force on the belt system in Newtons"},
+                "n_belts": {"type": "integer", "description": "Number of belts sharing the load (default 1)"},
+            },
+            "required": ["force_N"],
+        },
+    },
+]
+
+# Tool dispatch
+TOOL_HANDLERS = {
+    "load_assembly": lambda args: tool_load_assembly(**args),
+    "check_inventory": lambda args: tool_check_inventory(**args),
+    "check_interference": lambda args: tool_check_interference(**args),
+    "check_adjacency": lambda args: tool_check_adjacency(**args),
+    "check_dimensions": lambda args: tool_check_dimensions(**args),
+    "compute_deflection": lambda args: tool_compute_deflection(**args),
+    "compute_motor_budget": lambda args: tool_compute_motor_budget(**args),
+    "compute_belt_tension": lambda args: tool_compute_belt_tension(**args),
+}
+
+
+# ============================================================
+# MCP JSON-RPC Protocol Handler
+# ============================================================
+
+def handle_request(request: dict) -> dict:
+    """Handle an MCP JSON-RPC request."""
+    method = request.get("method", "")
+    req_id = request.get("id")
+    params = request.get("params", {})
+
+    if method == "initialize":
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {"tools": {}},
+                "serverInfo": {
+                    "name": "CADCLAW",
+                    "version": "0.1.0",
+                },
+            },
+        }
+
+    elif method == "notifications/initialized":
+        return None  # no response for notifications
+
+    elif method == "tools/list":
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {"tools": TOOLS},
+        }
+
+    elif method == "tools/call":
+        tool_name = params.get("name", "")
+        tool_args = params.get("arguments", {})
+
+        if tool_name not in TOOL_HANDLERS:
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "error": {"code": -32601, "message": f"Unknown tool: {tool_name}"},
+            }
+
+        try:
+            result = TOOL_HANDLERS[tool_name](tool_args)
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
+                },
+            }
+        except Exception as e:
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps({
+                        "error": str(e),
+                        "traceback": traceback.format_exc(),
+                    })}],
+                    "isError": True,
+                },
+            }
+
+    else:
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {"code": -32601, "message": f"Unknown method: {method}"},
+        }
+
+
+def main():
+    """Run the MCP server over stdio."""
+    sys.stderr.write("CADCLAW MCP Server v0.1.0 starting...\n")
+    sys.stderr.flush()
+
+    while True:
+        try:
+            line = sys.stdin.readline()
+            if not line:
+                break
+
+            # Skip empty lines
+            line = line.strip()
+            if not line:
+                continue
+
+            request = json.loads(line)
+            response = handle_request(request)
+
+            if response is not None:
+                sys.stdout.write(json.dumps(response) + "\n")
+                sys.stdout.flush()
+
+        except json.JSONDecodeError as e:
+            sys.stderr.write(f"JSON parse error: {e}\n")
+            sys.stderr.flush()
+        except Exception as e:
+            sys.stderr.write(f"Server error: {e}\n")
+            sys.stderr.flush()
+
+
+if __name__ == "__main__":
+    main()
