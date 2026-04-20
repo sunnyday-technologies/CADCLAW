@@ -14,7 +14,9 @@ Tools:
   - compute_deflection: Beam deflection analysis
   - compute_motor_budget: Motor torque budget analysis
   - compute_belt_tension: Belt tension safety analysis
-  - run_full_harness: Run all gates in sequence
+  - tolerance_stack: Worst-case / RSS / Monte Carlo tolerance analysis
+  - disassembly_sequence: Ordered part-removal plan
+  - export_exploded_view: Radial or axial exploded STEP export
 
 Usage:
   python -m cadclaw_mcp.server
@@ -23,6 +25,8 @@ Usage:
 
 Protocol: MCP over stdio (JSON-RPC 2.0)
 """
+import contextlib
+import io
 import sys
 import os
 import json
@@ -37,6 +41,7 @@ from cadharness.adjacency import AdjacencyCheck, AdjacencyRule
 from cadharness.dimensional import DimensionalCheck, DimRule
 from cadharness.kinematics import beam_deflection, motor_torque_budget, belt_tension
 from cadharness.tolerance import ToleranceChain
+from cadharness.disassembly import DisassemblySequence
 
 # ============================================================
 # MCP Protocol Implementation (stdio transport)
@@ -294,6 +299,78 @@ def tool_tolerance_stack(chain_name: str, dimensions: list,
     }
 
 
+def tool_disassembly_sequence(path: str, labels: dict = None,
+                               priority: dict = None) -> dict:
+    """Generate an ordered disassembly sequence for a STEP assembly.
+
+    Returns each step as label + center position + removal axis/direction.
+    """
+    label_map = {}
+    if labels:
+        for k, v in labels.items():
+            if isinstance(k, str):
+                label_map[tuple(float(x) for x in k.strip("()").split(","))] = v
+            else:
+                label_map[tuple(k)] = v
+
+    seq = DisassemblySequence(path, labels=label_map)
+    seq.auto_sequence(priority=priority)
+
+    return {
+        "path": path,
+        "n_steps": len(seq.steps),
+        "centroid": list(seq.centroid),
+        "steps": [
+            {
+                "order": i + 1,
+                "label": s.label,
+                "center": list(s.center),
+                "removal_axis": s.removal_axis,
+                "removal_direction": int(s.removal_direction),
+            }
+            for i, s in enumerate(seq.steps)
+        ],
+    }
+
+
+def tool_export_exploded_view(path: str, output_path: str,
+                               mode: str = "radial",
+                               expansion: float = 0.35,
+                               explode_distance: float = 300.0,
+                               labels: dict = None) -> dict:
+    """Export an exploded-view STEP file.
+
+    mode='radial' pushes each part outward from the centroid by `expansion`
+    of its distance from center. mode='axial' uses the per-part removal
+    axis and `explode_distance`.
+    """
+    label_map = {}
+    if labels:
+        for k, v in labels.items():
+            if isinstance(k, str):
+                label_map[tuple(float(x) for x in k.strip("()").split(","))] = v
+            else:
+                label_map[tuple(k)] = v
+
+    seq = DisassemblySequence(path, labels=label_map)
+    seq.auto_sequence()
+
+    if mode == "radial":
+        seq.export_radial(output_path, expansion=expansion)
+    elif mode == "axial":
+        seq.export_exploded(output_path, explode_distance=explode_distance)
+    else:
+        return {"error": f"Unknown mode: {mode}. Use 'radial' or 'axial'."}
+
+    size_kb = os.path.getsize(output_path) / 1024 if os.path.exists(output_path) else 0
+    return {
+        "output_path": output_path,
+        "mode": mode,
+        "size_kb": round(size_kb, 1),
+        "n_parts": len(seq.parts),
+    }
+
+
 # ============================================================
 # MCP Protocol: Tool definitions
 # ============================================================
@@ -435,6 +512,41 @@ TOOLS = [
         },
     },
     {
+        "name": "disassembly_sequence",
+        "description": "Generate an ordered disassembly sequence for a STEP assembly. Each step lists the part label, its center, and which axis/direction to pull it out.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Path to the STEP file"},
+                "labels": {
+                    "type": "object",
+                    "description": "Map of bbox signature tuples to part labels",
+                },
+                "priority": {
+                    "type": "object",
+                    "description": "Map of label to priority number (lower = removed first)",
+                },
+            },
+            "required": ["path"],
+        },
+    },
+    {
+        "name": "export_exploded_view",
+        "description": "Export a STEP exploded view. Mode 'radial' pushes every part outward from the assembly centroid; 'axial' pushes along each part's removal axis.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Path to input STEP file"},
+                "output_path": {"type": "string", "description": "Path to write exploded STEP"},
+                "mode": {"type": "string", "description": "'radial' (default) or 'axial'"},
+                "expansion": {"type": "number", "description": "Radial expansion fraction (default 0.35)"},
+                "explode_distance": {"type": "number", "description": "Axial explode distance mm (default 300)"},
+                "labels": {"type": "object", "description": "Optional bbox-signature label map"},
+            },
+            "required": ["path", "output_path"],
+        },
+    },
+    {
         "name": "tolerance_stack",
         "description": "Compute tolerance stack analysis along an assembly chain. Returns worst-case, RSS (3-sigma), and Monte Carlo results with Cpk process capability and per-dimension variance contribution.",
         "inputSchema": {
@@ -477,6 +589,8 @@ TOOL_HANDLERS = {
     "compute_motor_budget": lambda args: tool_compute_motor_budget(**args),
     "compute_belt_tension": lambda args: tool_compute_belt_tension(**args),
     "tolerance_stack": lambda args: tool_tolerance_stack(**args),
+    "disassembly_sequence": lambda args: tool_disassembly_sequence(**args),
+    "export_exploded_view": lambda args: tool_export_exploded_view(**args),
 }
 
 
@@ -526,7 +640,11 @@ def handle_request(request: dict) -> dict:
             }
 
         try:
-            result = TOOL_HANDLERS[tool_name](tool_args)
+            # Tool handlers may call cadharness code that uses print() for
+            # user-facing status. Stdout is reserved for the JSON-RPC stream,
+            # so redirect any tool prints to stderr.
+            with contextlib.redirect_stdout(sys.stderr):
+                result = TOOL_HANDLERS[tool_name](tool_args)
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,

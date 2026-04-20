@@ -8,3 +8,5 @@ build/
 *.stl
 .DS_Store
 Thumbs.db
+.claude/
+docs/media/*.png
