@@ -4,6 +4,10 @@
 
 **The testing framework CAD never had.**
 
+![M3-CRETE disassembly animation](docs/media/m3crete_disassembly.gif)
+
+*Generated end-to-end with `make_disassembly_gif("M3-2_Assembly.step", "out.gif")` — 89 parts, 269 frames, no manual animation work.*
+
 Automated validation, interference detection, and structural analysis for STEP assemblies. Like pytest for mechanical design.
 
 ## The Problem
