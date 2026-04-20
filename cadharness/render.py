@@ -293,6 +293,9 @@ def render_frames_to_gif(frames_dir: str, output_gif: str,
                           background_bottom: tuple = (0.38, 0.42, 0.47),
                           edges: bool = True,
                           tessellation_tol: float = 0.5,
+                          gif_width: int = None, gif_height: int = None,
+                          gif_colors: int = 64,
+                          optimize: bool = True,
                           keep_pngs: bool = False):
     """Render every matching STEP in `frames_dir` to a PNG, then assemble an
     animated GIF. See render_step_to_png for styling parameters.
@@ -320,11 +323,21 @@ def render_frames_to_gif(frames_dir: str, output_gif: str,
                             tessellation_tol=tessellation_tol)
         png_paths.append(png_path)
 
-    frames = [Image.open(p).convert("P", palette=Image.ADAPTIVE)
-              for p in png_paths]
+    # GIF encoding: optional downscale + adaptive palette quantization.
+    # Render width/height were used for the source PNGs; gif_width/height
+    # downsample for file size. gif_colors limits the palette.
+    gw = gif_width or width
+    gh = gif_height or height
+    frames = []
+    for p in png_paths:
+        img = Image.open(p).convert("RGB")
+        if (gw, gh) != img.size:
+            img = img.resize((gw, gh), Image.LANCZOS)
+        frames.append(img.convert("P", palette=Image.ADAPTIVE,
+                                    colors=max(2, min(256, gif_colors))))
     duration_ms = max(1, int(1000 / max(fps, 1)))
     frames[0].save(output_gif, save_all=True, append_images=frames[1:],
-                    duration=duration_ms, loop=0, optimize=False,
+                    duration=duration_ms, loop=0, optimize=optimize,
                     disposal=2)
 
     if not keep_pngs:
