@@ -21,6 +21,7 @@ Rendering is offscreen so it works in headless environments.
 import glob
 import os
 import shutil
+import sys
 import tempfile
 
 import cadquery as cq
@@ -28,6 +29,29 @@ from cadquery import Assembly, Color, Location
 from PIL import Image
 
 from .disassembly import DisassemblySequence, _center
+
+
+GIF_SIZE_WARN_BYTES = 5_000_000
+
+
+def _warn_if_gif_too_large(output_gif: str) -> int:
+    """Warn on stderr if the rendered GIF is too large to be embedded as an
+    image payload by Claude Code's Read tool. Threshold set at 5 MB based on
+    the Claude API vision doc limit; empirical 4.76 MB GIFs have rendered
+    successfully in chat, so this is set to match the API cap directly.
+    Returns the file size in bytes."""
+    try:
+        size = os.path.getsize(output_gif)
+    except OSError:
+        return -1
+    if size > GIF_SIZE_WARN_BYTES:
+        sys.stderr.write(
+            f"WARNING: {output_gif} is {size/1_000_000:.2f} MB, exceeds "
+            f"{GIF_SIZE_WARN_BYTES/1_000_000:.1f} MB gate. Claude Code's Read "
+            f"tool may reject it as 'Image too large'. Reduce gif_width/height, "
+            f"lower gif_colors (e.g. 32), drop frames, or keep optimize=True.\n"
+        )
+    return size
 
 
 def _load_shapes(step_path: str):
@@ -334,11 +358,13 @@ def render_frames_to_gif(frames_dir: str, output_gif: str,
         if (gw, gh) != img.size:
             img = img.resize((gw, gh), Image.LANCZOS)
         frames.append(img.convert("P", palette=Image.ADAPTIVE,
-                                    colors=max(2, min(256, gif_colors))))
+                                    colors=max(2, min(256, gif_colors)),
+                                    dither=Image.NONE))
     duration_ms = max(1, int(1000 / max(fps, 1)))
     frames[0].save(output_gif, save_all=True, append_images=frames[1:],
                     duration=duration_ms, loop=0, optimize=optimize,
                     disposal=2)
+    _warn_if_gif_too_large(output_gif)
 
     if not keep_pngs:
         for p in png_paths:
@@ -536,11 +562,13 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         if (gw, gh) != img.size:
             img = img.resize((gw, gh), Image.LANCZOS)
         frames.append(img.convert("P", palette=Image.ADAPTIVE,
-                                    colors=max(2, min(256, gif_colors))))
+                                    colors=max(2, min(256, gif_colors)),
+                                    dither=Image.NONE))
     duration_ms = max(1, int(1000 / max(fps, 1)))
     frames[0].save(output_gif, save_all=True, append_images=frames[1:],
                     duration=duration_ms, loop=0, optimize=optimize,
                     disposal=2)
+    _warn_if_gif_too_large(output_gif)
 
     if not keep_pngs:
         shutil.rmtree(tmp_dir, ignore_errors=True)

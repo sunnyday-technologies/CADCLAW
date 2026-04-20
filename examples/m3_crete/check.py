@@ -35,7 +35,7 @@ EXPECTED = {
 
 h = Harness(STEP)
 h.add_inventory(LABELS, EXPECTED)
-h.add_interference(skip_labels={'belt', 'vwheel', 'pulley', 'other'})
+h.add_interference(skip_labels={'belt', 'pulley', 'other'})
 h.add_dimensional(rules=[
     DimRule('zmount', thin_axis=4.0, thin_tol=0.5),
     DimRule('zcap', thin_axis=5.0, thin_tol=0.5),
