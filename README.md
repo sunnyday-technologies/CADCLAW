@@ -23,6 +23,7 @@ CADCLAW validates STEP assemblies through a chain of automated gates:
 | **Kinematics** | Beam deflection, motor torque budgets, belt tension, racking. |
 | **Tolerance** | Worst-case, RSS, Monte Carlo tolerance stacking with Cpk and variance decomposition. |
 | **Disassembly** | Sequenced part removal, radial exploded views, animation frame export. |
+| **Render** | STEP → PNG → animated GIF via offscreen VTK. Closes the loop to shareable visuals. |
 
 All gates run against a single loaded STEP file. The harness passes only if every gate passes.
 
@@ -109,6 +110,9 @@ Tolerance stack analysis: define dimension chains, compute worst-case / RSS / Mo
 ### `cadharness.disassembly`
 Disassembly sequence generation: auto-orders parts by type priority and distance from centroid, computes radial explosion vectors, exports individual STEP frames for animation or a single exploded-view STEP.
 
+### `cadharness.render`
+Offscreen VTK rendering of STEP files to PNG, plus GIF stitching. `make_disassembly_gif(step, gif)` is one call — generates the disassembly frames, rasterizes them, and writes an animated GIF.
+
 ### `cadharness.harness`
 The runner. Chains gates, loads parts once, reports pass/fail with timing.
 
@@ -144,8 +148,8 @@ pip install cadquery
 # Generate test fixture STEP assemblies (L1-L3, good + bad variants)
 python tests/generate_fixtures.py
 
-# Run the test suite (17 tests)
-python tests/test_harness.py
+# Run the test suite (52 tests across every module)
+python -m unittest tests.test_harness -v
 ```
 
 The test fixtures are generated from CadQuery — no external downloads needed.
@@ -159,6 +163,10 @@ Three tiers of increasing complexity:
 
 Each level has a "good" variant (should pass) and "bad" variant (deliberate errors
 for the harness to catch: clipping, missing parts, scattered motors).
+
+The suite also exercises tolerance stacking math against hand-calculated answers,
+the full disassembly pipeline, the MCP server over real JSON-RPC, and end-to-end
+GIF rendering.
 
 ## Requirements
 

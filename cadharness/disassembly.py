@@ -226,20 +226,25 @@ class DisassemblySequence:
         assy.save(path)
 
     def export_exploded(self, output_path: str, explode_distance: float = 300.0):
-        """Export a single fully-exploded view STEP file."""
+        """Export a single axis-aligned exploded view STEP file.
+
+        Each part is pushed along its removal axis (X, Y, or Z) by a fraction
+        of `explode_distance` scaled by its order in the disassembly sequence
+        (outer parts travel further). For a symmetric outward-from-center
+        explosion, use `export_radial()` instead.
+        """
         if not self.steps:
             self.auto_sequence()
+
+        step_order = {s.part_index: idx for idx, s in enumerate(self.steps)}
+        total = len(self.steps)
 
         assy = Assembly()
         for i, part in enumerate(self.parts):
             wp = cq.Workplane().add(part)
-            # Find this part's step
-            step = next((s for s in self.steps if s.part_index == i), None)
-            if step:
-                # Scale distance by priority (inner parts explode less)
-                step_idx = self.steps.index(step)
-                frac = (step_idx + 1) / len(self.steps)
-                offset = step.offset_at(explode_distance * frac)
+            if i in step_order:
+                frac = (step_order[i] + 1) / total
+                offset = self.steps[step_order[i]].offset_at(explode_distance * frac)
             else:
                 offset = (0, 0, 0)
 
@@ -251,6 +256,59 @@ class DisassemblySequence:
         assy.save(output_path)
         size_kb = os.path.getsize(output_path) / 1024
         print(f"Exported exploded view: {output_path} ({size_kb:.0f} KB)")
+
+    def export_radial(self, output_path: str, expansion: float = 0.35,
+                       min_offset: float = 0.0):
+        """Export a radial (outward-from-centroid) exploded view STEP file.
+
+        Every part is translated along the unit vector from the assembly
+        centroid to its own center. The translation magnitude is
+        `expansion * distance_from_centroid` so the explosion is
+        proportional — parts already far from center move further. A part
+        sitting exactly on the centroid is nudged outward by `min_offset`
+        along its computed removal axis so it doesn't disappear inside
+        neighbors.
+
+        Args:
+            output_path: Where to write the STEP file.
+            expansion: Fractional outward expansion (0.35 = +35%).
+                       Use 0.0 for the original assembled view.
+            min_offset: Fallback nudge (mm) for parts at the centroid.
+        """
+        assy = Assembly()
+        cx, cy, cz = self.centroid
+
+        for i, part in enumerate(self.parts):
+            wp = cq.Workplane().add(part)
+            px, py, pz = _center(part)
+            vx, vy, vz = px - cx, py - cy, pz - cz
+            dist = math.sqrt(vx * vx + vy * vy + vz * vz)
+
+            if dist > 1e-6:
+                scale = expansion
+                offset = (vx * scale, vy * scale, vz * scale)
+            elif min_offset > 0:
+                axis, direction = self._removal_axis((px, py, pz))
+                dx = dy = dz = 0.0
+                if axis == 'X':
+                    dx = min_offset * direction
+                elif axis == 'Y':
+                    dy = min_offset * direction
+                else:
+                    dz = min_offset * direction
+                offset = (dx, dy, dz)
+            else:
+                offset = (0.0, 0.0, 0.0)
+
+            label = self._label_of(part)
+            color = Color(0.59, 0.84, 0.0) if label != 'cbeam' else Color(0.2, 0.2, 0.2)
+            assy.add(wp, name=f"part_{i}", color=color,
+                     loc=Location(offset))
+
+        assy.save(output_path)
+        size_kb = os.path.getsize(output_path) / 1024
+        print(f"Exported radial view: {output_path} "
+              f"(center={self.centroid}, expansion={expansion:.0%}, {size_kb:.0f} KB)")
 
     def summary(self) -> str:
         """Print the disassembly sequence."""

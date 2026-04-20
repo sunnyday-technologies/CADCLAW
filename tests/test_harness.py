@@ -8,12 +8,22 @@ Run: python -m pytest tests/test_harness.py -v
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
+import math
+import json
+import shutil
+import subprocess
+import tempfile
 import unittest
 from cadharness.inventory import InventoryCheck, load_and_dedup, sig
 from cadharness.interference import InterferenceCheck
 from cadharness.adjacency import AdjacencyCheck, AdjacencyRule
 from cadharness.dimensional import DimensionalCheck, DimRule
 from cadharness.kinematics import beam_deflection, motor_torque_budget, belt_tension
+from cadharness.tolerance import ToleranceChain, auto_stack_from_assembly
+from cadharness.disassembly import DisassemblySequence, DisassemblyStep
+from cadharness.render import (
+    render_step_to_png, render_frames_to_gif, make_disassembly_gif,
+)
 from cadharness.harness import Harness
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -225,6 +235,426 @@ class TestKinematics(unittest.TestCase):
     def test_belt_tension_overloaded(self):
         result = belt_tension(force_N=2000, n_belts=1)
         self.assertFalse(result.passed)
+
+
+# ============================================================
+# TOLERANCE STACKING TESTS
+# ============================================================
+class TestToleranceStack(unittest.TestCase):
+    """Closing-dimension chain: dimensions sum to a target (gap or alignment).
+
+    The M3-CRETE motivating case: four posts of nominal 1000 mm support a
+    gantry beam. The gantry beam, shim, and motor plate stack vertically
+    onto the post top. The `closure` dimension is negative — it's the
+    design-intent total envelope the real parts must fit inside. If every
+    nominal is on spec, the chain sums to zero.
+    """
+
+    def _motor_alignment_chain(self):
+        chain = ToleranceChain("motor_alignment")
+        chain.add("post", nominal=1000.0, plus=0.5, minus=0.5)
+        chain.add("shim", nominal=4.0, plus=0.1, minus=0.1)
+        chain.add("plate", nominal=5.0, plus=0.2, minus=0.2)
+        chain.add("closure", nominal=-1009.0, plus=0.0, minus=0.0)
+        return chain
+
+    def test_nominal_closes_at_zero(self):
+        result = self._motor_alignment_chain().analyze(target=0.0, tolerance=1.0)
+        self.assertAlmostEqual(result.nominal_result, 0.0, places=6)
+
+    def test_worst_case_matches_hand_calc(self):
+        """WC range is the sum of +/- across all dimensions."""
+        result = self._motor_alignment_chain().analyze(target=0.0, tolerance=1.0)
+        expected_range = (0.5 + 0.5) + (0.1 + 0.1) + (0.2 + 0.2) + 0.0
+        self.assertAlmostEqual(result.worst_case_range, expected_range, places=6)
+        self.assertAlmostEqual(result.worst_case_max, 0.8, places=6)
+        self.assertAlmostEqual(result.worst_case_min, -0.8, places=6)
+
+    def test_rss_matches_hand_calc(self):
+        """RSS = sqrt(sum of bilateral^2). 2x the half-range = full range."""
+        result = self._motor_alignment_chain().analyze(target=0.0, tolerance=1.0)
+        expected_half = math.sqrt(0.5**2 + 0.1**2 + 0.2**2 + 0.0**2)
+        self.assertAlmostEqual(result.rss_range / 2, expected_half, places=6)
+
+    def test_monte_carlo_centers_on_nominal(self):
+        result = self._motor_alignment_chain().analyze(
+            target=0.0, tolerance=1.0, mc_samples=20000)
+        self.assertAlmostEqual(result.mc_mean, 0.0, delta=0.01)
+
+    def test_pass_when_tolerance_generous(self):
+        """Worst case is +/-0.8; asking for +/-1.0 should pass every method."""
+        result = self._motor_alignment_chain().analyze(target=0.0, tolerance=1.0)
+        self.assertTrue(result.worst_case_passed)
+        self.assertTrue(result.rss_passed)
+        self.assertTrue(result.mc_passed)
+
+    def test_fail_when_tolerance_tight(self):
+        """Worst case is +/-0.8; asking for +/-0.3 should fail worst case."""
+        result = self._motor_alignment_chain().analyze(target=0.0, tolerance=0.3)
+        self.assertFalse(result.worst_case_passed)
+
+    def test_contributors_sum_to_100(self):
+        result = self._motor_alignment_chain().analyze(target=0.0, tolerance=1.0)
+        total = sum(c['variance_pct'] for c in result.contributors)
+        self.assertAlmostEqual(total, 100.0, places=3)
+
+    def test_dominant_contributor_is_post(self):
+        """Post has +/-0.5, 6.25x the variance of the next largest term."""
+        result = self._motor_alignment_chain().analyze(target=0.0, tolerance=1.0)
+        top = max(result.contributors, key=lambda c: c['variance_pct'])
+        self.assertEqual(top['name'], 'post')
+
+    def test_direction_flag_is_equivalent_to_negative_nominal(self):
+        """direction=-1 should match a positive nominal + manual subtraction."""
+        explicit = ToleranceChain("explicit")
+        explicit.add("a", nominal=100.0, plus=0.1, minus=0.1)
+        explicit.add("b", nominal=-80.0, plus=0.2, minus=0.2)
+
+        with_dir = ToleranceChain("with_direction")
+        with_dir.add("a", nominal=100.0, plus=0.1, minus=0.1)
+        with_dir.add("b", nominal=80.0, plus=0.2, minus=0.2, direction=-1.0)
+
+        r1 = explicit.analyze(target=20.0, tolerance=1.0)
+        r2 = with_dir.analyze(target=20.0, tolerance=1.0)
+        self.assertAlmostEqual(r1.nominal_result, r2.nominal_result, places=6)
+        self.assertAlmostEqual(r1.worst_case_range, r2.worst_case_range, places=6)
+
+
+# ============================================================
+# TOLERANCE auto_stack_from_assembly
+# ============================================================
+class TestAutoStackFromAssembly(unittest.TestCase):
+    """auto_stack_from_assembly builds a ToleranceChain from real parts."""
+
+    def test_builds_chain_from_L3(self):
+        parts = load_and_dedup(os.path.join(FIXTURES, "L3_good.step"))
+        def label_fn(s):
+            return L3_LABELS.get(sig(s), 'other')
+
+        chain = auto_stack_from_assembly(
+            parts, label_fn, axis='Z',
+            tolerances={'post': 0.5, 'beam': 0.3, 'plate': 0.1})
+        self.assertEqual(len(chain.dimensions), len(parts))
+
+    def test_assigns_default_tolerance_for_unknown_labels(self):
+        parts = load_and_dedup(os.path.join(FIXTURES, "L1_good.step"))
+        def label_fn(s):
+            return L1_LABELS.get(sig(s), 'other')
+
+        chain = auto_stack_from_assembly(parts, label_fn, axis='Z',
+                                           tolerances={})
+        for d in chain.dimensions:
+            self.assertEqual(d.plus, 0.1)
+            self.assertEqual(d.minus, 0.1)
+
+    def test_sorts_by_axis_position(self):
+        parts = load_and_dedup(os.path.join(FIXTURES, "L3_good.step"))
+        def label_fn(s):
+            return L3_LABELS.get(sig(s), 'other')
+
+        chain = auto_stack_from_assembly(parts, label_fn, axis='Z')
+        # Chain must produce a positive nominal result (all dimensions are
+        # sizes, direction=+1 by default)
+        result = chain.analyze(target=0.0, tolerance=10000.0, mc_samples=1000)
+        self.assertGreater(result.nominal_result, 0)
+
+
+# ============================================================
+# DISASSEMBLY MODULE
+# ============================================================
+class TestDisassemblyStep(unittest.TestCase):
+    """Pure-data-struct test — no STEP file needed."""
+
+    def test_offset_at_x_positive(self):
+        step = DisassemblyStep(0, 'motor', (10, 20, 30), 'X', 1.0)
+        self.assertEqual(step.offset_at(100), (100.0, 0.0, 0.0))
+
+    def test_offset_at_y_negative(self):
+        step = DisassemblyStep(0, 'motor', (10, 20, 30), 'Y', -1.0)
+        self.assertEqual(step.offset_at(50), (0.0, -50.0, 0.0))
+
+    def test_offset_at_z(self):
+        step = DisassemblyStep(0, 'motor', (10, 20, 30), 'Z', 1.0)
+        self.assertEqual(step.offset_at(25), (0.0, 0.0, 25.0))
+
+
+class TestDisassemblySequence(unittest.TestCase):
+    def setUp(self):
+        self.step_path = os.path.join(FIXTURES, "L3_good.step")
+        self.seq = DisassemblySequence(self.step_path, labels=L3_LABELS)
+
+    def test_loads_parts_and_centroid(self):
+        self.assertGreater(len(self.seq.parts), 0)
+        self.assertEqual(len(self.seq.centroid), 3)
+        for coord in self.seq.centroid:
+            self.assertIsInstance(coord, float)
+
+    def test_auto_sequence_orders_all_parts(self):
+        self.seq.auto_sequence()
+        self.assertEqual(len(self.seq.steps), len(self.seq.parts))
+        indices = [s.part_index for s in self.seq.steps]
+        self.assertEqual(sorted(indices), list(range(len(self.seq.parts))))
+
+    def test_auto_sequence_respects_priority(self):
+        """Lower priority number should be removed first."""
+        self.seq.auto_sequence(priority={'motor': 1, 'bracket': 2, 'post': 99})
+        priorities_seen = []
+        priority_map = {'motor': 1, 'bracket': 2, 'post': 99}
+        for step in self.seq.steps:
+            priorities_seen.append(priority_map.get(step.label, 5))
+        # Motor and bracket should appear before post in the sequence
+        self.assertLessEqual(priorities_seen[0], priorities_seen[-1])
+
+    def test_summary_returns_string_with_all_steps(self):
+        self.seq.auto_sequence()
+        summary = self.seq.summary()
+        self.assertIn("DISASSEMBLY SEQUENCE", summary)
+        # One line per step
+        step_lines = [l for l in summary.split('\n') if l.strip().startswith(tuple(str(i) for i in range(1, 10)))]
+        self.assertGreaterEqual(len(step_lines), 1)
+
+    def test_export_radial_writes_step(self):
+        self.seq.auto_sequence()
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "radial.step")
+            self.seq.export_radial(out, expansion=0.2)
+            self.assertTrue(os.path.exists(out))
+            self.assertGreater(os.path.getsize(out), 1000)
+
+    def test_export_radial_expansion_zero_is_assembled(self):
+        """expansion=0 should produce a STEP with no part translations."""
+        self.seq.auto_sequence()
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "zero.step")
+            self.seq.export_radial(out, expansion=0.0)
+            self.assertTrue(os.path.exists(out))
+
+    def test_export_exploded_writes_step(self):
+        self.seq.auto_sequence()
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "axial.step")
+            self.seq.export_exploded(out, explode_distance=50.0)
+            self.assertTrue(os.path.exists(out))
+
+
+# ============================================================
+# MCP SERVER — subprocess-based JSON-RPC round-trip
+# ============================================================
+class _MCPSession:
+    """Spawn the MCP server, run initialize, and provide call helpers.
+
+    Each test spawns its own session to avoid shared-subprocess state
+    coupling on Windows where text-mode line buffering is unreliable.
+    """
+
+    def __init__(self):
+        import sys as _sys
+        repo = os.path.join(os.path.dirname(__file__), '..')
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        self.proc = subprocess.Popen(
+            [_sys.executable, "-m", "cadclaw_mcp.server"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            cwd=repo, text=True, env=env, bufsize=0,
+        )
+        self._req_id = 0
+        init_resp = self._rpc("initialize", {})
+        assert init_resp["result"]["serverInfo"]["name"] == "CADCLAW"
+
+    def _rpc(self, method, params):
+        self._req_id += 1
+        req = {"jsonrpc": "2.0", "id": self._req_id,
+               "method": method, "params": params}
+        self.proc.stdin.write(json.dumps(req) + "\n")
+        self.proc.stdin.flush()
+        line = self.proc.stdout.readline()
+        if not line:
+            raise RuntimeError("MCP server closed stdout unexpectedly")
+        return json.loads(line)
+
+    def list_tools(self):
+        return self._rpc("tools/list", {})["result"]["tools"]
+
+    def call(self, name, args):
+        return self._rpc("tools/call",
+                          {"name": name, "arguments": args})
+
+    @staticmethod
+    def content(response):
+        return json.loads(response["result"]["content"][0]["text"])
+
+    def close(self):
+        try:
+            self.proc.stdin.close()
+            self.proc.wait(timeout=5)
+        except Exception:
+            self.proc.kill()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        self.close()
+
+
+class TestMCPServer(unittest.TestCase):
+    """End-to-end JSON-RPC protocol tests for the CADCLAW MCP server."""
+
+    def test_tools_list_has_all_expected(self):
+        with _MCPSession() as s:
+            names = {t["name"] for t in s.list_tools()}
+        expected = {
+            "load_assembly", "check_inventory", "check_interference",
+            "check_adjacency", "check_dimensions", "compute_deflection",
+            "compute_motor_budget", "compute_belt_tension", "tolerance_stack",
+            "disassembly_sequence", "export_exploded_view",
+        }
+        self.assertEqual(names, expected)
+
+    def test_compute_deflection(self):
+        with _MCPSession() as s:
+            r = s.call("compute_deflection", {
+                "span_m": 2.0, "point_load_kg": 3.8,
+                "I_cm4": 18.0, "beam_kg_per_m": 2.45, "limit_mm": 0.5,
+            })
+            c = s.content(r)
+        self.assertIn("passed", c)
+        self.assertGreater(c["total_sag_mm"], 0)
+
+    def test_compute_motor_budget(self):
+        with _MCPSession() as s:
+            r = s.call("compute_motor_budget", {
+                "mass_kg": 4.0, "n_motors": 1,
+                "pulley_radius_mm": 6.37, "motor_torque_Nm": 1.89,
+            })
+            c = s.content(r)
+        self.assertTrue(c["passed"])
+        self.assertGreater(c["safety_factor"], 1)
+
+    def test_compute_belt_tension(self):
+        with _MCPSession() as s:
+            r = s.call("compute_belt_tension", {"force_N": 50, "n_belts": 4})
+            c = s.content(r)
+        self.assertTrue(c["passed"])
+
+    def test_tolerance_stack(self):
+        with _MCPSession() as s:
+            r = s.call("tolerance_stack", {
+                "chain_name": "test",
+                "dimensions": [
+                    {"name": "a", "nominal": 100.0, "plus": 0.1, "minus": 0.1},
+                    {"name": "b", "nominal": -100.0, "plus": 0.1, "minus": 0.1},
+                ],
+                "target": 0.0, "tolerance": 1.0, "mc_samples": 5000,
+            })
+            c = s.content(r)
+        self.assertAlmostEqual(c["nominal_result_mm"], 0.0, places=6)
+        self.assertTrue(c["worst_case"]["passed"])
+
+    def test_load_assembly_and_check_inventory(self):
+        with _MCPSession() as s:
+            r = s.call("load_assembly",
+                        {"path": os.path.join(FIXTURES, "L1_good.step")})
+            c = s.content(r)
+            self.assertEqual(c["status"], "loaded")
+            self.assertGreater(c["total_parts"], 0)
+
+            r = s.call("check_inventory", {"expected": {}})
+            c = s.content(r)
+        self.assertIn("total_parts", c)
+
+    def test_disassembly_sequence(self):
+        with _MCPSession() as s:
+            r = s.call("disassembly_sequence",
+                        {"path": os.path.join(FIXTURES, "L3_good.step")})
+            c = s.content(r)
+        self.assertGreater(c["n_steps"], 0)
+        self.assertEqual(len(c["centroid"]), 3)
+
+    def test_export_exploded_view_radial(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "out.step")
+            with _MCPSession() as s:
+                r = s.call("export_exploded_view", {
+                    "path": os.path.join(FIXTURES, "L3_good.step"),
+                    "output_path": out,
+                    "mode": "radial",
+                    "expansion": 0.2,
+                })
+                c = s.content(r)
+            self.assertEqual(c["mode"], "radial")
+            self.assertTrue(os.path.exists(out))
+
+    def test_unknown_tool_returns_error(self):
+        with _MCPSession() as s:
+            r = s.call("does_not_exist", {})
+        self.assertTrue("error" in r
+                         or r.get("result", {}).get("isError") is True)
+
+
+# ============================================================
+# RENDER MODULE (STEP -> PNG -> GIF)
+# ============================================================
+class TestRender(unittest.TestCase):
+    """Offscreen VTK rendering + PNG stitching. Uses small resolutions and
+    coarse tessellation to keep the suite fast."""
+
+    FIXTURE = os.path.join(FIXTURES, "L3_good.step")
+
+    def test_render_step_to_png_writes_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "frame.png")
+            render_step_to_png(self.FIXTURE, out,
+                                width=200, height=150,
+                                tessellation_tol=1.0)
+            self.assertTrue(os.path.exists(out))
+            self.assertGreater(os.path.getsize(out), 500)
+
+    def test_render_frames_to_gif(self):
+        """Seed a small frames dir from the disassembly module, render it."""
+        with tempfile.TemporaryDirectory() as tmp:
+            frames_dir = os.path.join(tmp, "frames")
+            os.makedirs(frames_dir)
+            seq = DisassemblySequence(self.FIXTURE)
+            seq.auto_sequence()
+            seq.export_frames(frames_dir, explode_distance=50,
+                               n_transition_frames=1)
+
+            gif = os.path.join(tmp, "out.gif")
+            n = render_frames_to_gif(frames_dir, gif, fps=5,
+                                       width=200, height=150,
+                                       tessellation_tol=1.0)
+            self.assertGreater(n, 1)
+            self.assertTrue(os.path.exists(gif))
+            self.assertGreater(os.path.getsize(gif), 1000)
+
+    def test_make_disassembly_gif_end_to_end(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            gif = os.path.join(tmp, "end_to_end.gif")
+            n = make_disassembly_gif(
+                self.FIXTURE, gif,
+                n_transition_frames=1, fps=5,
+                width=200, height=150,
+                tessellation_tol=1.0,
+            )
+            self.assertGreater(n, 0)
+            self.assertTrue(os.path.exists(gif))
+
+    def test_make_disassembly_gif_keeps_frames(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            frames_dir = os.path.join(tmp, "kept")
+            os.makedirs(frames_dir)
+            gif = os.path.join(tmp, "keep.gif")
+            make_disassembly_gif(
+                self.FIXTURE, gif,
+                frames_dir=frames_dir, keep_frames=True,
+                n_transition_frames=1, fps=5,
+                width=200, height=150, tessellation_tol=1.0,
+            )
+            frame_steps = [f for f in os.listdir(frames_dir)
+                           if f.endswith(".step")]
+            self.assertGreater(len(frame_steps), 0)
 
 
 # ============================================================

@@ -1,29 +1,36 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "cadclaw"
-version = "0.1.0"
-description = "CADCLAW — The testing framework CAD never had. Automated validation for STEP assemblies."
+version = "0.5.0"
+description = "CADCLAW — The testing framework CAD never had. Automated validation, tolerance stacking, disassembly animation, and MCP integration for STEP assemblies."
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 authors = [
     {name = "Sunnyday Technologies", email = "info@sunn3d.com"},
 ]
-keywords = ["cad", "step", "validation", "testing", "cadquery", "mechanical", "assembly"]
+keywords = ["cad", "step", "validation", "testing", "cadquery", "mechanical", "assembly", "tolerance", "disassembly", "mcp"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Manufacturing",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
     "cadquery>=2.7",
+    "Pillow>=10.0",
 ]
+
+[project.scripts]
+cadclaw-mcp = "cadclaw_mcp.server:main"
 
 [project.urls]
 Homepage = "https://github.com/sunnyday-technologies/CADCLAW"
@@ -31,4 +38,4 @@ Repository = "https://github.com/sunnyday-technologies/CADCLAW"
 Issues = "https://github.com/sunnyday-technologies/CADCLAW/issues"
 
 [tool.setuptools.packages.find]
-include = ["cadharness*"]
+include = ["cadharness*", "cadclaw_mcp*"]
