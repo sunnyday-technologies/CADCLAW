@@ -21,6 +21,7 @@ Rendering is offscreen so it works in headless environments.
 import glob
 import os
 import shutil
+import sys
 import tempfile
 
 import cadquery as cq
@@ -28,6 +29,29 @@ from cadquery import Assembly, Color, Location
 from PIL import Image
 
 from .disassembly import DisassemblySequence, _center
+
+
+GIF_SIZE_WARN_BYTES = 5_000_000
+
+
+def _warn_if_gif_too_large(output_gif: str) -> int:
+    """Warn on stderr if the rendered GIF is too large to be embedded as an
+    image payload by Claude Code's Read tool. Threshold set at 5 MB based on
+    the Claude API vision doc limit; empirical 4.76 MB GIFs have rendered
+    successfully in chat, so this is set to match the API cap directly.
+    Returns the file size in bytes."""
+    try:
+        size = os.path.getsize(output_gif)
+    except OSError:
+        return -1
+    if size > GIF_SIZE_WARN_BYTES:
+        sys.stderr.write(
+            f"WARNING: {output_gif} is {size/1_000_000:.2f} MB, exceeds "
+            f"{GIF_SIZE_WARN_BYTES/1_000_000:.1f} MB gate. Claude Code's Read "
+            f"tool may reject it as 'Image too large'. Reduce gif_width/height, "
+            f"lower gif_colors (e.g. 32), drop frames, or keep optimize=True.\n"
+        )
+    return size
 
 
 def _load_shapes(step_path: str):
@@ -92,6 +116,102 @@ DEFAULT_COLOR_MAP = {
 }
 
 
+def _extract_step_colors(step_path: str) -> dict:
+    """Extract per-shape RGB colors from a STEP file's STEPCAF metadata.
+
+    Returns a dict {bbox_signature: (r, g, b)} where bbox_signature is
+    the 6-tuple of rounded bbox extents (same key shape as _load_shapes
+    dedup). Only shapes with an assigned color in the STEP appear in
+    the dict; un-colored shapes are omitted so callers can fall through
+    to label-based coloring.
+
+    Silently returns {} if the STEP has no color metadata or if the
+    AP242/XCAF reader fails to open the file.
+    """
+    try:
+        from OCP.STEPCAFControl import STEPCAFControl_Reader
+        from OCP.TDocStd import TDocStd_Document
+        from OCP.TCollection import TCollection_ExtendedString
+        from OCP.XCAFDoc import XCAFDoc_DocumentTool, XCAFDoc_ColorType
+        from OCP.TDF import TDF_LabelSequence
+        from OCP.Quantity import Quantity_Color
+        from OCP.BRepBndLib import BRepBndLib
+        from OCP.Bnd import Bnd_Box
+    except ImportError:
+        return {}
+
+    doc = TDocStd_Document(TCollection_ExtendedString("XmlXCAF"))
+    reader = STEPCAFControl_Reader()
+    reader.SetColorMode(True)
+    reader.SetLayerMode(False)
+    reader.SetNameMode(False)
+    if not reader.ReadFile(step_path):
+        return {}
+    reader.Transfer(doc)
+
+    shape_tool = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
+    color_tool = XCAFDoc_DocumentTool.ColorTool_s(doc.Main())
+
+    colors = {}
+
+    def _try_color(shape):
+        c = Quantity_Color()
+        for ctype in (XCAFDoc_ColorType.XCAFDoc_ColorSurf,
+                      XCAFDoc_ColorType.XCAFDoc_ColorGen,
+                      XCAFDoc_ColorType.XCAFDoc_ColorCurv):
+            if color_tool.GetColor(shape, ctype, c):
+                return (c.Red(), c.Green(), c.Blue())
+        return None
+
+    def _bbox_sig(shape):
+        bb = Bnd_Box()
+        try:
+            BRepBndLib.Add_s(shape, bb)
+        except Exception:
+            return None
+        if bb.IsVoid():
+            return None
+        xmin, ymin, zmin, xmax, ymax, zmax = bb.Get()
+        return (round(xmin, 1), round(ymin, 1), round(zmin, 1),
+                round(xmax, 1), round(ymax, 1), round(zmax, 1))
+
+    def _walk(label, inherited_color):
+        """Recurse through assembly structure, recording color per leaf."""
+        try:
+            shape = shape_tool.GetShape_s(label)
+        except Exception:
+            return
+        own = _try_color(shape) if shape is not None else None
+        eff = own if own is not None else inherited_color
+
+        if shape_tool.IsAssembly_s(label):
+            children = TDF_LabelSequence()
+            shape_tool.GetComponents_s(label, children)
+            for j in range(1, children.Length() + 1):
+                child = children.Value(j)
+                try:
+                    from OCP.TDF import TDF_Label
+                    ref_out = TDF_Label()
+                    if shape_tool.GetReferredShape_s(child, ref_out):
+                        _walk(ref_out, eff)
+                        continue
+                except Exception:
+                    pass
+                _walk(child, eff)
+        else:
+            if eff is not None and shape is not None:
+                sig = _bbox_sig(shape)
+                if sig is not None:
+                    colors[sig] = eff
+
+    top_labels = TDF_LabelSequence()
+    shape_tool.GetFreeShapes(top_labels)
+    for i in range(1, top_labels.Length() + 1):
+        _walk(top_labels.Value(i), None)
+
+    return colors
+
+
 def _default_label_fn(shape):
     """Loose heuristic when no label map is provided.
 
@@ -105,8 +225,25 @@ def _default_label_fn(shape):
     return 'printed'
 
 
-def _color_for(shape, labels, color_map, default_color):
-    """Look up a shape's color via its bbox signature / label."""
+def _color_for(shape, labels, color_map, default_color, step_colors=None):
+    """Look up a shape's color.
+
+    Priority (when step_colors is provided):
+      1. Direct STEP AP242 color (bbox-signature lookup in step_colors)
+      2. Label-based color map (bbox -> label -> color)
+      3. default_color
+
+    When step_colors is None (or the shape isn't in it), falls through
+    to the label map — letting callers choose brand colors over Fusion's
+    per-part assignments.
+    """
+    if step_colors:
+        bb = shape.BoundingBox()
+        ssig = (round(bb.xmin, 1), round(bb.ymin, 1), round(bb.zmin, 1),
+                round(bb.xmax, 1), round(bb.ymax, 1), round(bb.zmax, 1))
+        if ssig in step_colors:
+            return step_colors[ssig]
+
     from .inventory import sig as _sig
     if labels is None and color_map is None:
         label = _default_label_fn(shape)
@@ -192,7 +329,8 @@ def render_step_to_png(step_path: str, output_path: str,
                         default_color: tuple = COLOR_PRINTED,
                         edges: bool = True,
                         edge_color: tuple = (0.05, 0.06, 0.06),
-                        tessellation_tol: float = 0.5):
+                        tessellation_tol: float = 0.5,
+                        use_step_colors: bool = True):
     """Render a STEP file to a PNG via offscreen VTK — CAD-standard Z-up,
     per-part coloring (black extrusions, green printed parts, metal
     plates), blue-grey gradient background, studio lighting, visible
@@ -222,6 +360,7 @@ def render_step_to_png(step_path: str, output_path: str,
     shapes = _load_shapes(step_path)
     if not shapes:
         raise ValueError(f"No geometry found in {step_path}")
+    step_colors = _extract_step_colors(step_path) if use_step_colors else None
 
     renderer = vtk.vtkRenderer()
     renderer.SetBackground(*background_bottom)
@@ -238,7 +377,8 @@ def render_step_to_png(step_path: str, output_path: str,
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
         prop = actor.GetProperty()
-        color = _color_for(shape, labels, color_map, default_color)
+        color = _color_for(shape, labels, color_map, default_color,
+                           step_colors=step_colors)
         prop.SetColor(*color)
         prop.SetAmbient(0.22)
         prop.SetDiffuse(0.78)
@@ -334,11 +474,13 @@ def render_frames_to_gif(frames_dir: str, output_gif: str,
         if (gw, gh) != img.size:
             img = img.resize((gw, gh), Image.LANCZOS)
         frames.append(img.convert("P", palette=Image.ADAPTIVE,
-                                    colors=max(2, min(256, gif_colors))))
+                                    colors=max(2, min(256, gif_colors)),
+                                    dither=Image.NONE))
     duration_ms = max(1, int(1000 / max(fps, 1)))
     frames[0].save(output_gif, save_all=True, append_images=frames[1:],
                     duration=duration_ms, loop=0, optimize=optimize,
                     disposal=2)
+    _warn_if_gif_too_large(output_gif)
 
     if not keep_pngs:
         for p in png_paths:
@@ -348,6 +490,208 @@ def render_frames_to_gif(frames_dir: str, output_gif: str,
                 pass
 
     return len(frames)
+
+
+def render_radial_explode_gif(step_path: str, output_gif: str,
+                                expansion: float = 0.5,
+                                explode_frames: int = 24,
+                                rotate_frames: int = 72,
+                                hold_frames: int = 6,
+                                fps: int = 24,
+                                width: int = 960, height: int = 720,
+                                view: str = "iso",
+                                labels: dict = None,
+                                color_map: dict = None,
+                                default_color: tuple = COLOR_PRINTED,
+                                background_top: tuple = (0.62, 0.66, 0.70),
+                                background_bottom: tuple = (0.38, 0.42, 0.47),
+                                edges: bool = True,
+                                edge_color: tuple = (0.05, 0.06, 0.06),
+                                tessellation_tol: float = 0.5,
+                                gif_width: int = None, gif_height: int = None,
+                                gif_colors: int = 64,
+                                optimize: bool = True,
+                                keep_pngs: bool = False,
+                                use_step_colors: bool = True):
+    """Build a 'cooler' exploded-view GIF in two phases:
+
+      1. Every part moves outward from the assembly centroid simultaneously
+         over `explode_frames` frames (expansion ramps 0 -> `expansion`).
+      2. The fully-exploded assembly is held for `hold_frames`, then the
+         camera sweeps 360 degrees around Z over `rotate_frames` frames
+         for a panoramic reveal.
+
+    This is much faster than `make_disassembly_gif` because the mesh is
+    tessellated once up-front; only actor transforms and camera angles
+    change per frame (no STEP file I/O, no per-frame re-tessellation).
+
+    Args:
+        step_path: Input assembly STEP.
+        output_gif: Output GIF path.
+        expansion: Peak outward expansion fraction. 0.5 means each part's
+            distance from the centroid grows by 50%.
+        explode_frames: Frames used for the outward expansion.
+        rotate_frames: Frames used for the 360 camera orbit.
+        hold_frames: Frames held fully-exploded before the spin starts.
+        fps: GIF frames per second.
+        width, height: Render resolution.
+        view: Starting camera preset. Same values as render_step_to_png.
+        labels, color_map, default_color: Per-part coloring, same as
+            render_step_to_png.
+        background_top/bottom, edges, edge_color, tessellation_tol: Styling.
+        gif_width/height/colors, optimize: GIF encoding knobs.
+        keep_pngs: If True, preserve the per-frame PNGs (written to a temp
+            dir next to the GIF).
+    """
+    import tempfile as _tmp
+    import vtk
+
+    shapes = _load_shapes(step_path)
+    if not shapes:
+        raise ValueError(f"No geometry found in {step_path}")
+    step_colors = _extract_step_colors(step_path) if use_step_colors else None
+
+    # Pre-tessellate every shape once, pair with its centroid offset vector.
+    cmap = color_map if color_map is not None else DEFAULT_COLOR_MAP
+    xmin, xmax, ymin, ymax, zmin, zmax = _scene_bounds(shapes)
+    cx = (xmin + xmax) / 2
+    cy = (ymin + ymax) / 2
+    cz = (zmin + zmax) / 2
+
+    part_entries = []  # list of (actor, offset_vector)
+    renderer = vtk.vtkRenderer()
+    renderer.SetBackground(*background_bottom)
+    renderer.SetBackground2(*background_top)
+    renderer.GradientBackgroundOn()
+
+    for shape in shapes:
+        poly = shape.toVtkPolyData(tolerance=tessellation_tol,
+                                     angularTolerance=0.3)
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputData(poly)
+
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+        prop = actor.GetProperty()
+        prop.SetColor(*_color_for(shape, labels, color_map, default_color,
+                                   step_colors=step_colors))
+        prop.SetAmbient(0.22)
+        prop.SetDiffuse(0.78)
+        prop.SetSpecular(0.30)
+        prop.SetSpecularPower(22)
+        if edges:
+            prop.EdgeVisibilityOn()
+            prop.SetEdgeColor(*edge_color)
+            prop.SetLineWidth(0.6)
+
+        bb = shape.BoundingBox()
+        pcx = (bb.xmin + bb.xmax) / 2
+        pcy = (bb.ymin + bb.ymax) / 2
+        pcz = (bb.zmin + bb.zmax) / 2
+        offset = (pcx - cx, pcy - cy, pcz - cz)
+
+        renderer.AddActor(actor)
+        part_entries.append((actor, offset))
+
+    light_kit = vtk.vtkLightKit()
+    light_kit.SetKeyLightWarmth(0.58)
+    light_kit.SetKeyLightIntensity(0.95)
+    light_kit.SetFillLightWarmth(0.45)
+    light_kit.AddLightsToRenderer(renderer)
+
+    # Pre-compute the fully-exploded bounds so camera fits the expanded cloud.
+    expanded_shapes = []
+    for shape in shapes:
+        bb = shape.BoundingBox()
+        pcx = (bb.xmin + bb.xmax) / 2
+        pcy = (bb.ymin + bb.ymax) / 2
+        pcz = (bb.zmin + bb.zmax) / 2
+        ox = (pcx - cx) * expansion
+        oy = (pcy - cy) * expansion
+        oz = (pcz - cz) * expansion
+        class _FakeBB:
+            def __init__(self, bb, ox, oy, oz):
+                self.xmin = bb.xmin + ox; self.xmax = bb.xmax + ox
+                self.ymin = bb.ymin + oy; self.ymax = bb.ymax + oy
+                self.zmin = bb.zmin + oz; self.zmax = bb.zmax + oz
+        class _FakeShape:
+            def __init__(self, bb): self._bb = bb
+            def BoundingBox(self): return self._bb
+        expanded_shapes.append(_FakeShape(_FakeBB(bb, ox, oy, oz)))
+
+    _aim_camera(renderer, expanded_shapes, view=view, zoom=0.95)
+
+    window = vtk.vtkRenderWindow()
+    window.SetOffScreenRendering(1)
+    window.SetMultiSamples(8)
+    window.SetSize(width, height)
+    window.AddRenderer(renderer)
+
+    tmp_dir = _tmp.mkdtemp(prefix="cadclaw_radial_")
+    png_paths = []
+
+    def _render_png(index):
+        window.Render()
+        to_image = vtk.vtkWindowToImageFilter()
+        to_image.SetInput(window)
+        to_image.ReadFrontBufferOff()
+        to_image.Update()
+        writer = vtk.vtkPNGWriter()
+        path = os.path.join(tmp_dir, f"frame_{index:04d}.png")
+        writer.SetFileName(path)
+        writer.SetInputConnection(to_image.GetOutputPort())
+        writer.Write()
+        png_paths.append(path)
+
+    def _set_expansion(t):
+        for actor, (ox, oy, oz) in part_entries:
+            actor.SetPosition(ox * t * expansion,
+                              oy * t * expansion,
+                              oz * t * expansion)
+
+    # Phase 1: expansion 0 -> 1 (ease in/out with a cosine curve)
+    import math as _m
+    for i in range(explode_frames):
+        frac = (i + 1) / explode_frames
+        eased = 0.5 - 0.5 * _m.cos(_m.pi * frac)
+        _set_expansion(eased)
+        _render_png(len(png_paths))
+
+    # Phase 2: hold at full explosion
+    _set_expansion(1.0)
+    for _ in range(hold_frames):
+        _render_png(len(png_paths))
+
+    # Phase 3: 360 camera sweep around Z through the centroid
+    cam = renderer.GetActiveCamera()
+    step_deg = 360.0 / max(rotate_frames, 1)
+    for _ in range(rotate_frames):
+        cam.Azimuth(step_deg)
+        renderer.ResetCameraClippingRange()
+        _render_png(len(png_paths))
+
+    window.Finalize()
+
+    # Assemble GIF
+    gw = gif_width or width
+    gh = gif_height or height
+    frames = []
+    for p in png_paths:
+        img = Image.open(p).convert("RGB")
+        if (gw, gh) != img.size:
+            img = img.resize((gw, gh), Image.LANCZOS)
+        frames.append(img.convert("P", palette=Image.ADAPTIVE,
+                                    colors=max(2, min(256, gif_colors)),
+                                    dither=Image.NONE))
+    duration_ms = max(1, int(1000 / max(fps, 1)))
+    frames[0].save(output_gif, save_all=True, append_images=frames[1:],
+                    duration=duration_ms, loop=0, optimize=optimize,
+                    disposal=2)
+    _warn_if_gif_too_large(output_gif)
+
+    if not keep_pngs:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+    return len(png_paths)
 
 
 def make_disassembly_gif(step_path: str, output_gif: str,
