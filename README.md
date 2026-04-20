@@ -4,9 +4,9 @@
 
 **The testing framework CAD never had.**
 
-![M3-CRETE disassembly animation](docs/media/m3crete_disassembly.gif)
+![M3-CRETE radial explode animation](docs/media/m3crete_radial_spin.gif)
 
-*Generated end-to-end with `make_disassembly_gif("M3-2_Assembly.step", "out.gif")` — 89 parts, 269 frames, no manual animation work.*
+*Generated end-to-end with `render_radial_explode_gif("M3-2_Assembly.step", "out.gif")` — parts explode radially from the centroid, then camera orbits 360°. 99+ parts, no manual animation work.*
 
 Automated validation, interference detection, and structural analysis for STEP assemblies. Like pytest for mechanical design.
 
