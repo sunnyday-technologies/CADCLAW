@@ -1,9 +1,8 @@
 # CADCLAW — Session Handoff
 
-Last updated: 2026-04-20 (mid-session snapshot; session ongoing)
-Authoritative carry-over across machines. Session transcripts live at `~/.claude/projects/y--SunnydayTech-CADCLAW/*.jsonl` on the machine where they were recorded; this file is the durable copy that travels with `git pull`.
+Last updated: 2026-04-20
 
-**Important**: the user is retaining session transcripts, this file, and memory files as IP/claims evidence for tool development, publishing, and best-practices documentation. Do not delete anything. When in doubt, save.
+Authoritative cross-machine carry-over for post-release work. Travels with `git pull`.
 
 ---
 
@@ -53,10 +52,10 @@ Run tests: `python -m unittest tests.test_harness -v` — ~30 s, all 52 must pas
 
 ### M3-CRETE state — two-sided divergence (as of 2026-04-20)
 
-- **Fusion side** (`Y:/SunnydayTech/M3-CRETE/CAD/M3-2_Assembly.step`, 9.18 MB, 12:48 on 2026-04-20) — latest authoritative source:
+- **Fusion side** (`M3-CRETE/CAD/M3-2_Assembly.step`, 9.18 MB) — latest authoritative source:
   - Has: X-axis tall rotation, X-gantry carriage (plate + V-wheels), top T-plate connector, all brackets
   - This is the single source of truth for GIF rendering as of end-of-session
-- **CADQuery side** (`Y:/SunnydayTech/M3-CRETE/CAD/m3_2_assembly.py`, 757 lines) — stale relative to Fusion:
+- **CADQuery side** (`M3-CRETE/CAD/m3_2_assembly.py`, 757 lines) — stale relative to Fusion:
   - Missing: X-axis tall rotation, X-gantry carriage
   - Has: 3D-printed green T-brackets at mid-X spreader, combined motor-mount plates, bottom spacer plates, Y-motor adapter plates, correct L-brackets
   - **Next-session work**: rotate X-rail template to tall, add X-gantry carriage by replicating Z/Y carriage geometry pattern (explicit user ask: "copy the same carriage we are using from the z- and y axes (we are replicating here intentionally)")
@@ -68,19 +67,16 @@ Run tests: `python -m unittest tests.test_harness -v` — ~30 s, all 52 must pas
 
 ### Uncommitted state at snapshot
 
-**CADCLAW** (`Y:/SunnydayTech/CADCLAW`, branch `feat/simultaneous-explode`):
-- `M cadharness/render.py` (5 MB size gate + `dither=Image.NONE`)
-- `M docs/media/m3crete_radial_spin.gif` (4.08 MB clean re-render from Fusion full model)
-- `D docs/media/m3crete_disassembly.gif` (dropped — radial-spin replaces it)
-- `M examples/m3_crete/check.py` (dropped `vwheel` from interference skip list)
-- `M README.md` (disassembly → radial-spin hero GIF reference)
-- `M HANDOFF.md` (this update)
-- `?? examples/m3_crete/render_baseline.py` (new render runner, radial-only)
-- 2 unpushed commits ahead of origin from prior sessions (`9eaa3b2`, `6079c61`)
+**CADCLAW** (branch `feat/simultaneous-explode`):
+- `cadharness/render.py` (5 MB size gate + `dither=Image.NONE`)
+- `docs/media/m3crete_radial_spin.gif` (4.08 MB clean re-render from Fusion full model)
+- `docs/media/m3crete_disassembly.gif` dropped — radial-spin replaces it
+- `examples/m3_crete/check.py` (dropped `vwheel` from interference skip list)
+- `README.md` (disassembly → radial-spin hero GIF reference)
+- `examples/m3_crete/render_baseline.py` (new render runner, radial-only)
 
-**M3-CRETE** (`Y:/SunnydayTech/M3-CRETE`, branch `main`):
-- `M CAD/M3-2_Assembly.step` (user's new Fusion export, 9.18 MB, authoritative)
-- Untracked blog/docs images — pre-existing, not from this session
+**M3-CRETE** (branch `main`):
+- `CAD/M3-2_Assembly.step` — new Fusion export, 9.18 MB, authoritative
 
 ---
 
@@ -112,12 +108,9 @@ Run tests: `python -m unittest tests.test_harness -v` — ~30 s, all 52 must pas
 
 ## File location map
 
-See also: auto-memory at `C:/Users/Sunny/.claude/projects/y--SunnydayTech-CADCLAW/memory/reference_multi_repo_file_layout.md`
-
-- CADCLAW repo: `Y:/SunnydayTech/CADCLAW` (branch `feat/simultaneous-explode`)
-- M3-CRETE (authored): `Y:/SunnydayTech/M3-CRETE` (branch `main`)
-- M3-CRETE (local clone): `C:/Users/Sunny/Projects/M3-CRETE` (branch `main`)
-- Remotes: `github.com/sunnyday-technologies/CADCLAW`, `github.com/sunnyday-technologies/M3-CRETE`
+Two repos, both on GitHub under the `sunnyday-technologies` org:
+- CADCLAW — active branch `feat/simultaneous-explode`
+- M3-CRETE — active branch `main`
 
 ### Key CADCLAW files
 - `cadharness/render.py` — STEP→PNG→GIF pipeline, size gate at `GIF_SIZE_WARN_BYTES=5_000_000`
