@@ -116,6 +116,102 @@ DEFAULT_COLOR_MAP = {
 }
 
 
+def _extract_step_colors(step_path: str) -> dict:
+    """Extract per-shape RGB colors from a STEP file's STEPCAF metadata.
+
+    Returns a dict {bbox_signature: (r, g, b)} where bbox_signature is
+    the 6-tuple of rounded bbox extents (same key shape as _load_shapes
+    dedup). Only shapes with an assigned color in the STEP appear in
+    the dict; un-colored shapes are omitted so callers can fall through
+    to label-based coloring.
+
+    Silently returns {} if the STEP has no color metadata or if the
+    AP242/XCAF reader fails to open the file.
+    """
+    try:
+        from OCP.STEPCAFControl import STEPCAFControl_Reader
+        from OCP.TDocStd import TDocStd_Document
+        from OCP.TCollection import TCollection_ExtendedString
+        from OCP.XCAFDoc import XCAFDoc_DocumentTool, XCAFDoc_ColorType
+        from OCP.TDF import TDF_LabelSequence
+        from OCP.Quantity import Quantity_Color
+        from OCP.BRepBndLib import BRepBndLib
+        from OCP.Bnd import Bnd_Box
+    except ImportError:
+        return {}
+
+    doc = TDocStd_Document(TCollection_ExtendedString("XmlXCAF"))
+    reader = STEPCAFControl_Reader()
+    reader.SetColorMode(True)
+    reader.SetLayerMode(False)
+    reader.SetNameMode(False)
+    if not reader.ReadFile(step_path):
+        return {}
+    reader.Transfer(doc)
+
+    shape_tool = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
+    color_tool = XCAFDoc_DocumentTool.ColorTool_s(doc.Main())
+
+    colors = {}
+
+    def _try_color(shape):
+        c = Quantity_Color()
+        for ctype in (XCAFDoc_ColorType.XCAFDoc_ColorSurf,
+                      XCAFDoc_ColorType.XCAFDoc_ColorGen,
+                      XCAFDoc_ColorType.XCAFDoc_ColorCurv):
+            if color_tool.GetColor(shape, ctype, c):
+                return (c.Red(), c.Green(), c.Blue())
+        return None
+
+    def _bbox_sig(shape):
+        bb = Bnd_Box()
+        try:
+            BRepBndLib.Add_s(shape, bb)
+        except Exception:
+            return None
+        if bb.IsVoid():
+            return None
+        xmin, ymin, zmin, xmax, ymax, zmax = bb.Get()
+        return (round(xmin, 1), round(ymin, 1), round(zmin, 1),
+                round(xmax, 1), round(ymax, 1), round(zmax, 1))
+
+    def _walk(label, inherited_color):
+        """Recurse through assembly structure, recording color per leaf."""
+        try:
+            shape = shape_tool.GetShape_s(label)
+        except Exception:
+            return
+        own = _try_color(shape) if shape is not None else None
+        eff = own if own is not None else inherited_color
+
+        if shape_tool.IsAssembly_s(label):
+            children = TDF_LabelSequence()
+            shape_tool.GetComponents_s(label, children)
+            for j in range(1, children.Length() + 1):
+                child = children.Value(j)
+                try:
+                    from OCP.TDF import TDF_Label
+                    ref_out = TDF_Label()
+                    if shape_tool.GetReferredShape_s(child, ref_out):
+                        _walk(ref_out, eff)
+                        continue
+                except Exception:
+                    pass
+                _walk(child, eff)
+        else:
+            if eff is not None and shape is not None:
+                sig = _bbox_sig(shape)
+                if sig is not None:
+                    colors[sig] = eff
+
+    top_labels = TDF_LabelSequence()
+    shape_tool.GetFreeShapes(top_labels)
+    for i in range(1, top_labels.Length() + 1):
+        _walk(top_labels.Value(i), None)
+
+    return colors
+
+
 def _default_label_fn(shape):
     """Loose heuristic when no label map is provided.
 
@@ -129,8 +225,25 @@ def _default_label_fn(shape):
     return 'printed'
 
 
-def _color_for(shape, labels, color_map, default_color):
-    """Look up a shape's color via its bbox signature / label."""
+def _color_for(shape, labels, color_map, default_color, step_colors=None):
+    """Look up a shape's color.
+
+    Priority (when step_colors is provided):
+      1. Direct STEP AP242 color (bbox-signature lookup in step_colors)
+      2. Label-based color map (bbox -> label -> color)
+      3. default_color
+
+    When step_colors is None (or the shape isn't in it), falls through
+    to the label map — letting callers choose brand colors over Fusion's
+    per-part assignments.
+    """
+    if step_colors:
+        bb = shape.BoundingBox()
+        ssig = (round(bb.xmin, 1), round(bb.ymin, 1), round(bb.zmin, 1),
+                round(bb.xmax, 1), round(bb.ymax, 1), round(bb.zmax, 1))
+        if ssig in step_colors:
+            return step_colors[ssig]
+
     from .inventory import sig as _sig
     if labels is None and color_map is None:
         label = _default_label_fn(shape)
@@ -216,7 +329,8 @@ def render_step_to_png(step_path: str, output_path: str,
                         default_color: tuple = COLOR_PRINTED,
                         edges: bool = True,
                         edge_color: tuple = (0.05, 0.06, 0.06),
-                        tessellation_tol: float = 0.5):
+                        tessellation_tol: float = 0.5,
+                        use_step_colors: bool = True):
     """Render a STEP file to a PNG via offscreen VTK — CAD-standard Z-up,
     per-part coloring (black extrusions, green printed parts, metal
     plates), blue-grey gradient background, studio lighting, visible
@@ -246,6 +360,7 @@ def render_step_to_png(step_path: str, output_path: str,
     shapes = _load_shapes(step_path)
     if not shapes:
         raise ValueError(f"No geometry found in {step_path}")
+    step_colors = _extract_step_colors(step_path) if use_step_colors else None
 
     renderer = vtk.vtkRenderer()
     renderer.SetBackground(*background_bottom)
@@ -262,7 +377,8 @@ def render_step_to_png(step_path: str, output_path: str,
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
         prop = actor.GetProperty()
-        color = _color_for(shape, labels, color_map, default_color)
+        color = _color_for(shape, labels, color_map, default_color,
+                           step_colors=step_colors)
         prop.SetColor(*color)
         prop.SetAmbient(0.22)
         prop.SetDiffuse(0.78)
@@ -395,7 +511,8 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
                                 gif_width: int = None, gif_height: int = None,
                                 gif_colors: int = 64,
                                 optimize: bool = True,
-                                keep_pngs: bool = False):
+                                keep_pngs: bool = False,
+                                use_step_colors: bool = True):
     """Build a 'cooler' exploded-view GIF in two phases:
 
       1. Every part moves outward from the assembly centroid simultaneously
@@ -432,6 +549,7 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
     shapes = _load_shapes(step_path)
     if not shapes:
         raise ValueError(f"No geometry found in {step_path}")
+    step_colors = _extract_step_colors(step_path) if use_step_colors else None
 
     # Pre-tessellate every shape once, pair with its centroid offset vector.
     cmap = color_map if color_map is not None else DEFAULT_COLOR_MAP
@@ -455,7 +573,8 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
         prop = actor.GetProperty()
-        prop.SetColor(*_color_for(shape, labels, color_map, default_color))
+        prop.SetColor(*_color_for(shape, labels, color_map, default_color,
+                                   step_colors=step_colors))
         prop.SetAmbient(0.22)
         prop.SetDiffuse(0.78)
         prop.SetSpecular(0.30)
