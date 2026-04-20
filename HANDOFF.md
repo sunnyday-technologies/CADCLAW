@@ -31,9 +31,10 @@ All 52 tests must pass. Takes ~30s end-to-end. Requires `cadquery>=2.7` and `Pil
 
 ## Remaining CADCLAW work
 
-1. **M3-CRETE demo GIF** — pipeline is tested and shipped, but the production-size GIF (89 parts × 3 transitions = 268 frames × ~21 MB STEP each) pegs memory and takes ~20 min end-to-end. For a shareable demo, run `python examples/m3_crete/make_gif.py path/to/M3-2_Assembly.step docs/media/m3crete_disassembly.gif` overnight or with `n_transition_frames=1, width=480` for a quick version. Not a release blocker.
-2. **PyPI publishing** — after v0.5.0 is tagged and the GitHub Release triggers Zenodo, run `python -m build && twine upload dist/*`. `pyproject.toml` is already audited.
-3. **JOSS paper** — time-gated to **2026-10-18** (6 months after the first public commit on 2026-04-18). Draft can start anytime; submission must wait.
+1. **PyPI publishing** — after v0.5.0 is tagged and the GitHub Release triggers Zenodo, run `python -m build && twine upload dist/*`. `pyproject.toml` is already audited.
+2. **JOSS paper** — time-gated to **2026-10-18** (6 months after the first public commit on 2026-04-18). Draft can start anytime; submission must wait.
+
+**Done this session:** M3-CRETE demo GIF — `docs/media/m3crete_disassembly.gif` (1.6 MB, 269 frames, 89-part assembly). Generated end-to-end in 21 min via `make_disassembly_gif()`. Referenced in README.
 
 ## Remaining M3-CRETE CAD work (sister repo)
 
