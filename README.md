@@ -31,7 +31,7 @@ CADCLAW validates STEP assemblies through a chain of automated gates:
 
 All gates run against a single loaded STEP file. The harness passes only if every gate passes.
 
-CADCLAW also includes an **MCP Server** for Claude integration — all modules exposed as native tools.
+CADCLAW also includes an **MCP Server** — all modules exposed as tools for any MCP-compatible client (Claude, ChatGPT, Gemini, Cursor, and others).
 
 ## Quick Start
 
@@ -121,7 +121,7 @@ Offscreen VTK rendering of STEP files to PNG, plus GIF stitching. `make_disassem
 The runner. Chains gates, loads parts once, reports pass/fail with timing.
 
 ### `cadclaw_mcp/`
-MCP Server exposing all modules as Claude-callable tools. Connect to Claude Code or Claude Desktop — user describes what to check, Claude calls the tools. No code generation needed.
+MCP Server exposing all modules as tools for any MCP-compatible client (Claude, ChatGPT, Gemini, Cursor, and others). The user describes what to check; the assistant calls the tools directly. No code generation needed — MCP is an open protocol, so any compliant client can drive the harness.
 
 ## CI/CD Integration
 
