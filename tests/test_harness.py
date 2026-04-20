@@ -23,6 +23,7 @@ from cadharness.tolerance import ToleranceChain, auto_stack_from_assembly
 from cadharness.disassembly import DisassemblySequence, DisassemblyStep
 from cadharness.render import (
     render_step_to_png, render_frames_to_gif, make_disassembly_gif,
+    render_radial_explode_gif,
 )
 from cadharness.harness import Harness
 
@@ -640,6 +641,21 @@ class TestRender(unittest.TestCase):
             )
             self.assertGreater(n, 0)
             self.assertTrue(os.path.exists(gif))
+
+    def test_radial_explode_gif(self):
+        """Simultaneous outward explode + 360 camera orbit."""
+        with tempfile.TemporaryDirectory() as tmp:
+            gif = os.path.join(tmp, "radial.gif")
+            n = render_radial_explode_gif(
+                self.FIXTURE, gif,
+                expansion=0.4, explode_frames=6,
+                rotate_frames=12, hold_frames=2,
+                fps=15, width=240, height=180,
+                tessellation_tol=1.0, gif_colors=32,
+            )
+            self.assertEqual(n, 6 + 2 + 12)  # explode + hold + rotate
+            self.assertTrue(os.path.exists(gif))
+            self.assertGreater(os.path.getsize(gif), 1000)
 
     def test_make_disassembly_gif_keeps_frames(self):
         with tempfile.TemporaryDirectory() as tmp:
