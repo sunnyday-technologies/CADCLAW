@@ -350,6 +350,203 @@ def render_frames_to_gif(frames_dir: str, output_gif: str,
     return len(frames)
 
 
+def render_radial_explode_gif(step_path: str, output_gif: str,
+                                expansion: float = 0.5,
+                                explode_frames: int = 24,
+                                rotate_frames: int = 72,
+                                hold_frames: int = 6,
+                                fps: int = 24,
+                                width: int = 960, height: int = 720,
+                                view: str = "iso",
+                                labels: dict = None,
+                                color_map: dict = None,
+                                default_color: tuple = COLOR_PRINTED,
+                                background_top: tuple = (0.62, 0.66, 0.70),
+                                background_bottom: tuple = (0.38, 0.42, 0.47),
+                                edges: bool = True,
+                                edge_color: tuple = (0.05, 0.06, 0.06),
+                                tessellation_tol: float = 0.5,
+                                gif_width: int = None, gif_height: int = None,
+                                gif_colors: int = 64,
+                                optimize: bool = True,
+                                keep_pngs: bool = False):
+    """Build a 'cooler' exploded-view GIF in two phases:
+
+      1. Every part moves outward from the assembly centroid simultaneously
+         over `explode_frames` frames (expansion ramps 0 -> `expansion`).
+      2. The fully-exploded assembly is held for `hold_frames`, then the
+         camera sweeps 360 degrees around Z over `rotate_frames` frames
+         for a panoramic reveal.
+
+    This is much faster than `make_disassembly_gif` because the mesh is
+    tessellated once up-front; only actor transforms and camera angles
+    change per frame (no STEP file I/O, no per-frame re-tessellation).
+
+    Args:
+        step_path: Input assembly STEP.
+        output_gif: Output GIF path.
+        expansion: Peak outward expansion fraction. 0.5 means each part's
+            distance from the centroid grows by 50%.
+        explode_frames: Frames used for the outward expansion.
+        rotate_frames: Frames used for the 360 camera orbit.
+        hold_frames: Frames held fully-exploded before the spin starts.
+        fps: GIF frames per second.
+        width, height: Render resolution.
+        view: Starting camera preset. Same values as render_step_to_png.
+        labels, color_map, default_color: Per-part coloring, same as
+            render_step_to_png.
+        background_top/bottom, edges, edge_color, tessellation_tol: Styling.
+        gif_width/height/colors, optimize: GIF encoding knobs.
+        keep_pngs: If True, preserve the per-frame PNGs (written to a temp
+            dir next to the GIF).
+    """
+    import tempfile as _tmp
+    import vtk
+
+    shapes = _load_shapes(step_path)
+    if not shapes:
+        raise ValueError(f"No geometry found in {step_path}")
+
+    # Pre-tessellate every shape once, pair with its centroid offset vector.
+    cmap = color_map if color_map is not None else DEFAULT_COLOR_MAP
+    xmin, xmax, ymin, ymax, zmin, zmax = _scene_bounds(shapes)
+    cx = (xmin + xmax) / 2
+    cy = (ymin + ymax) / 2
+    cz = (zmin + zmax) / 2
+
+    part_entries = []  # list of (actor, offset_vector)
+    renderer = vtk.vtkRenderer()
+    renderer.SetBackground(*background_bottom)
+    renderer.SetBackground2(*background_top)
+    renderer.GradientBackgroundOn()
+
+    for shape in shapes:
+        poly = shape.toVtkPolyData(tolerance=tessellation_tol,
+                                     angularTolerance=0.3)
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputData(poly)
+
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+        prop = actor.GetProperty()
+        prop.SetColor(*_color_for(shape, labels, color_map, default_color))
+        prop.SetAmbient(0.22)
+        prop.SetDiffuse(0.78)
+        prop.SetSpecular(0.30)
+        prop.SetSpecularPower(22)
+        if edges:
+            prop.EdgeVisibilityOn()
+            prop.SetEdgeColor(*edge_color)
+            prop.SetLineWidth(0.6)
+
+        bb = shape.BoundingBox()
+        pcx = (bb.xmin + bb.xmax) / 2
+        pcy = (bb.ymin + bb.ymax) / 2
+        pcz = (bb.zmin + bb.zmax) / 2
+        offset = (pcx - cx, pcy - cy, pcz - cz)
+
+        renderer.AddActor(actor)
+        part_entries.append((actor, offset))
+
+    light_kit = vtk.vtkLightKit()
+    light_kit.SetKeyLightWarmth(0.58)
+    light_kit.SetKeyLightIntensity(0.95)
+    light_kit.SetFillLightWarmth(0.45)
+    light_kit.AddLightsToRenderer(renderer)
+
+    # Pre-compute the fully-exploded bounds so camera fits the expanded cloud.
+    expanded_shapes = []
+    for shape in shapes:
+        bb = shape.BoundingBox()
+        pcx = (bb.xmin + bb.xmax) / 2
+        pcy = (bb.ymin + bb.ymax) / 2
+        pcz = (bb.zmin + bb.zmax) / 2
+        ox = (pcx - cx) * expansion
+        oy = (pcy - cy) * expansion
+        oz = (pcz - cz) * expansion
+        class _FakeBB:
+            def __init__(self, bb, ox, oy, oz):
+                self.xmin = bb.xmin + ox; self.xmax = bb.xmax + ox
+                self.ymin = bb.ymin + oy; self.ymax = bb.ymax + oy
+                self.zmin = bb.zmin + oz; self.zmax = bb.zmax + oz
+        class _FakeShape:
+            def __init__(self, bb): self._bb = bb
+            def BoundingBox(self): return self._bb
+        expanded_shapes.append(_FakeShape(_FakeBB(bb, ox, oy, oz)))
+
+    _aim_camera(renderer, expanded_shapes, view=view, zoom=0.95)
+
+    window = vtk.vtkRenderWindow()
+    window.SetOffScreenRendering(1)
+    window.SetMultiSamples(8)
+    window.SetSize(width, height)
+    window.AddRenderer(renderer)
+
+    tmp_dir = _tmp.mkdtemp(prefix="cadclaw_radial_")
+    png_paths = []
+
+    def _render_png(index):
+        window.Render()
+        to_image = vtk.vtkWindowToImageFilter()
+        to_image.SetInput(window)
+        to_image.ReadFrontBufferOff()
+        to_image.Update()
+        writer = vtk.vtkPNGWriter()
+        path = os.path.join(tmp_dir, f"frame_{index:04d}.png")
+        writer.SetFileName(path)
+        writer.SetInputConnection(to_image.GetOutputPort())
+        writer.Write()
+        png_paths.append(path)
+
+    def _set_expansion(t):
+        for actor, (ox, oy, oz) in part_entries:
+            actor.SetPosition(ox * t * expansion,
+                              oy * t * expansion,
+                              oz * t * expansion)
+
+    # Phase 1: expansion 0 -> 1 (ease in/out with a cosine curve)
+    import math as _m
+    for i in range(explode_frames):
+        frac = (i + 1) / explode_frames
+        eased = 0.5 - 0.5 * _m.cos(_m.pi * frac)
+        _set_expansion(eased)
+        _render_png(len(png_paths))
+
+    # Phase 2: hold at full explosion
+    _set_expansion(1.0)
+    for _ in range(hold_frames):
+        _render_png(len(png_paths))
+
+    # Phase 3: 360 camera sweep around Z through the centroid
+    cam = renderer.GetActiveCamera()
+    step_deg = 360.0 / max(rotate_frames, 1)
+    for _ in range(rotate_frames):
+        cam.Azimuth(step_deg)
+        renderer.ResetCameraClippingRange()
+        _render_png(len(png_paths))
+
+    window.Finalize()
+
+    # Assemble GIF
+    gw = gif_width or width
+    gh = gif_height or height
+    frames = []
+    for p in png_paths:
+        img = Image.open(p).convert("RGB")
+        if (gw, gh) != img.size:
+            img = img.resize((gw, gh), Image.LANCZOS)
+        frames.append(img.convert("P", palette=Image.ADAPTIVE,
+                                    colors=max(2, min(256, gif_colors))))
+    duration_ms = max(1, int(1000 / max(fps, 1)))
+    frames[0].save(output_gif, save_all=True, append_images=frames[1:],
+                    duration=duration_ms, loop=0, optimize=optimize,
+                    disposal=2)
+
+    if not keep_pngs:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+    return len(png_paths)
+
+
 def make_disassembly_gif(step_path: str, output_gif: str,
                           priority: dict = None,
                           labels: dict = None,
