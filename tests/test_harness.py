@@ -30,6 +30,9 @@ from cadharness.render import (
 from cadharness.parity import (
     compare_steps, visibility_toggle_warning, ParityReport,
 )
+from cadharness.geometry_import import (
+    shapes_by_dim_sig, first_shape_by_dim_sig,
+)
 from cadharness.harness import Harness
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -907,6 +910,39 @@ class TestParity(unittest.TestCase):
         — never raises."""
         result = visibility_toggle_warning(self.GOOD, self.OTHER)
         self.assertTrue(result is None or isinstance(result, str))
+
+
+# ============================================================
+# GEOMETRY IMPORT — selective shape loading by dim-signature
+# ============================================================
+class TestGeometryImport(unittest.TestCase):
+    """Verify the authored-shape reuse pattern: load specific parts
+    from a reference STEP by dim-signature so CADQuery scripts can
+    clone them instead of re-authoring crude parametric versions."""
+
+    FIXTURE = os.path.join(FIXTURES, "L3_good.step")
+
+    def test_first_shape_returns_none_on_missing_file(self):
+        self.assertIsNone(first_shape_by_dim_sig(
+            "/nonexistent_path.step", (1.0, 2.0, 3.0)))
+
+    def test_shapes_by_dim_sig_returns_empty_on_missing_file(self):
+        self.assertEqual(
+            shapes_by_dim_sig("/nonexistent_path.step", (1.0, 2.0, 3.0)),
+            [])
+
+    def test_shapes_by_dim_sig_finds_known_parts(self):
+        """L3_good has wheels (10.2, 23.9, 23.9). The helper must find them
+        and return a list of cq.Shape objects."""
+        wheels = shapes_by_dim_sig(self.FIXTURE, (10.2, 23.9, 23.9))
+        self.assertGreater(len(wheels), 0,
+            "L3_good fixture should contain at least one V-wheel by dim-sig")
+
+    def test_dim_sig_mismatch_returns_empty(self):
+        """A dim-sig that matches no shape returns an empty list."""
+        self.assertEqual(
+            shapes_by_dim_sig(self.FIXTURE, (999.9, 888.8, 777.7)),
+            [])
 
 
 # ============================================================
