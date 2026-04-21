@@ -40,7 +40,7 @@ def render_radial_spin():
         rotate_frames=48,
         fps=16,
         width=720, height=540,
-        gif_colors=48,
+        gif_colors=56,
         tessellation_tol=0.6,
         labels=LABELS,
     )
