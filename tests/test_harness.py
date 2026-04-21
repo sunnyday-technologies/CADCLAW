@@ -14,7 +14,9 @@ import shutil
 import subprocess
 import tempfile
 import unittest
-from cadharness.inventory import InventoryCheck, load_and_dedup, sig
+from cadharness.inventory import (
+    InventoryCheck, Region, RegionResult, load_and_dedup, sig,
+)
 from cadharness.interference import InterferenceCheck
 from cadharness.adjacency import AdjacencyCheck, AdjacencyRule
 from cadharness.dimensional import DimensionalCheck, DimRule
@@ -24,6 +26,9 @@ from cadharness.disassembly import DisassemblySequence, DisassemblyStep
 from cadharness.render import (
     render_step_to_png, render_frames_to_gif, make_disassembly_gif,
     render_radial_explode_gif,
+)
+from cadharness.parity import (
+    compare_steps, visibility_toggle_warning, ParityReport,
 )
 from cadharness.harness import Harness
 
@@ -734,6 +739,61 @@ class TestStepColorExtraction(unittest.TestCase):
         self.assertEqual(result, magenta,
             "dim-sig keyed step_colors must win over default for "
             "shapes placed away from origin")
+
+
+# ============================================================
+# PARITY MODULE (STEP-to-STEP dim-signature comparison)
+# ============================================================
+class TestParity(unittest.TestCase):
+    """STEP-to-STEP parity checks. Uses the L1/L2 fixtures as drop-in
+    stand-ins for "Fusion export" and "CADQuery regen" — the identity
+    and cross-assembly cases are enough to pin the contract down."""
+
+    GOOD = os.path.join(FIXTURES, "L1_good.step")
+    BAD = os.path.join(FIXTURES, "L1_bad.step")
+    OTHER = os.path.join(FIXTURES, "L2_good.step")
+
+    def test_self_compare_passes(self):
+        r = compare_steps(self.GOOD, self.GOOD)
+        self.assertIsInstance(r, ParityReport)
+        self.assertTrue(r.passed)
+        self.assertEqual(r.only_in_a, [])
+        self.assertEqual(r.only_in_b, [])
+        self.assertEqual(r.a_parts, r.b_parts)
+
+    def test_different_assemblies_surface_deltas(self):
+        """Comparing unrelated fixtures must produce non-empty deltas on
+        both sides — L1 and L2 share no part signatures."""
+        r = compare_steps(self.GOOD, self.OTHER)
+        self.assertFalse(r.passed)
+        self.assertGreater(len(r.only_in_a) + len(r.only_in_b), 0)
+
+    def test_good_vs_bad_same_level_runs_cleanly(self):
+        """L1_good and L1_bad may or may not share every signature;
+        the check should at least complete and report sensible counts."""
+        r = compare_steps(self.GOOD, self.BAD)
+        self.assertIsInstance(r, ParityReport)
+        self.assertGreater(r.a_parts, 0)
+        self.assertGreater(r.b_parts, 0)
+        # passed is a bool either way; summary should render without errors
+        self.assertIn("PARITY", r.summary())
+
+    def test_report_fields_sum_correctly(self):
+        """For the self-compare case, a_parts should equal b_parts and
+        equal the total shape count from _load_shapes."""
+        from cadharness.render import _load_shapes
+        r = compare_steps(self.GOOD, self.GOOD)
+        self.assertEqual(r.a_parts, len(_load_shapes(self.GOOD)))
+
+    def test_visibility_toggle_no_warning_on_self(self):
+        """Same file compared to itself must never trigger the warning."""
+        self.assertIsNone(visibility_toggle_warning(self.GOOD, self.GOOD))
+
+    def test_visibility_toggle_returns_string_or_none(self):
+        """Cross-fixture comparison either warns (str) or is silent (None)
+        — never raises."""
+        result = visibility_toggle_warning(self.GOOD, self.OTHER)
+        self.assertTrue(result is None or isinstance(result, str))
 
 
 # ============================================================
