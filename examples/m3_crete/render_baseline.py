@@ -21,10 +21,12 @@ LABELS = {
     (10.2, 23.9, 23.9):   "vwheel",
     (14.0, 15.0, 15.0):   "pulley",
     (12.7, 22.0, 22.0):   "idler",
-    (3.0, 88.0, 127.0):   "plate",
-    (4.0, 80.0, 100.0):   "bot-mount",
+    (3.0, 88.0, 127.0):   "plate",     # aluminum gantry plate — grey
+    (4.0, 80.0, 100.0):   "bot-mount", # printed — green
+    (4.0, 80.0, 80.0):    "ymount",    # printed — green
     (44.0, 80.0, 102.0):  "bracket",
-    (4.0, 160.0, 280.0):  "plate",
+    (4.0, 160.0, 280.0):  "tbracket",  # printed green semi-triangular gusset
+    (5.0, 30.0, 30.0):    "idler-brk", # printed — green
 }
 
 

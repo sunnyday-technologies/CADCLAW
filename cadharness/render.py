@@ -102,6 +102,10 @@ COLOR_WHEEL = (0.13, 0.13, 0.14)       # V-wheels / delrin
 COLOR_BELT = (0.15, 0.15, 0.15)        # GT2 belt
 
 # Label -> color defaults keyed on the M3-CRETE naming scheme.
+# Printed parts explicit so they render bright-green under label-map
+# priority; previously the "default fallback → green" path was bypassed
+# once AP242 colors were added, causing printed parts to dim to their
+# raw Fusion-stored RGB (which is a darker design-intent value).
 DEFAULT_COLOR_MAP = {
     'cbeam': COLOR_EXTRUSION, 'beam': COLOR_EXTRUSION,
     'extrusion': COLOR_EXTRUSION, 'post': COLOR_EXTRUSION,
@@ -111,8 +115,12 @@ DEFAULT_COLOR_MAP = {
     'belt': COLOR_BELT,
     'plate': COLOR_METAL, 'bracket': COLOR_METAL,
     'shim': COLOR_METAL,
-    # Everything else (zmount, zcap, ymount, tbracket, etc.) is printed
-    # and gets COLOR_PRINTED via the default fallback.
+    # Printed parts — bright Sunnyday green.
+    'tbracket': COLOR_PRINTED, 'gusset': COLOR_PRINTED,
+    'bot-mount': COLOR_PRINTED, 'ymount': COLOR_PRINTED,
+    'zmount': COLOR_PRINTED, 'zcap': COLOR_PRINTED,
+    'mount': COLOR_PRINTED, 'printed': COLOR_PRINTED,
+    'idler-brk': COLOR_PRINTED,
 }
 
 
