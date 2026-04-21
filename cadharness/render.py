@@ -247,34 +247,39 @@ def _default_label_fn(shape):
 def _color_for(shape, labels, color_map, default_color, step_colors=None):
     """Look up a shape's color.
 
-    Priority (when step_colors is provided):
-      1. Direct STEP AP242 color (dim-signature lookup in step_colors)
-      2. Label-based color map (dim-sig -> label -> color)
-      3. default_color
+    Priority (intentional):
+      1. Caller's label map (labels[dim_sig] -> color_map[label]) —
+         brand/semantic colors the user authored for visual clarity.
+      2. STEP AP242 color (step_colors[dim_sig]) — raw Fusion-stored
+         RGB, used only when the shape has no label.
+      3. default_color.
 
-    When step_colors is None (or the shape isn't in it), falls through
-    to the label map — letting callers choose brand colors over Fusion's
-    per-part assignments.
+    Label map wins because Fusion stores STEP RGB that does not
+    necessarily match what its viewport shows users (Fusion applies
+    materials on top of raw AP242 color). The caller's own color map
+    is the authoritative visual source when present.
 
     Note: step_colors must be keyed by dim-signature (sorted 3-tuple of
-    rounded extents), the same signature `inventory.sig` uses. Keying
-    by full bbox would fail because `STEPCAFControl_Reader` returns
-    leaf shapes at their untransformed coordinates while
-    `cq.importers.importStep` returns them with assembly transforms
-    applied.
+    rounded extents), the same signature `inventory.sig` uses.
     """
     from .inventory import sig as _sig
     s = _sig(shape)
 
+    # Step 1: caller-authored label map
+    if labels is not None:
+        label = labels.get(s, None)
+        if label is not None:
+            cmap = color_map if color_map is not None else DEFAULT_COLOR_MAP
+            lc = cmap.get(label, None)
+            if lc is not None:
+                return lc
+
+    # Step 2: STEP AP242 color fallback
     if step_colors and s in step_colors:
         return step_colors[s]
 
-    if labels is None and color_map is None:
-        label = _default_label_fn(shape)
-    else:
-        label = (labels or {}).get(s, None)
-        if label is None:
-            label = _default_label_fn(shape)
+    # Step 3: heuristic label + default map + default color
+    label = _default_label_fn(shape)
     cmap = color_map if color_map is not None else DEFAULT_COLOR_MAP
     return cmap.get(label, default_color)
 
@@ -403,13 +408,13 @@ def render_step_to_png(step_path: str, output_path: str,
         color = _color_for(shape, labels, color_map, default_color,
                            step_colors=step_colors)
         prop.SetColor(*color)
-        # Flat-shaded CAD-illustration look: ambient dominates so raw AP242
-        # colors read clearly; minimal diffuse adds just enough 3D depth
-        # without darkening; specular off to prevent rotating speckling.
-        prop.SetAmbient(0.85)
-        prop.SetDiffuse(0.25)
+        # Fully flat shading — colors render at their raw RGB value with no
+        # lighting darkening. Depth cue comes from part-edge outlines and
+        # the assembly silhouette, not from shading. Matches the CAD-
+        # illustration aesthetic and preserves brand-color fidelity.
+        prop.SetAmbient(1.0)
+        prop.SetDiffuse(0.0)
         prop.SetSpecular(0.0)
-        prop.SetSpecularPower(1)
         if edges:
             prop.EdgeVisibilityOn()
             prop.SetEdgeColor(*edge_color)
@@ -603,13 +608,13 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         prop = actor.GetProperty()
         prop.SetColor(*_color_for(shape, labels, color_map, default_color,
                                    step_colors=step_colors))
-        # Flat-shaded CAD-illustration look: ambient dominates so raw AP242
-        # colors read clearly; minimal diffuse adds just enough 3D depth
-        # without darkening; specular off to prevent rotating speckling.
-        prop.SetAmbient(0.85)
-        prop.SetDiffuse(0.25)
+        # Fully flat shading — colors render at their raw RGB value with no
+        # lighting darkening. Depth cue comes from part-edge outlines and
+        # the assembly silhouette, not from shading. Matches the CAD-
+        # illustration aesthetic and preserves brand-color fidelity.
+        prop.SetAmbient(1.0)
+        prop.SetDiffuse(0.0)
         prop.SetSpecular(0.0)
-        prop.SetSpecularPower(1)
         if edges:
             prop.EdgeVisibilityOn()
             prop.SetEdgeColor(*edge_color)
