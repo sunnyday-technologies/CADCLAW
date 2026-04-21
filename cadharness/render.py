@@ -403,21 +403,26 @@ def render_step_to_png(step_path: str, output_path: str,
         color = _color_for(shape, labels, color_map, default_color,
                            step_colors=step_colors)
         prop.SetColor(*color)
-        prop.SetAmbient(0.22)
-        prop.SetDiffuse(0.78)
-        prop.SetSpecular(0.30)
-        prop.SetSpecularPower(22)
+        # Flat-shaded CAD-illustration look: ambient dominates so raw AP242
+        # colors read clearly; minimal diffuse adds just enough 3D depth
+        # without darkening; specular off to prevent rotating speckling.
+        prop.SetAmbient(0.85)
+        prop.SetDiffuse(0.25)
+        prop.SetSpecular(0.0)
+        prop.SetSpecularPower(1)
         if edges:
             prop.EdgeVisibilityOn()
             prop.SetEdgeColor(*edge_color)
             prop.SetLineWidth(0.6)
         renderer.AddActor(actor)
 
-    light_kit = vtk.vtkLightKit()
-    light_kit.SetKeyLightWarmth(0.58)
-    light_kit.SetKeyLightIntensity(0.95)
-    light_kit.SetFillLightWarmth(0.45)
-    light_kit.AddLightsToRenderer(renderer)
+    # Single soft headlight — no studio rig. With ambient=0.85 this adds
+    # only a gentle directional cue; avoids the rotating shadow artifacts
+    # that produced temporal speckling during the 360 camera sweep.
+    head = vtk.vtkLight()
+    head.SetLightTypeToHeadlight()
+    head.SetIntensity(0.35)
+    renderer.AddLight(head)
 
     _aim_camera(renderer, shapes, view=view,
                  azimuth=azimuth, elevation=elevation)
@@ -598,10 +603,13 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         prop = actor.GetProperty()
         prop.SetColor(*_color_for(shape, labels, color_map, default_color,
                                    step_colors=step_colors))
-        prop.SetAmbient(0.22)
-        prop.SetDiffuse(0.78)
-        prop.SetSpecular(0.30)
-        prop.SetSpecularPower(22)
+        # Flat-shaded CAD-illustration look: ambient dominates so raw AP242
+        # colors read clearly; minimal diffuse adds just enough 3D depth
+        # without darkening; specular off to prevent rotating speckling.
+        prop.SetAmbient(0.85)
+        prop.SetDiffuse(0.25)
+        prop.SetSpecular(0.0)
+        prop.SetSpecularPower(1)
         if edges:
             prop.EdgeVisibilityOn()
             prop.SetEdgeColor(*edge_color)
@@ -616,11 +624,13 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         renderer.AddActor(actor)
         part_entries.append((actor, offset))
 
-    light_kit = vtk.vtkLightKit()
-    light_kit.SetKeyLightWarmth(0.58)
-    light_kit.SetKeyLightIntensity(0.95)
-    light_kit.SetFillLightWarmth(0.45)
-    light_kit.AddLightsToRenderer(renderer)
+    # Single soft headlight — no studio rig. With ambient=0.85 this adds
+    # only a gentle directional cue; avoids the rotating shadow artifacts
+    # that produced temporal speckling during the 360 camera sweep.
+    head = vtk.vtkLight()
+    head.SetLightTypeToHeadlight()
+    head.SetIntensity(0.35)
+    renderer.AddLight(head)
 
     # Pre-compute the fully-exploded bounds so camera fits the expanded cloud.
     expanded_shapes = []
