@@ -28,9 +28,9 @@ LABELS = {
 
 EXPECTED = {
     'cbeam': 17, 'motor': 6, 'vwheel': 32, 'pulley': 6,
-    'idler': 5, 'plate': 6, 'shim': 2, 'zmount': 4,
-    'zcap': 4, 'bot-mount': 4, 'ymount': 2, 'idler-brk': 1,
-    'belt': 12, 'bracket': 0,
+    'idler': 5, 'plate': 8, 'shim': 0, 'zmount': 0,
+    'zcap': 0, 'bot-mount': 4, 'ymount': 2, 'idler-brk': 1,
+    'belt': 12, 'bracket': 0, 'other': 6,
 }
 
 h = Harness(STEP)
