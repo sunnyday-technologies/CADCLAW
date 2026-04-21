@@ -61,6 +61,18 @@ Run tests: `python -m unittest tests.test_harness -v` — ~30 s, all 52 must pas
   - Has: 3D-printed green T-brackets at mid-X spreader, combined motor-mount plates, bottom spacer plates, Y-motor adapter plates, correct L-brackets
   - **Next-session work**: rotate X-rail template to tall, add X-gantry carriage by replicating Z/Y carriage geometry pattern (explicit user ask: "copy the same carriage we are using from the z- and y axes (we are replicating here intentionally)")
 
+### CADCLAW improvement opportunities (user-flagged during 2026-04-20 session)
+
+Concrete gaps CADCLAW should catch automatically, not leave to eyeball:
+
+1. **Source-to-source parity check** — compare two STEPs (e.g., Fusion export vs CADQuery regen) and report parts present in one but not the other. Would have caught the X-carriage-plate gap and the triangular-gusset-vs-rectangular-approximation mismatch in seconds.
+2. **Template-substitution warnings** — when a CADQuery script replaces real geometry with a parametric placeholder (e.g., cylinder stand-in for a V-wheel), emit a warning. Buried placeholders are a recurring gotcha.
+3. **Per-region inventory** — allow BOM-style counts per spatial region ("X-carriage should have 8 wheels + 2 plates"), not just global counts. Would catch region-local omissions that pass a global check.
+4. **Bbox-sig vs transform-aware color matching** — current `_extract_step_colors` keys by untransformed leaf bbox; many AP242-colored parts fall through to the label-map fallback because the render's transformed shapes don't match keys. Fix: key by dim-signature (sorted tuple) so all instances of a shape share a color even after translation.
+5. **Fusion visibility-toggle detector** — a Fusion STEP export that is *smaller* than a prior version despite added parts should raise a structured warning. Recurring pitfall this session.
+
+Logged as CADCLAW v0.6.0 candidates.
+
 ### Current in-flight
 
 - Render `bzuwfkofy` — re-rendering both GIFs from the new 9.18 MB Fusion export (disassembly ~10 min, radial_spin ~15 s).
