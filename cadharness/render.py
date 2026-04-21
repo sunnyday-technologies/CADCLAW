@@ -119,11 +119,25 @@ DEFAULT_COLOR_MAP = {
 def _extract_step_colors(step_path: str) -> dict:
     """Extract per-shape RGB colors from a STEP file's STEPCAF metadata.
 
-    Returns a dict {bbox_signature: (r, g, b)} where bbox_signature is
-    the 6-tuple of rounded bbox extents (same key shape as _load_shapes
-    dedup). Only shapes with an assigned color in the STEP appear in
-    the dict; un-colored shapes are omitted so callers can fall through
-    to label-based coloring.
+    Returns a dict {dim_signature: (r, g, b)} where dim_signature is
+    the sorted 3-tuple of rounded extents `(round(dx,1), round(dy,1),
+    round(dz,1))` — the same signature used by `cadharness.inventory.sig`.
+    Keying by dim-sig (not bbox extents) is translation + orientation-
+    invariant: `STEPCAFControl_Reader` returns leaf shapes at their
+    original coordinates (at/near origin), while `cq.importers.importStep`
+    returns shapes with assembly transforms applied, so full-bbox keys
+    never match for parts placed away from origin. Dim-sig survives the
+    transform so all instances of a shape share a color.
+
+    When multiple shapes in the STEP share a dim-sig but carry different
+    colors, last-write wins. Acceptable for v1: in practice shape
+    duplicates (same extents) overwhelmingly share a color, because they
+    are copies of the same part; genuine collisions are rare and resolving
+    them would require per-instance tracking we don't need yet.
+
+    Only shapes with an assigned color in the STEP appear in the dict;
+    un-colored shapes are omitted so callers can fall through to
+    label-based coloring.
 
     Silently returns {} if the STEP has no color metadata or if the
     AP242/XCAF reader fails to open the file.
@@ -163,7 +177,9 @@ def _extract_step_colors(step_path: str) -> dict:
                 return (c.Red(), c.Green(), c.Blue())
         return None
 
-    def _bbox_sig(shape):
+    def _dim_sig(shape):
+        """Sorted 3-tuple of rounded extents — transform-invariant key
+        matching `cadharness.inventory.sig`."""
         bb = Bnd_Box()
         try:
             BRepBndLib.Add_s(shape, bb)
@@ -172,8 +188,11 @@ def _extract_step_colors(step_path: str) -> dict:
         if bb.IsVoid():
             return None
         xmin, ymin, zmin, xmax, ymax, zmax = bb.Get()
-        return (round(xmin, 1), round(ymin, 1), round(zmin, 1),
-                round(xmax, 1), round(ymax, 1), round(zmax, 1))
+        return tuple(sorted([
+            round(xmax - xmin, 1),
+            round(ymax - ymin, 1),
+            round(zmax - zmin, 1),
+        ]))
 
     def _walk(label, inherited_color):
         """Recurse through assembly structure, recording color per leaf."""
@@ -200,7 +219,7 @@ def _extract_step_colors(step_path: str) -> dict:
                 _walk(child, eff)
         else:
             if eff is not None and shape is not None:
-                sig = _bbox_sig(shape)
+                sig = _dim_sig(shape)
                 if sig is not None:
                     colors[sig] = eff
 
@@ -229,26 +248,30 @@ def _color_for(shape, labels, color_map, default_color, step_colors=None):
     """Look up a shape's color.
 
     Priority (when step_colors is provided):
-      1. Direct STEP AP242 color (bbox-signature lookup in step_colors)
-      2. Label-based color map (bbox -> label -> color)
+      1. Direct STEP AP242 color (dim-signature lookup in step_colors)
+      2. Label-based color map (dim-sig -> label -> color)
       3. default_color
 
     When step_colors is None (or the shape isn't in it), falls through
     to the label map — letting callers choose brand colors over Fusion's
     per-part assignments.
-    """
-    if step_colors:
-        bb = shape.BoundingBox()
-        ssig = (round(bb.xmin, 1), round(bb.ymin, 1), round(bb.zmin, 1),
-                round(bb.xmax, 1), round(bb.ymax, 1), round(bb.zmax, 1))
-        if ssig in step_colors:
-            return step_colors[ssig]
 
+    Note: step_colors must be keyed by dim-signature (sorted 3-tuple of
+    rounded extents), the same signature `inventory.sig` uses. Keying
+    by full bbox would fail because `STEPCAFControl_Reader` returns
+    leaf shapes at their untransformed coordinates while
+    `cq.importers.importStep` returns them with assembly transforms
+    applied.
+    """
     from .inventory import sig as _sig
+    s = _sig(shape)
+
+    if step_colors and s in step_colors:
+        return step_colors[s]
+
     if labels is None and color_map is None:
         label = _default_label_fn(shape)
     else:
-        s = _sig(shape)
         label = (labels or {}).get(s, None)
         if label is None:
             label = _default_label_fn(shape)
