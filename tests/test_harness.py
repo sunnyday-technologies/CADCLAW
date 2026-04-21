@@ -674,6 +674,69 @@ class TestRender(unittest.TestCase):
 
 
 # ============================================================
+# STEP COLOR EXTRACTION (AP242) — dim-signature key bug fix
+# ============================================================
+class TestStepColorExtraction(unittest.TestCase):
+    """Regression test for the AP242 color lookup fix.
+
+    Bug: `_extract_step_colors` keyed by untransformed leaf bbox, so the
+    `_color_for` lookup from `cq.importers.importStep`-returned shapes
+    (which carry assembly transforms) missed every part placed away from
+    the origin. Fix: key by dim-signature (sorted 3-tuple of rounded
+    extents) so keys are translation-invariant and match
+    `cadharness.inventory.sig`.
+
+    The checked-in L1/L2/L3 fixtures were produced by CADQuery without
+    AP242 color assignments, so we cannot assert that color extraction
+    actually yields entries; instead we assert (a) the function returns
+    without error, (b) any keys it does return are dim-sigs (3-tuples),
+    and (c) the `_color_for` lookup resolves a synthetic dim-sig-keyed
+    step_colors dict even for a shape placed away from origin — which
+    is the exact path the bug broke.
+    """
+
+    FIXTURE = os.path.join(FIXTURES, "L3_good.step")
+
+    def test_extract_returns_dict_without_error(self):
+        from cadharness.render import _extract_step_colors
+        colors = _extract_step_colors(self.FIXTURE)
+        self.assertIsInstance(colors, dict)
+        # Any extracted color key must be the sorted 3-tuple dim-sig,
+        # not the 6-tuple bbox that the original buggy code returned.
+        for key in colors.keys():
+            self.assertEqual(
+                len(key), 3,
+                f"Expected 3-tuple dim-sig, got {len(key)}-tuple: {key}")
+            self.assertEqual(
+                list(key), sorted(key),
+                f"Dim-sig must be sorted ascending: {key}")
+
+    def test_color_for_uses_dim_sig_lookup(self):
+        """Synthetic end-to-end: a step_colors dict keyed by a shape's
+        dim-sig must resolve via `_color_for` even when the shape is
+        placed away from origin. Pre-fix, the bbox-keyed lookup missed
+        every non-origin part."""
+        from cadharness.render import _color_for
+        from cadharness.inventory import sig as _sig
+        parts = load_and_dedup(self.FIXTURE)
+        self.assertGreater(len(parts), 0)
+        # L3_good has the gantry parts at Z >= 1000 — pick one to make
+        # sure we're exercising the non-origin path.
+        off_origin = [p for p in parts if p.Center().z > 100.0]
+        self.assertGreater(len(off_origin), 0,
+            "fixture must have at least one non-origin part to exercise fix")
+        target = off_origin[0]
+        magenta = (1.0, 0.0, 1.0)
+        step_colors = {_sig(target): magenta}
+        result = _color_for(
+            target, labels=None, color_map=None,
+            default_color=(0.5, 0.5, 0.5), step_colors=step_colors)
+        self.assertEqual(result, magenta,
+            "dim-sig keyed step_colors must win over default for "
+            "shapes placed away from origin")
+
+
+# ============================================================
 # HARNESS INTEGRATION TEST
 # ============================================================
 class TestHarnessReport(unittest.TestCase):
