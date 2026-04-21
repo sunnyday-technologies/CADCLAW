@@ -14,7 +14,9 @@ import shutil
 import subprocess
 import tempfile
 import unittest
-from cadharness.inventory import InventoryCheck, load_and_dedup, sig
+from cadharness.inventory import (
+    InventoryCheck, Region, RegionResult, load_and_dedup, sig,
+)
 from cadharness.interference import InterferenceCheck
 from cadharness.adjacency import AdjacencyCheck, AdjacencyRule
 from cadharness.dimensional import DimensionalCheck, DimRule
@@ -186,6 +188,119 @@ class TestL3Full(unittest.TestCase):
                              L3_LABELS, L3_expected_with_cap)
         inv_result = inv.run()
         self.assertFalse(inv_result.passed, "Should catch missing cap")
+
+
+# ============================================================
+# REGION INVENTORY - per-region (spatial) part counts
+# ============================================================
+#
+# L3_good layout (centroid Z of each part):
+#   base (Z < 1000):    1 post (z=500), 3 wheels (z=200,500,800),
+#                       1 plate (z=400), 1 plate (z=960),
+#                       2 spacers (z=20, 960)
+#   gantry (Z >= 1000): 2 beams, 1 motor, 1 bracket, 1 mount,
+#                       1 cap (z=1005), 3 wheels (z=1100), 1 pulley
+class TestRegionInventory(unittest.TestCase):
+
+    FIXTURE = os.path.join(FIXTURES, "L3_good.step")
+
+    def _base_region(self, **overrides):
+        expected = {'post': 1, 'wheel': 3, 'plate': 2, 'spacer': 2}
+        expected.update(overrides)
+        return Region(name="base", z_range=(None, 999.0), expected=expected)
+
+    def _gantry_region(self, **overrides):
+        expected = {'beam': 2, 'motor': 1, 'bracket': 1, 'mount': 1,
+                    'cap': 1, 'wheel': 3, 'pulley': 1}
+        expected.update(overrides)
+        return Region(name="gantry", z_range=(1000.0, None), expected=expected)
+
+    def _wheel_column(self, name, zlo, zhi, expected_wheels):
+        return Region(
+            name=name,
+            x_range=(40.0, 60.0), y_range=(-10.0, 10.0),
+            z_range=(zlo, zhi),
+            expected={'wheel': expected_wheels},
+        )
+
+    def test_region_contains_centroid_semantics(self):
+        r = Region(name="r", x_range=(0.0, 10.0), z_range=(-5.0, 5.0))
+        self.assertTrue(r.contains((5.0, 999.0, 0.0)))
+        self.assertTrue(r.contains((0.0, -1e6, -5.0)))
+        self.assertFalse(r.contains((-0.01, 0.0, 0.0)))
+        self.assertFalse(r.contains((5.0, 0.0, 5.01)))
+        self.assertTrue(r.contains((10.0, 0.0, 5.0)))
+
+    def test_region_open_bound_is_wildcard(self):
+        r = Region(name="lower_half", z_range=(None, 100.0))
+        self.assertTrue(r.contains((0.0, 0.0, -1e9)))
+        self.assertTrue(r.contains((0.0, 0.0, 100.0)))
+        self.assertFalse(r.contains((0.0, 0.0, 100.1)))
+
+    def test_backward_compat_no_regions(self):
+        check = InventoryCheck(self.FIXTURE, L3_LABELS, L3_EXPECTED)
+        result = check.run()
+        self.assertTrue(result.passed, f"Mismatches: {result.mismatches}")
+        self.assertEqual(result.region_results, {})
+
+    def test_region_passes_when_counts_match(self):
+        check = InventoryCheck(
+            self.FIXTURE, L3_LABELS, L3_EXPECTED,
+            regions=[self._base_region(), self._gantry_region()])
+        result = check.run()
+        self.assertTrue(result.passed, str(result.region_results))
+        self.assertEqual(set(result.region_results), {"base", "gantry"})
+        base = result.region_results["base"]
+        self.assertTrue(base.passed)
+        self.assertEqual(base.inventory.get('wheel', 0), 3)
+        self.assertEqual(base.inventory.get('post', 0), 1)
+        self.assertEqual(base.inventory.get('beam', 0), 0)
+        gantry = result.region_results["gantry"]
+        self.assertTrue(gantry.passed)
+        self.assertEqual(gantry.inventory.get('beam', 0), 2)
+        self.assertEqual(gantry.inventory.get('wheel', 0), 3)
+
+    def test_region_count_mismatch_fails_overall(self):
+        bad_base = self._base_region(wheel=8)
+        check = InventoryCheck(
+            self.FIXTURE, L3_LABELS, L3_EXPECTED, regions=[bad_base])
+        result = check.run()
+        self.assertEqual(result.mismatches, [])
+        self.assertFalse(result.passed)
+        base = result.region_results["base"]
+        self.assertFalse(base.passed)
+        self.assertTrue(any('wheel' in m for m in base.mismatches))
+
+    def test_region_catches_spatial_omission_global_misses(self):
+        tight = self._wheel_column("tight_column", None, 600.0, expected_wheels=3)
+        check = InventoryCheck(
+            self.FIXTURE, L3_LABELS, L3_EXPECTED, regions=[tight])
+        result = check.run()
+        self.assertEqual(result.mismatches, [])
+        self.assertFalse(result.passed)
+        tight_res = result.region_results["tight_column"]
+        self.assertEqual(tight_res.inventory.get('wheel', 0), 2)
+        self.assertTrue(any('wheel' in m for m in tight_res.mismatches))
+
+    def test_overlapping_regions_double_count(self):
+        lower = self._wheel_column("lower", None, 500.0, expected_wheels=2)
+        middle = self._wheel_column("middle", 300.0, 900.0, expected_wheels=2)
+        check = InventoryCheck(
+            self.FIXTURE, L3_LABELS, L3_EXPECTED, regions=[lower, middle])
+        result = check.run()
+        self.assertTrue(result.passed, str(result.region_results))
+        self.assertEqual(result.region_results["lower"].inventory.get('wheel', 0), 2)
+        self.assertEqual(result.region_results["middle"].inventory.get('wheel', 0), 2)
+
+    def test_region_result_partition_totals(self):
+        check = InventoryCheck(
+            self.FIXTURE, L3_LABELS, L3_EXPECTED,
+            regions=[self._base_region(), self._gantry_region()])
+        result = check.run()
+        base = result.region_results["base"]
+        gantry = result.region_results["gantry"]
+        self.assertEqual(base.total_parts + gantry.total_parts, result.total_parts)
+
 
 
 # ============================================================
