@@ -1,0 +1,32 @@
+{
+  "title": "CADCLAW: Automated validation framework for STEP-based CAD assemblies",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Sonnentag, Nicholas",
+      "affiliation": "Sunnyday Technologies"
+    }
+  ],
+  "description": "Automated validation, interference detection, and structural analysis for STEP assemblies. Provides inventory/adjacency/dimensional gates, tolerance stacking (worst-case / RSS / Monte Carlo), disassembly-sequence rendering, and an MCP server exposing all capabilities to AI coding assistants.",
+  "license": "MIT",
+  "keywords": [
+    "CAD",
+    "STEP",
+    "validation",
+    "testing",
+    "cadquery",
+    "mechanical engineering",
+    "assembly",
+    "tolerance analysis",
+    "interference detection",
+    "MCP"
+  ],
+  "access_right": "open",
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/sunnyday-technologies/CADCLAW",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}

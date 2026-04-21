@@ -80,9 +80,28 @@ Every solid in a STEP file has a bounding box. The sorted dimensions `(dx, dy, d
 
 This works because mechanical parts have characteristic dimensions. A NEMA23 is always 56.4mm square. A 4080 extrusion is always 40x80mm. The harness exploits this invariant to label, count, and validate without parsing STEP metadata.
 
+## Author
+
+**[Nicholas Sonnentag](https://www.linkedin.com/in/nicholas-sonnentag)** — mechanical engineer, founder of [Sunnyday Technologies](https://sunn3d.com). CADCLAW is authored and maintained by Nick; development is AI-assisted (Claude, Anthropic), but the design decisions, engineering judgment, test fixtures, and direction are his.
+
+Contact: `nickworks@sunn3d.com`
+
+## Citation
+
+If you use CADCLAW in published research or derivative work, please cite:
+
+```
+Sonnentag, N. (2026). CADCLAW: Automated validation framework for
+STEP-based CAD assemblies. Sunnyday Technologies.
+https://github.com/sunnyday-technologies/CADCLAW
+DOI: 10.5281/zenodo.19647391
+```
+
+A [`CITATION.cff`](CITATION.cff) file is included for automated citation tooling.
+
 ## Origin Story
 
-CADCLAW was extracted from the [M3-CRETE](https://github.com/sunnyday-technologies/M3-CRETE) open-source concrete 3D printer project, where it was developed during a human-AI collaboration between a mechanical engineer and Claude (Anthropic's AI). The harness:
+CADCLAW was extracted from the [M3-CRETE](https://github.com/sunnyday-technologies/M3-CRETE) open-source concrete 3D printer project, where it was developed by Nicholas Sonnentag during a human-AI collaboration with Claude (Anthropic's AI). The harness:
 
 - Caught 53 solid-solid interferences in a single run
 - Reduced STEP file size from 70MB to 13MB by identifying geometry bloat
@@ -180,7 +199,7 @@ GIF rendering.
 
 ## License
 
-MIT License. Copyright (c) 2026 Sunnyday Technologies.
+MIT License. Copyright (c) 2026 Nicholas Sonnentag / Sunnyday Technologies.
 
 Built during the [M3-CRETE](https://m3-crete.com) project — an open-source concrete
 3D printer where CADCLAW caught 53 interferences, reduced STEP file size from

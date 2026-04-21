@@ -1,0 +1,35 @@
+cff-version: 1.2.0
+message: "If you use CADCLAW in your research or engineering work, please cite it as below."
+title: "CADCLAW: Automated validation framework for STEP-based CAD assemblies"
+abstract: >-
+  CADCLAW is an automated validation and analysis framework for STEP
+  assemblies, providing interference detection, inventory checks,
+  adjacency rules, dimensional gates, kinematics, tolerance stacking
+  (worst-case / RSS / Monte Carlo), and disassembly-sequence rendering.
+  Includes an MCP server exposing all gates to AI coding assistants.
+type: software
+authors:
+  - family-names: Sonnentag
+    given-names: Nicholas
+    email: nickworks@sunn3d.com
+    affiliation: Sunnyday Technologies
+license: MIT
+repository-code: "https://github.com/sunnyday-technologies/CADCLAW"
+url: "https://github.com/sunnyday-technologies/CADCLAW"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.19647391
+    description: Zenodo concept DOI (all versions)
+keywords:
+  - CAD
+  - STEP
+  - validation
+  - testing
+  - cadquery
+  - mechanical-engineering
+  - assembly
+  - tolerance-analysis
+  - interference-detection
+  - mcp
+version: "0.5.0"
+date-released: "2026-04-18"
