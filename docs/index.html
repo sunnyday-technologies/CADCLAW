@@ -42,9 +42,8 @@
       </div>
       <p class="sub">Open source · MIT · Python 3.10+ · No commercial CAD software required</p>
     </div>
-    <div class="hero-demo">
-      <img src="media/m3crete_radial_spin.gif" alt="M3-CRETE assembly exploding radially and rotating 360 degrees" />
-      <p class="caption">One call → radial explode + 360° orbit. 99+ parts, zero manual animation.</p>
+    <div class="hero-mark">
+      <img src="CADCLAW_logo.jpg" alt="CADCLAW" />
     </div>
   </section>
 
@@ -85,6 +84,15 @@
 <span class="c">(4.0, 80.0, 96.0)</span>    → <span class="o">"mount"</span>    <span class="g"># motor mount plate</span></pre>
 
     <p>This works because mechanical parts have characteristic dimensions. A NEMA23 is always 56.4&nbsp;mm square. A 4080 extrusion is always 40&times;80&nbsp;mm. CADCLAW exploits this invariant to label, count, and validate without parsing STEP metadata.</p>
+  </section>
+
+  <section id="output" class="section">
+    <h2>Sample output</h2>
+    <p class="lede">The <code>render</code> gate closes the loop from STEP validation to shareable visuals. One function call produces a radial explode, 360° orbit, and animated GIF — the same tool you run in CI.</p>
+    <div class="output-media">
+      <img src="media/m3crete_radial_spin.gif" alt="99-part STEP assembly exploding radially and rotating 360 degrees" />
+      <p class="caption">99-part M3-CRETE assembly · <code>render_radial_explode_gif("assembly.step", "out.gif")</code> · zero manual animation</p>
+    </div>
   </section>
 
   <section id="install" class="section">
