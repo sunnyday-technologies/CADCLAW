@@ -1,36 +1,46 @@
 /* CADCLAW — landing page
-   Sunnyday Technologies brand palette: navy + lime green.
-   CADCLAW logo keeps its orange — the one warm accent.
+   Sunnyday Technologies canonical brand palette.
+   Brand colors: #ffffff (white), #97d700 (green), #013a73 (navy).
+   Web typography: Orbitron (display) + Inter (body) + JetBrains Mono (code).
+   Print/slide typography: Nulshock Bd + Sifonn Pro (not loaded here — licensed channel).
+   CADCLAW logo keeps its orange as the one warm accent on the site. */
 
-   Canonical brand system lives at /brand.css — colors, fonts, base
-   styles. This file imports it and adds only CADCLAW-specific layout. */
-
-@import url('brand.css');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  /* Aliases: brand.css owns the values; local names for brevity */
-  --navy-deep:  var(--sd-navy-deep);
-  --navy:       var(--sd-navy);
-  --navy-2:     var(--sd-navy-2);
-  --navy-3:     var(--sd-navy-3);
-  --navy-glow:  rgba(141, 198, 63, 0.08);
+  /* Brand — canonical, from Sunnyday Tech brand guide */
+  --brand-navy:   #013a73;
+  --brand-green:  #97d700;
+  --brand-white:  #ffffff;
 
-  --green:      var(--sd-green);
-  --green-hi:   var(--sd-green-hi);
-  --green-dim:  var(--sd-green-dim);
+  /* Derived palette — backgrounds */
+  --navy-deep:   #060d14;   /* darkest — body bg */
+  --navy:        #013a73;   /* canonical brand blue */
+  --navy-2:      #0f2035;   /* raised surfaces */
+  --navy-3:      #1a3350;   /* borders */
+  --navy-glow:   rgba(151, 215, 0, 0.08);
 
-  --ink:        var(--sd-ink);
-  --ink-dim:    var(--sd-ink-dim);
-  --ink-faint:  var(--sd-ink-faint);
+  /* Derived palette — greens */
+  --green:       #97d700;   /* canonical brand green */
+  --green-hi:    #aef03a;   /* hover / bright */
+  --green-dim:   #5c8400;   /* muted / disabled */
 
-  --rule:       var(--sd-rule);
-  --rule-soft:  var(--sd-rule-soft);
+  /* Text — on dark bg */
+  --ink:         #f0f4f7;
+  --ink-dim:     #c2d4e0;
+  --ink-faint:   #6a8faa;
 
-  --code-bg:    var(--sd-navy-deepest);
+  /* Rules */
+  --rule:        #1a3350;
+  --rule-soft:   #0b1824;
 
-  --mono:    var(--sd-mono);
-  --sans:    var(--sd-body);
-  --display: var(--sd-display);
+  /* Code panel */
+  --code-bg:     #0b1824;
+
+  /* Typography */
+  --mono:    "JetBrains Mono", "Fira Code", "SF Mono", Consolas, Menlo, monospace;
+  --sans:    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  --display: "Orbitron", "Arial Black", sans-serif;
 }
 
 * { box-sizing: border-box; }
