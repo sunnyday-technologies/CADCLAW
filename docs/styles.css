@@ -2,13 +2,7 @@
    Sunnyday Technologies brand palette: navy + lime green.
    CADCLAW logo keeps its orange — the one warm accent. */
 
-@font-face {
-  font-family: "Nulshock";
-  src: url("fonts/Nulshock-Bd.otf") format("opentype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
 
 :root {
   /* brand — sampled from Sunnyday Technologies logo */
@@ -33,7 +27,7 @@
 
   --mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, Menlo, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
-  --display: "Nulshock", "Russo One", "Arial Black", sans-serif;
+  --display: "Orbitron", "Arial Black", sans-serif;
 }
 
 * { box-sizing: border-box; }
