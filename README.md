@@ -36,8 +36,10 @@ CADCLAW also includes an **MCP Server** — all modules exposed as tools for any
 ## Quick Start
 
 ```bash
-pip install cadquery
-pip install CADCLAW   # or: git clone + pip install -e .
+pip install cadclaw
+# cadquery is pulled in automatically. For editable dev installs:
+#   git clone https://github.com/sunnyday-technologies/CADCLAW.git
+#   cd CADCLAW && pip install -e .
 ```
 
 ```python
@@ -171,7 +173,7 @@ pip install cadquery
 # Generate test fixture STEP assemblies (L1-L3, good + bad variants)
 python tests/generate_fixtures.py
 
-# Run the test suite (52 tests across every module)
+# Run the test suite (73 tests across every module)
 python -m unittest tests.test_harness -v
 ```
 
