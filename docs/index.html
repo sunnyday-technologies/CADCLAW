@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CADCLAW — the testing framework CAD never had</title>
+  <meta name="description" content="CADCLAW: automated validation, interference detection, and structural analysis for STEP assemblies. Like pytest for mechanical design." />
+  <meta property="og:title" content="CADCLAW — the testing framework CAD never had" />
+  <meta property="og:description" content="Automated validation, interference detection, and structural analysis for STEP assemblies. Like pytest for mechanical design." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://cadclaw.ai" />
+  <meta property="og:image" content="https://cadclaw.ai/media/m3crete_radial_spin.gif" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="CADCLAW_logo.jpg" type="image/jpeg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="nav">
+  <a class="brand" href="/">
+    <img src="CADCLAW_logo.jpg" alt="CADCLAW" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'" />
+    <span class="brand-text" style="display:none">CADCLAW</span>
+  </a>
+  <nav>
+    <a href="#what">What it does</a>
+    <a href="#how">How it works</a>
+    <a href="#install">Install</a>
+    <a href="#cite">Cite</a>
+    <a class="ghost" href="https://github.com/sunnyday-technologies/CADCLAW">GitHub →</a>
+  </nav>
+</header>
+
+<main>
+
+  <section class="hero">
+    <div class="hero-copy">
+      <h1>The testing framework<br/>CAD never had.</h1>
+      <p class="tag">Automated validation, interference detection, and structural analysis for STEP assemblies. Like <code>pytest</code> for mechanical design.</p>
+      <div class="cta-row">
+        <a class="cta primary" href="#install">Install CADCLAW</a>
+        <a class="cta" href="https://github.com/sunnyday-technologies/CADCLAW">View on GitHub</a>
+      </div>
+      <p class="sub">Open source · MIT · Python 3.10+ · No commercial CAD software required</p>
+    </div>
+    <div class="hero-demo">
+      <img src="media/m3crete_radial_spin.gif" alt="M3-CRETE assembly exploding radially and rotating 360 degrees" />
+      <p class="caption">One call → radial explode + 360° orbit. 99+ parts, zero manual animation.</p>
+    </div>
+  </section>
+
+  <section class="strip">
+    <div class="stat"><span class="num">53</span><span class="lbl">interferences caught</span></div>
+    <div class="stat"><span class="num">70 → 13 MB</span><span class="lbl">STEP size reduction</span></div>
+    <div class="stat"><span class="num">150+</span><span class="lbl">validated design changes</span></div>
+    <div class="stat"><span class="num">8</span><span class="lbl">automated gates</span></div>
+  </section>
+
+  <section id="what" class="section">
+    <h2>CAD assemblies break silently.</h2>
+    <p class="lede">Parts clip into each other. BOMs drift from geometry. A motor mount ends up 600&nbsp;mm from the motor. Engineers catch these by eye — if they catch them at all. There is no <code>pytest</code> for CAD.</p>
+    <p class="lede"><strong>CADCLAW validates STEP assemblies through a chain of automated gates.</strong> The harness passes only if every gate passes.</p>
+
+    <div class="gates">
+      <div class="gate"><h3>Inventory</h3><p>Missing or extra parts. Labels by bounding-box signature, counts against expected.</p></div>
+      <div class="gate"><h3>Interference</h3><p>Solid-solid overlaps via BRep boolean intersection — not just bbox.</p></div>
+      <div class="gate"><h3>Adjacency</h3><p>Parts that should be near each other but aren't. Catches the motor 600&nbsp;mm from its mount.</p></div>
+      <div class="gate"><h3>Dimensional</h3><p>Wrong thickness, swapped <code>box()</code> args, impossible dimensions.</p></div>
+      <div class="gate"><h3>Kinematics</h3><p>Beam deflection, motor torque budgets, belt tension, racking.</p></div>
+      <div class="gate"><h3>Tolerance</h3><p>Worst-case, RSS, Monte Carlo stacking with C<sub>pk</sub> and variance decomposition.</p></div>
+      <div class="gate"><h3>Disassembly</h3><p>Sequenced part removal, radial exploded views, animation frame export.</p></div>
+      <div class="gate"><h3>Render</h3><p>STEP → PNG → animated GIF via offscreen VTK. Closes the loop to shareable visuals.</p></div>
+    </div>
+
+    <div class="callout">
+      <strong>MCP Server included.</strong> Every module is also exposed as an MCP tool — drive the harness from Claude, ChatGPT, Gemini, Cursor, or any MCP-compatible client. No code generation required.
+    </div>
+  </section>
+
+  <section id="how" class="section dark">
+    <h2>How it works</h2>
+    <p class="lede">Every solid in a STEP file has a bounding box. The sorted dimensions <code>(dx, dy, dz)</code> rounded to 0.1&nbsp;mm form a <strong>signature</strong> — a fingerprint that identifies part types without needing part names or metadata.</p>
+
+<pre class="code"><span class="c">(40.0, 80.0, 1000.0)</span> → <span class="o">"beam"</span>     <span class="g"># 4080 C-beam extrusion</span>
+<span class="c">(56.4, 56.4, 76.6)</span>   → <span class="o">"motor"</span>    <span class="g"># NEMA23 stepper</span>
+<span class="c">(4.0, 80.0, 96.0)</span>    → <span class="o">"mount"</span>    <span class="g"># motor mount plate</span></pre>
+
+    <p>This works because mechanical parts have characteristic dimensions. A NEMA23 is always 56.4&nbsp;mm square. A 4080 extrusion is always 40&times;80&nbsp;mm. CADCLAW exploits this invariant to label, count, and validate without parsing STEP metadata.</p>
+  </section>
+
+  <section id="install" class="section">
+    <h2>Quick start</h2>
+
+<pre class="code"><span class="g"># install</span>
+pip install cadquery
+pip install CADCLAW</pre>
+
+<pre class="code"><span class="k">from</span> cadharness.harness <span class="k">import</span> Harness
+<span class="k">from</span> cadharness.adjacency <span class="k">import</span> AdjacencyRule
+
+h = Harness(<span class="o">"my_assembly.step"</span>)
+
+h.add_inventory(
+    labels={(40.0, 80.0, 1000.0): <span class="o">'beam'</span>, (56.4, 56.4, 76.6): <span class="o">'motor'</span>},
+    expected={<span class="o">'beam'</span>: 4, <span class="o">'motor'</span>: 2, <span class="o">'belt'</span>: 3}
+)
+
+h.add_interference(skip_labels={<span class="o">'belt'</span>, <span class="o">'wheel'</span>})
+
+h.add_adjacency(rules=[
+    AdjacencyRule(<span class="o">'motor'</span>, <span class="o">'bracket'</span>, max_distance=50)
+])
+
+report = h.run()
+<span class="k">print</span>(report)
+<span class="g"># CAD HARNESS REPORT — PASSED
+#   Parts: 42
+#   Time:  3200ms
+#
+#   [PASS] inventory (120ms)
+#   [PASS] interference (2800ms)
+#   [PASS] adjacency (15ms)</span></pre>
+
+    <h3>CI/CD in any system</h3>
+<pre class="code"><span class="g"># .github/workflows/cad-check.yml</span>
+- <span class="k">name</span>: Validate assembly
+  <span class="k">run</span>: |
+    pip install cadquery CADCLAW
+    python check.py assembly.step</pre>
+    <p class="muted">Exit code 0 = passed. Exit code 1 = failed.</p>
+  </section>
+
+  <section class="section">
+    <h2>Who it's for</h2>
+    <div class="audience">
+      <div><h3>Open-source hardware projects</h3><p>Catch assembly errors before builders hit them.</p></div>
+      <div><h3>CadQuery / FreeCAD users</h3><p>The testing layer the open CAD ecosystem is missing.</p></div>
+      <div><h3>Small manufacturing teams</h3><p>Automated QA between design and procurement.</p></div>
+      <div><h3>AI-assisted CAD workflows</h3><p>Validate that AI-generated changes don't break the assembly.</p></div>
+    </div>
+  </section>
+
+  <section class="section dark">
+    <h2>Origin</h2>
+    <p class="lede">CADCLAW was developed alongside the <a href="https://m3-crete.com">M3-CRETE</a> open-source concrete 3D printer — built out of a practical need to properly position and validate components during assembly of a large, part-dense machine. Across that project the harness:</p>
+    <ul class="origin">
+      <li>Caught <strong>53 solid-solid interferences</strong> in a single run</li>
+      <li>Reduced STEP file size from <strong>70&nbsp;MB to 13&nbsp;MB</strong> by identifying geometry bloat</li>
+      <li>Validated <strong>150+ assembly changes</strong> across 15 design sessions without visual inspection</li>
+      <li>Prevented <strong>3 regressions</strong> that would have shipped broken geometry to builders</li>
+    </ul>
+    <p class="muted">Snapshot from CADCLAW's first production deployment on <a href="https://m3-crete.com">M3-CRETE</a>, Q1 2026. Developed by <a href="https://sunn3d.com">Sunnyday Technologies</a> with AI-assisted engineering (Claude, Anthropic).</p>
+  </section>
+
+  <section id="cite" class="section">
+    <h2>Citation</h2>
+    <p>If you use CADCLAW in published research or derivative work, please cite:</p>
+<pre class="code">Sonnentag, N. (2026). CADCLAW: Automated validation framework for
+STEP-based CAD assemblies. Sunnyday Technologies.
+https://github.com/sunnyday-technologies/CADCLAW
+DOI: 10.5281/zenodo.19647391</pre>
+    <p>A <a href="https://github.com/sunnyday-technologies/CADCLAW/blob/main/CITATION.cff"><code>CITATION.cff</code></a> file is included for automated citation tooling.</p>
+    <p><a href="https://doi.org/10.5281/zenodo.19647391"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.19647391.svg" alt="DOI 10.5281/zenodo.19647391" /></a></p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="foot-grid">
+    <div>
+      <h4>CADCLAW</h4>
+      <p>The testing framework CAD never had.</p>
+      <p class="muted">MIT License · © 2026 <a href="https://sunn3d.com">Sunnyday Technologies</a></p>
+    </div>
+    <div>
+      <h4>Project</h4>
+      <a href="https://github.com/sunnyday-technologies/CADCLAW">GitHub</a>
+      <a href="https://github.com/sunnyday-technologies/CADCLAW/issues">Issues</a>
+      <a href="https://doi.org/10.5281/zenodo.19647391">Zenodo DOI</a>
+    </div>
+    <div>
+      <h4>Related</h4>
+      <a href="https://m3-crete.com">M3-CRETE</a>
+      <a href="https://open3dcp.org">Open3DCP</a>
+      <a href="https://sunn3d.com">Sunnyday Technologies</a>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <a href="mailto:info@sunn3d.com">info@sunn3d.com</a>
+      <a href="https://sunn3d.com">sunn3d.com</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
