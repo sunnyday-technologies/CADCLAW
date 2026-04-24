@@ -1,4 +1,4 @@
-# Deploying cadclaw.ai
+# Deploying cadclaw.io
 
 Static landing page served via **GitHub Pages** from `/docs` on `main`.
 
@@ -9,12 +9,12 @@ Static landing page served via **GitHub Pages** from `/docs` on `main`.
    - Source: `Deploy from a branch`
    - Branch: `main`  /  folder: `/docs`
    - Save
-3. **Custom domain**: enter `cadclaw.ai` → Save. The `docs/CNAME` file already contains this.
+3. **Custom domain**: enter `cadclaw.io` → Save. The `docs/CNAME` file already contains this.
 4. Check **Enforce HTTPS** once the cert provisions (≈15 min after DNS resolves).
 
 ## One-time Cloudflare DNS setup
 
-Add these records for `cadclaw.ai` in Cloudflare DNS:
+Add these records for `cadclaw.io` in Cloudflare DNS:
 
 | Type  | Name | Content                  | Proxy    |
 |-------|------|--------------------------|----------|
@@ -37,7 +37,7 @@ until GitHub's cert is live).
 docs/
 ├── index.html          # landing page
 ├── styles.css          # Claude Code CLI aesthetic
-├── CNAME               # custom domain → cadclaw.ai
+├── CNAME               # custom domain → cadclaw.io
 ├── .nojekyll           # skip Jekyll processing
 ├── robots.txt
 ├── sitemap.xml
