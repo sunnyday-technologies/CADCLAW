@@ -33,9 +33,10 @@ dependencies = [
 cadclaw-mcp = "cadclaw_mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/sunnyday-technologies/CADCLAW"
+Homepage = "https://cadclaw.io"
 Repository = "https://github.com/sunnyday-technologies/CADCLAW"
 Issues = "https://github.com/sunnyday-technologies/CADCLAW/issues"
+Documentation = "https://cadclaw.io"
 
 [tool.setuptools.packages.find]
 include = ["cadharness*", "cadclaw_mcp*"]
