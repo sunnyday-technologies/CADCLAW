@@ -5,7 +5,7 @@
    Print/slide typography: Nulshock Bd + Sifonn Pro (not loaded here — licensed channel).
    CADCLAW logo keeps its orange as the one warm accent on the site. */
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Raleway:wght@300;400;500;600&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
 
 :root {
   /* Brand — canonical, from Sunnyday Tech brand guide */
@@ -37,11 +37,13 @@
   /* Code panel */
   --code-bg:     #0b1824;
 
-  /* Typography */
-  --mono:    "JetBrains Mono", "Fira Code", "SF Mono", Consolas, Menlo, monospace;
-  --sans:    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  /* Typography — matches M3-CRETE / Open3DCP */
+  --mono:    "IBM Plex Mono", "SF Mono", Consolas, Menlo, monospace;
+  --sans:    "Raleway", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   --display: "Orbitron", "Arial Black", sans-serif;
 }
+
+html, body { font-weight: 300; }
 
 * { box-sizing: border-box; }
 
