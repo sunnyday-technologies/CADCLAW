@@ -1,33 +1,36 @@
 /* CADCLAW — landing page
    Sunnyday Technologies brand palette: navy + lime green.
-   CADCLAW logo keeps its orange — the one warm accent. */
+   CADCLAW logo keeps its orange — the one warm accent.
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+   Canonical brand system lives at /brand.css — colors, fonts, base
+   styles. This file imports it and adds only CADCLAW-specific layout. */
+
+@import url('brand.css');
 
 :root {
-  /* brand — sampled from Sunnyday Technologies logo */
-  --navy-deep:  #0a1f42;   /* body background */
-  --navy:       #163872;   /* logo navy, primary */
-  --navy-2:     #1e4687;   /* raised surfaces */
-  --navy-3:     #2a5599;   /* borders, rules */
+  /* Aliases: brand.css owns the values; local names for brevity */
+  --navy-deep:  var(--sd-navy-deep);
+  --navy:       var(--sd-navy);
+  --navy-2:     var(--sd-navy-2);
+  --navy-3:     var(--sd-navy-3);
   --navy-glow:  rgba(141, 198, 63, 0.08);
 
-  --green:      #8dc63f;   /* logo green — accent */
-  --green-hi:   #a2d756;   /* hover */
-  --green-dim:  #6fa030;
+  --green:      var(--sd-green);
+  --green-hi:   var(--sd-green-hi);
+  --green-dim:  var(--sd-green-dim);
 
-  --ink:        #eaeff7;
-  --ink-dim:    #a8b8cc;
-  --ink-faint:  #6a7b90;
+  --ink:        var(--sd-ink);
+  --ink-dim:    var(--sd-ink-dim);
+  --ink-faint:  var(--sd-ink-faint);
 
-  --rule:       #1e4687;
-  --rule-soft:  #14325f;
+  --rule:       var(--sd-rule);
+  --rule-soft:  var(--sd-rule-soft);
 
-  --code-bg:    #081a3a;
+  --code-bg:    var(--sd-navy-deepest);
 
-  --mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, Menlo, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
-  --display: "Orbitron", "Arial Black", sans-serif;
+  --mono:    var(--sd-mono);
+  --sans:    var(--sd-body);
+  --display: var(--sd-display);
 }
 
 * { box-sizing: border-box; }
