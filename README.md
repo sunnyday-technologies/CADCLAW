@@ -36,7 +36,7 @@ CADCLAW also includes an **MCP Server** — all modules exposed as tools for MCP
 ## Quick Start
 
 ```bash
-pip install git+https://github.com/sunnyday-technologies/CADCLAW.git
+pip install cadclaw
 # cadquery is pulled in automatically. For editable dev installs:
 #   git clone https://github.com/sunnyday-technologies/CADCLAW.git
 #   cd CADCLAW && pip install -e .
@@ -150,8 +150,7 @@ MCP Server exposing all modules as tools for MCP-compatible hosts such as Claude
 # .github/workflows/cad-check.yml
 - name: Validate assembly
   run: |
-    pip install cadquery
-    pip install git+https://github.com/sunnyday-technologies/CADCLAW.git
+    pip install cadclaw
     python check.py assembly.step
 ```
 
