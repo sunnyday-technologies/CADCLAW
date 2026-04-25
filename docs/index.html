@@ -98,9 +98,7 @@
   <section id="install" class="section">
     <h2>Quick start</h2>
 
-<pre class="code"><span class="g"># install from source until the PyPI package is published</span>
-pip install cadquery
-pip install git+https://github.com/sunnyday-technologies/CADCLAW.git</pre>
+<pre class="code">pip install cadclaw</pre>
 
 <pre class="code"><span class="k">from</span> cadharness.harness <span class="k">import</span> Harness
 <span class="k">from</span> cadharness.adjacency <span class="k">import</span> AdjacencyRule
@@ -132,8 +130,7 @@ report = h.run()
 <pre class="code"><span class="g"># .github/workflows/cad-check.yml</span>
 - <span class="k">name</span>: Validate assembly
   <span class="k">run</span>: |
-    pip install cadquery
-    pip install git+https://github.com/sunnyday-technologies/CADCLAW.git
+    pip install cadclaw
     python check.py assembly.step</pre>
     <p class="muted">Exit code 0 = passed. Exit code 1 = failed.</p>
   </section>
