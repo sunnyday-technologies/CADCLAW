@@ -31,12 +31,12 @@ CADCLAW validates STEP assemblies through a chain of automated gates:
 
 All gates run against a single loaded STEP file. The harness passes only if every gate passes.
 
-CADCLAW also includes an **MCP Server** — all modules exposed as tools for any MCP-compatible client (Claude, ChatGPT, Gemini, Cursor, and others).
+CADCLAW also includes an **MCP Server** — all modules exposed as tools for MCP-compatible hosts such as Claude Desktop, Cursor, and other clients that support the protocol.
 
 ## Quick Start
 
 ```bash
-pip install cadclaw
+pip install git+https://github.com/sunnyday-technologies/CADCLAW.git
 # cadquery is pulled in automatically. For editable dev installs:
 #   git clone https://github.com/sunnyday-technologies/CADCLAW.git
 #   cd CADCLAW && pip install -e .
@@ -142,7 +142,7 @@ Offscreen VTK rendering of STEP files to PNG, plus GIF stitching. `make_disassem
 The runner. Chains gates, loads parts once, reports pass/fail with timing.
 
 ### `cadclaw_mcp/`
-MCP Server exposing all modules as tools for any MCP-compatible client (Claude, ChatGPT, Gemini, Cursor, and others). The user describes what to check; the assistant calls the tools directly. No code generation needed — MCP is an open protocol, so any compliant client can drive the harness.
+MCP Server exposing all modules as tools for MCP-compatible hosts such as Claude Desktop, Cursor, and other clients that support the protocol. The user describes what to check; the assistant calls the tools directly. No code generation needed — MCP is an open protocol, so any compliant client can drive the harness.
 
 ## CI/CD Integration
 
@@ -150,7 +150,8 @@ MCP Server exposing all modules as tools for any MCP-compatible client (Claude, 
 # .github/workflows/cad-check.yml
 - name: Validate assembly
   run: |
-    pip install cadquery CADCLAW
+    pip install cadquery
+    pip install git+https://github.com/sunnyday-technologies/CADCLAW.git
     python check.py assembly.step
 ```
 
