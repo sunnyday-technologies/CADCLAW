@@ -76,8 +76,8 @@ class ConfidenceBudget:
 
 @dataclass
 class Report:
-    """Unified report shape every v0.6 gate / runner produces."""
-    schema_version: str = "0.6"
+    """Unified report shape every v0.7 gate / runner produces."""
+    schema_version: str = "0.7"
     overall: Severity = Severity.PASS
     findings: List[Finding] = field(default_factory=list)
     confidence_budget: ConfidenceBudget = field(default_factory=ConfidenceBudget)

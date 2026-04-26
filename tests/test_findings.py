@@ -81,7 +81,7 @@ class TestReportSerialization(unittest.TestCase):
     def test_to_dict_has_locked_schema_version(self):
         r = Report()
         d = r.to_dict()
-        self.assertEqual(d["schema_version"], "0.6")
+        self.assertEqual(d["schema_version"], "0.7")
         self.assertIn("findings", d)
         self.assertIn("confidence_budget", d)
 

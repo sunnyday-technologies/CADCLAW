@@ -3,7 +3,7 @@ Claim-audit — text linter for README, docs, and BOM `notes` fields.
 
 Three rule passes:
   1. Forbidden absolutes — case-insensitive substring match against a default
-     list ("production-ready", "validated", etc.). Severity: fail.
+     list ("production-ready", "guaranteed", etc.). Severity: fail.
   2. Numeric claims requiring evidence tags — regex; if a line matches a
      pattern but has no evidence tag like `[analysis]` / `[measured-prototype]`,
      emit warn.
@@ -12,6 +12,22 @@ Three rule passes:
 
 Plus the two folded source-lint regex rules in `claim_audit.source_regex_rules`
 that operate over `.py` files (protected output paths, silent fallback geometry).
+
+v0.7 / MED-3: forbidden_absolutes and stale_terms passes are
+license-aware and negation-aware. License attribution lines (CC BY, MIT,
+Apache, GPL, SPDX-License-Identifier, Copyright) and single-line HTML
+comments are blanked before scanning so e.g. a CC BY-SA attribution
+mentioning "OpenBuilds" doesn't trigger a stale_term flag whose suggested
+fix would be a license violation. Negation tokens preceding a term
+within 30 chars (bounded by sentence punctuation) suppress the match,
+so "// no Supabase" doesn't fire as a stale_term for "Supabase".
+Numeric-claim regex scans ignore both — license blocks and code comments
+can still cite numbers that need evidence tagging.
+
+v0.7 / MED-4: "validated" was removed from DEFAULT_FORBIDDEN_ABSOLUTES.
+The word is too overloaded across third-party-product mentions and
+domain-specific phrases ("ASTM-validated"). Projects that want to flag
+it can opt in via `forbidden_absolutes_extra: ["validated"]`.
 
 Usage:
     from cadharness.claim_audit import run_claim_audit
@@ -32,10 +48,11 @@ from .rules import RuleSet
 
 
 # Default forbidden-absolutes list. Keep small and opinionated.
+# v0.7 / MED-4: "validated" removed from defaults; opt in via
+# forbidden_absolutes_extra if you want it.
 DEFAULT_FORBIDDEN_ABSOLUTES: Tuple[str, ...] = (
     "production-ready",
     "production-capable",
-    "validated",
     "guaranteed",
     "fully automated",
     "no risk",
@@ -55,10 +72,6 @@ SUGGESTED_REWRITES: Dict[str, str] = {
     "production-capable": (
         "Replace with a specific evidence-backed phrase or remove."
     ),
-    "validated": (
-        "Replace with the specific check that was run, "
-        "e.g. 'passes cadclaw inventory + interference gates'."
-    ),
     "guaranteed": (
         "Replace with a probabilistic or evidence-tagged statement."
     ),
@@ -70,6 +83,71 @@ DEFAULT_NUMERIC_PATTERNS: Tuple[str, ...] = (
     r"safety\s+factor\s+(?:of|=)?\s*\d+(?:\.\d+)?",
     r"loads?\s+(?:up\s+to|of|to)\s*\d+(?:\.\d+)?\s*kg",
 )
+
+
+# v0.7 / MED-3 — license-attribution and HTML-comment stripping.
+# Lines matching these patterns are blanked (replaced with empty string,
+# preserving line numbers) before forbidden_absolutes / stale_terms scanning.
+# Same trick as _strip_md_code_fences; the numeric-claim scan still sees the
+# original text because numbers in license blocks still want evidence tags.
+#
+# Patterns are intentionally permissive — a line that strongly signals
+# license/attribution context shouldn't trip stale_term flags (the
+# field-test "OpenBuilds in CC BY-SA attribution" case is the canonical
+# bug; flagging it could lead to a license violation if a user follows
+# the suggested fix).
+_LICENSE_LINE_PATTERN = re.compile(
+    r"(?i)(?:"
+    r"CC[-\s]?BY[-\s]|CC0\b|Creative\s+Commons|creativecommons\.org|"
+    r"MIT\s+License|Apache\s+License|BSD\s+License|"
+    r"\bGPL[v\d-]?|CERN-OHL|"
+    r"SPDX-License-Identifier:|"
+    r"Copyright\s*\((?:c|C)\)|Copyright\s*\xa9|Copyright\s*©|"
+    r"licensed\s+under|License\s+Notice|"
+    r"based\s+on\s+\[|derived\s+from\s+\["
+    r")"
+)
+_HTML_COMMENT_LINE_PATTERN = re.compile(r"<!--.*?-->")
+
+# v0.7 / MED-3 — negation-aware substring matching for stale_terms and
+# forbidden_absolutes. Mirrors the negation logic in bom_audit.py
+# (_NEGATION_PATTERN, _is_negated). Kept duplicated rather than extracted
+# so the two gates can evolve independently if the rules diverge.
+_NEGATION_PATTERN = re.compile(
+    r"\b(?:not|no|never|do not|don't|doesn't|replaces|instead of|rather than|without|excludes)\b",
+    re.IGNORECASE,
+)
+_SENTENCE_BOUNDARIES = (".", "!", "?", "\n")
+_NEGATION_LOOKBACK_CHARS = 30
+
+
+def _is_negated(haystack: str, term_index: int) -> bool:
+    start = max(0, term_index - _NEGATION_LOOKBACK_CHARS)
+    window = haystack[start:term_index]
+    last_boundary = max(
+        (window.rfind(b) for b in _SENTENCE_BOUNDARIES),
+        default=-1,
+    )
+    if last_boundary >= 0:
+        window = window[last_boundary + 1:]
+    return bool(_NEGATION_PATTERN.search(window))
+
+
+def _find_unnegated(haystack: str, needle: str) -> int:
+    """Return index of the first non-negated occurrence of `needle` in
+    case-folded `haystack`, or -1 if every occurrence is preceded by a
+    negation token.
+    """
+    h = haystack.lower()
+    n = needle.lower()
+    if not n:
+        return -1
+    idx = h.find(n)
+    while idx >= 0:
+        if not _is_negated(haystack, idx):
+            return idx
+        idx = h.find(n, idx + 1)
+    return -1
 
 
 def _strip_md_code_fences(text: str) -> str:
@@ -85,6 +163,37 @@ def _strip_md_code_fences(text: str) -> str:
     return "\n".join(out_lines)
 
 
+def _strip_license_lines(text: str) -> str:
+    """Blank lines that look like license attribution or copyright notices.
+
+    Used by the forbidden_absolutes / stale_terms passes so e.g. a CC BY-SA
+    block citing "OpenBuilds" doesn't trigger a stale_term — its suggested
+    fix would be a license violation. Line numbers are preserved by
+    replacing matched lines with empty strings.
+    """
+    out: List[str] = []
+    for line in text.splitlines():
+        if _LICENSE_LINE_PATTERN.search(line):
+            out.append("")
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+
+def _strip_html_comments(text: str) -> str:
+    """Blank single-line HTML comment content.
+
+    Per-line replacement — multi-line HTML comments are not supported and
+    are noted in the report's confidence_budget.not_checked. A `<!-- foo -->`
+    line becomes a line with the comment content removed but other content
+    preserved.
+    """
+    out: List[str] = []
+    for line in text.splitlines():
+        out.append(_HTML_COMMENT_LINE_PATTERN.sub("", line))
+    return "\n".join(out)
+
+
 def _scan_text_for_claims(
     text: str,
     rel_path: str,
@@ -94,13 +203,31 @@ def _scan_text_for_claims(
     stale_terms: List[str],
 ) -> List[Finding]:
     out: List[Finding] = []
-    if rel_path.endswith(".md") or rel_path.endswith(".markdown"):
+    is_md = rel_path.endswith(".md") or rel_path.endswith(".markdown")
+    is_html = rel_path.endswith(".html") or rel_path.endswith(".htm")
+    if is_md:
         text = _strip_md_code_fences(text)
-    lines = text.splitlines()
-    for line_no, line in enumerate(lines, start=1):
-        lower = line.lower()
+
+    # Build a parallel "claim scan" view: license/HTML-comment lines are
+    # blanked here only for forbidden_absolutes / stale_terms scanning.
+    # Numeric-claim regex still sees the unaltered text — license blocks
+    # citing deflection numbers should still warrant evidence tags.
+    claim_text = text
+    if is_md:
+        claim_text = _strip_license_lines(claim_text)
+    if is_html:
+        claim_text = _strip_html_comments(claim_text)
+        claim_text = _strip_license_lines(claim_text)
+
+    claim_lines = claim_text.splitlines()
+    numeric_lines = text.splitlines()
+    for line_no in range(1, max(len(claim_lines), len(numeric_lines)) + 1):
+        claim_line = claim_lines[line_no - 1] if line_no - 1 < len(claim_lines) else ""
+        numeric_line = numeric_lines[line_no - 1] if line_no - 1 < len(numeric_lines) else ""
+
         for word in forbidden:
-            if word.lower() in lower:
+            idx = _find_unnegated(claim_line, word)
+            if idx >= 0:
                 out.append(Finding(
                     id="claim.forbidden_absolute",
                     category="claim_audit",
@@ -113,7 +240,8 @@ def _scan_text_for_claims(
                     evidence={"path": rel_path, "line": line_no, "word": word},
                 ))
         for term in stale_terms:
-            if term.lower() in lower:
+            idx = _find_unnegated(claim_line, term)
+            if idx >= 0:
                 out.append(Finding(
                     id="claim.stale_term",
                     category="claim_audit",
@@ -123,8 +251,8 @@ def _scan_text_for_claims(
                     evidence={"path": rel_path, "line": line_no, "term": term},
                 ))
         for regex in numeric_patterns:
-            if regex.search(line):
-                if not any(tag in line for tag in evidence_tags):
+            if regex.search(numeric_line):
+                if not any(tag in numeric_line for tag in evidence_tags):
                     out.append(Finding(
                         id="claim.untagged_numeric",
                         category="claim_audit",

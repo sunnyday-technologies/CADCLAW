@@ -2,7 +2,10 @@
 import unittest
 from pathlib import Path
 
-from cadharness.claim_audit import run_claim_audit
+from cadharness.claim_audit import (
+    DEFAULT_FORBIDDEN_ABSOLUTES,
+    run_claim_audit,
+)
 from cadharness.findings import Severity
 from cadharness.rules import ClaimAuditModel, RuleSet, SourceRegexRuleModel
 
@@ -14,6 +17,8 @@ def _rules_for_overclaim() -> RuleSet:
     return RuleSet(
         claim_audit=ClaimAuditModel(
             scan_paths=["tests/fixtures/claim_audit/README_overclaim.md"],
+            # v0.7 / MED-4: "validated" no longer a default; opt-in via extra.
+            forbidden_absolutes_extra=["validated"],
             stale_terms=["JB Weld", "West System"],
         ),
     )
@@ -83,6 +88,120 @@ class TestStaleTerms(unittest.TestCase):
                 and f.evidence.get("term") == "JB Weld"
             for f in report.findings
         ))
+
+
+class TestMED3LicenseAndNegationAware(unittest.TestCase):
+    """v0.7 / MED-3: claim_audit skips license attribution lines, blanks
+    HTML comments, and suppresses stale_term matches preceded by negation.
+    """
+
+    def test_openbuilds_in_cc_by_sa_attribution_not_flagged(self):
+        """fixtures/claim_audit/license_attribution.md line 8:
+        '[OpenBuilds](...) designs and are licensed under' — the
+        'licensed under' phrase plus the markdown link shape should
+        suppress the stale_term match. Flagging this could lead to a
+        license violation if a user follows the suggested fix."""
+        rules = RuleSet(claim_audit=ClaimAuditModel(
+            scan_paths=["tests/fixtures/claim_audit/license_attribution.md"],
+            stale_terms=["OpenBuilds"],
+        ))
+        report = run_claim_audit(rules, repo_root=".")
+        # Line 8 has OpenBuilds inside the attribution. Should NOT flag.
+        line8_findings = [
+            f for f in report.findings
+            if f.id == "claim.stale_term"
+                and f.evidence.get("line") == 8
+                and f.evidence.get("term") == "OpenBuilds"
+        ]
+        self.assertEqual(line8_findings, [])
+
+    def test_openbuilds_outside_license_still_flagged(self):
+        """Sanity: line 19 'But this line legitimately mentions OpenBuilds
+        outside of an attribution context' SHOULD flag — the gate isn't
+        disabled for the term, just suppressed in license contexts."""
+        rules = RuleSet(claim_audit=ClaimAuditModel(
+            scan_paths=["tests/fixtures/claim_audit/license_attribution.md"],
+            stale_terms=["OpenBuilds"],
+        ))
+        report = run_claim_audit(rules, repo_root=".")
+        flagged_lines = {
+            f.evidence.get("line") for f in report.findings
+            if f.id == "claim.stale_term"
+                and f.evidence.get("term") == "OpenBuilds"
+        }
+        self.assertIn(19, flagged_lines,
+                      f"OpenBuilds outside license context should flag; "
+                      f"flagged lines were {flagged_lines}")
+
+    def test_no_supabase_in_html_comment_not_flagged(self):
+        """`<!-- Static JSON — no Supabase needed -->` blanks the comment;
+        `// no Supabase` JS comments are caught via negation-aware match
+        on the trailing 'no '."""
+        rules = RuleSet(claim_audit=ClaimAuditModel(
+            scan_paths=["tests/fixtures/claim_audit/html_with_negated.html"],
+            stale_terms=["Supabase"],
+        ))
+        report = run_claim_audit(rules, repo_root=".")
+        # Lines 5 (HTML comment), 7, 9 (JS // no Supabase) should NOT flag.
+        suppressed_lines = {5, 7, 9}
+        flagged_lines = {
+            f.evidence.get("line") for f in report.findings
+            if f.id == "claim.stale_term" and f.evidence.get("term") == "Supabase"
+        }
+        self.assertEqual(suppressed_lines & flagged_lines, set(),
+                         f"Lines {suppressed_lines & flagged_lines} should "
+                         f"have been suppressed by license/comment/negation logic")
+
+    def test_real_supabase_assertion_still_flagged(self):
+        """Line 11 'We do use Supabase here for analytics.' — no negation,
+        not a comment; should fire."""
+        rules = RuleSet(claim_audit=ClaimAuditModel(
+            scan_paths=["tests/fixtures/claim_audit/html_with_negated.html"],
+            stale_terms=["Supabase"],
+        ))
+        report = run_claim_audit(rules, repo_root=".")
+        # The "We do use Supabase here" line should fire
+        self.assertTrue(any(
+            f.id == "claim.stale_term"
+                and f.evidence.get("term") == "Supabase"
+            for f in report.findings
+        ),
+            "stale_term gate should still flag a non-negated Supabase mention")
+
+
+class TestMED4ValidatedNotInDefaults(unittest.TestCase):
+    """v0.7 / MED-4: 'validated' removed from DEFAULT_FORBIDDEN_ABSOLUTES.
+    Projects can opt in via forbidden_absolutes_extra.
+    """
+
+    def test_validated_not_in_default_list(self):
+        self.assertNotIn("validated", DEFAULT_FORBIDDEN_ABSOLUTES)
+
+    def test_third_party_validated_not_flagged_by_default(self):
+        rules = RuleSet(claim_audit=ClaimAuditModel(
+            scan_paths=["tests/fixtures/claim_audit/third_party_claim.md"],
+        ))
+        report = run_claim_audit(rules, repo_root=".")
+        validated_findings = [
+            f for f in report.findings
+            if f.id == "claim.forbidden_absolute"
+                and f.evidence.get("word", "").lower() == "validated"
+        ]
+        self.assertEqual(validated_findings, [],
+                         "'validated' should NOT be flagged under default rules")
+
+    def test_validated_flagged_when_explicit_opt_in(self):
+        rules = RuleSet(claim_audit=ClaimAuditModel(
+            scan_paths=["tests/fixtures/claim_audit/third_party_claim.md"],
+            forbidden_absolutes_extra=["validated"],
+        ))
+        report = run_claim_audit(rules, repo_root=".")
+        self.assertTrue(any(
+            f.id == "claim.forbidden_absolute"
+                and f.evidence.get("word", "").lower() == "validated"
+            for f in report.findings
+        ),
+            "'validated' should be flagged when added via forbidden_absolutes_extra")
 
 
 class TestSourceRegexRules(unittest.TestCase):
