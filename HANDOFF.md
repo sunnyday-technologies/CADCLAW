@@ -27,6 +27,69 @@ Authoritative cross-machine carry-over for post-release work. Travels with `git 
 
 New deps: `pyyaml>=6.0`, `pydantic>=2.5`.
 
+### v0.6 field-test fixes (HIGH-1 / LOW-8 / blob_size, 2026-04-26)
+
+After v0.6 PRs 1–4 were committed, the worktree was field-tested against
+the real M3-CRETE project (101-component STEP, 64-part BOM with populated
+`vendors`/`sku`/`unit_cost`). The privacy guard verified — zero findings
+cited any always-private field. Three issues surfaced and were patched
+before v0.6.0 ships:
+
+- **HIGH-1 — BOM loader accepts `parts:` synonym** ([bom_loader.py](cadharness/bom_loader.py))
+  Hardware BOMs commonly use `{"version": "...", "parts": [...]}` (M3-CRETE
+  does). The loader now accepts `items` and `parts` interchangeably; `items`
+  wins on conflict. Other top-level keys (`version`, `generated`, `source`,
+  `notes`) are ignored as author metadata. Released the M3-CRETE shim.
+
+- **LOW-8 — `cadclaw harness` `duration_ms` always 0** ([cadclaw_cli/main.py](cadclaw_cli/main.py))
+  `_cmd_harness` built `aggregate = Report(...)` with the default
+  `duration_ms=0.0` and never set it. Now wraps the runner in a
+  `time.time()` and sets `aggregate.duration_ms` before emit.
+
+- **`publish_audit.blob_size_warn_bytes` default 5 MB → 20 MB** ([rules.py:102](cadharness/rules.py#L102))
+  5 MB triggered on M3-CRETE's 9.2 MB STEP and would on most real
+  assemblies. Still configurable per-project; set `0` to disable.
+
+Tests added: 19 in `tests/test_bom_loader.py` (parts-key acceptance,
+reject-unknown-key regression, privacy projection lock-in,
+exemption logic), 1 in `tests/test_cli.py` (timing assertion).
+Total: **176 passing tests**.
+
+### v0.7 candidates (driven by M3-CRETE field test, 2026-04-26)
+
+Deferred from v0.6 to land as a coherent v0.7 polish release. Field-test
+report at `D:/SunnydayTech/M3-CRETE/cadclaw-v0.6-field-test-2026-04-26.md`.
+
+- **MED-2 — negation-aware `forbidden_terms`** — substring match catches
+  "not the primary stiffness" as if it were "primary stiffness". Cheap
+  win: look back ~30 chars for negation tokens (`not`, `no`, `never`,
+  `do not`, etc.) before flagging.
+- **MED-3 — license / comment / negation-aware `claim_audit`** — same
+  root cause as MED-2 but for docs. Skip lines starting with comment
+  markers (`#`, `//`, `<!--`); auto-exempt `LICENSE` / `NOTICE` /
+  `COPYING` / `AUTHORS`. The "OpenBuilds in CC BY-SA attribution" case
+  is high-priority — flagging it could lead to a license violation if a
+  user follows the suggested fix.
+- **MED-4 — `forbidden_absolutes` move out of defaults** — "validated"
+  is too aggressive as a default; flags legitimate third-party-product
+  mentions. Make the default list empty and let projects opt in via
+  `forbidden_absolutes_extra`.
+- **MED-5 — aggregate `cad.count_mismatch` per label** — when 3 BOM
+  rules expect the same label, emit one finding summing the rules,
+  not three separate ones.
+- **LOW-6 — `bom.unmapped_item` noise reduction** — 51/64 warns on a
+  64-item BOM. Demote to `info` severity by default, AND/OR honor an
+  optional `bom_audit.exempt_categories` field that maps to BOM items'
+  existing `category` field.
+- **LOW-7 — `publish.committed` finding text** — current message "X is
+  committed but listed in ignore_globs" suggests `git rm --cached`,
+  which is dangerous if the user's `ignore_globs` rule is the mistake
+  (e.g. `blog/**` covering live GitHub Pages content). Rephrase to
+  present both options (file is wrong vs rule is wrong).
+- **INFO-9 — UTF-8 mojibake detection in BOM** — surface
+  `bom.encoding_issue` when string fields contain `â€"`, `Ã©`, etc.
+  (cp1252-misencoded UTF-8). Nice-to-have.
+
 ### v0.7 (deferred, defensible)
 
 - Full source-lint AST module — only protected-output and silent-fallback regex rules ship in v0.6.
@@ -36,7 +99,7 @@ New deps: `pyyaml>=6.0`, `pydantic>=2.5`.
 - Subprocess-based MCP self-check inside `doctor`.
 - Cloud / virtual-python-host hosting (explicit out of scope).
 
-Run tests: `python -m unittest discover tests` — ~80 s, all 156 must pass.
+Run tests: `python -m unittest discover tests` — ~80 s, all 176 must pass.
 
 ---
 

@@ -99,7 +99,7 @@ class PublishAuditModel(_Strict):
     scan_globs: List[str] = Field(default_factory=list)
     redact_patterns: Dict[str, str] = Field(default_factory=dict)
     email_allowlist: List[str] = Field(default_factory=list)
-    blob_size_warn_bytes: int = 5 * 1024 * 1024
+    blob_size_warn_bytes: int = 20 * 1024 * 1024
 
 
 class ConfidenceBudgetModel(_Strict):

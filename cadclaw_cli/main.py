@@ -198,8 +198,11 @@ def _cmd_publish_audit(args: argparse.Namespace) -> int:
 
 def _cmd_harness(args: argparse.Namespace) -> int:
     """Union runner — runs every gate that the rule file declares."""
+    import time
     from cadharness.findings import Finding, ConfidenceBudget
     from cadharness.rules import load_rules
+
+    t0 = time.time()
     rules = load_rules(args.rules)
 
     only = set(args.only.split(",")) if args.only else None
@@ -303,6 +306,7 @@ def _cmd_harness(args: argparse.Namespace) -> int:
         )
 
     aggregate.overall = aggregate.compute_overall()
+    aggregate.duration_ms = (time.time() - t0) * 1000
     _emit_report(aggregate, args.report_format, args.out)
     return _exit_code_for(aggregate)
 

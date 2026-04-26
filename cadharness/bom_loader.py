@@ -37,26 +37,47 @@ class BomLoadError(ValueError):
     pass
 
 
+_BOM_LIST_KEYS = ("items", "parts")
+
+
 def load_bom(path: Union[str, Path]) -> List[Dict[str, Any]]:
     """Load a BOM JSON file. Returns a list of items.
 
-    Accepts either a top-level list or a top-level `{"items": [...]}` object.
+    Accepts:
+      * a top-level list of items
+      * a top-level object with an ``items`` key (preferred for new BOMs)
+      * a top-level object with a ``parts`` key (common in hardware projects)
+
+    The two object-shape keys are interchangeable; if both are present
+    ``items`` wins. Other top-level keys (``version``, ``generated``,
+    ``source``, ``notes`` etc.) are ignored — they're metadata for the
+    BOM author, not CADCLAW.
     """
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"BOM file not found: {p}")
     with p.open("r", encoding="utf-8") as f:
         data = json.load(f)
-    if isinstance(data, dict) and "items" in data:
-        items = data["items"]
-    elif isinstance(data, list):
+    if isinstance(data, list):
         items = data
+    elif isinstance(data, dict):
+        items = None
+        for key in _BOM_LIST_KEYS:
+            if key in data:
+                items = data[key]
+                break
+        if items is None:
+            raise BomLoadError(
+                "BOM JSON must be a list, {items: [...]}, or {parts: [...]}; "
+                f"got dict with keys {sorted(data.keys())[:8]}"
+            )
     else:
         raise BomLoadError(
-            f"BOM JSON must be a list or {{items: [...]}}, got {type(data).__name__}"
+            "BOM JSON must be a list, {items: [...]}, or {parts: [...]}; "
+            f"got {type(data).__name__}"
         )
     if not isinstance(items, list):
-        raise BomLoadError("BOM 'items' must be a list")
+        raise BomLoadError("BOM items/parts must be a list")
     for i, item in enumerate(items):
         if not isinstance(item, dict):
             raise BomLoadError(f"BOM item {i} is not an object")

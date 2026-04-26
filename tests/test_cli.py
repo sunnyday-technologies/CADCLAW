@@ -69,5 +69,24 @@ class TestExitCodes(unittest.TestCase):
         self.assertEqual(code, 3)
 
 
+class TestHarnessTiming(unittest.TestCase):
+    """LOW-8 (M3-CRETE field test): the union runner used to drop
+    `aggregate.duration_ms` and reports always showed 0 ms. Verify the
+    harness sets a non-zero duration."""
+
+    def test_harness_reports_nonzero_duration(self):
+        rules_path = FIXTURES / "m3_crete" / "cadclaw_m3.yaml"
+        if not rules_path.exists():
+            self.skipTest("m3_crete fixtures not present")
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            main(["harness", "--rules", str(rules_path),
+                  "--report-format", "json",
+                  "--skip", "publish_audit,claim_audit"])
+        d = json.loads(buf.getvalue())
+        self.assertGreater(d["duration_ms"], 0,
+                           msg="aggregate Report.duration_ms must be set by _cmd_harness")
+
+
 if __name__ == "__main__":
     unittest.main()
