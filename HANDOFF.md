@@ -204,6 +204,79 @@ Run tests: `python -m unittest discover tests` — ~80 s, all 176 must pass.
 
 ---
 
+## v1.0 north star — builder + validator unified
+
+**Goal**: CADCLAW becomes the assemble-as-you-go tool. The same
+`cadclaw.yaml` that today validates "X has 4 wheels at signature
+[10.2, 23.9, 23.9]" also generates those wheels at those positions. Rule
+file declarations flow both ways: CAD ↔ rule, BOM ↔ rule, region ↔ rule.
+Pieces declare themselves, the file accumulates, the harness reports
+"what's built, what's pending, what's wrong" at every step.
+
+**Hard constraint — no new geometry kernel.** v1.0 must orchestrate
+existing open-source CAD-as-code libraries, not reinvent. Candidates:
+
+- [**CadQuery**](https://github.com/CadQuery/cadquery) — already a
+  CADCLAW dep; mature; STEP import/export; assembly + selectors. The
+  default backend.
+- [**build123d**](https://github.com/gumyr/build123d) — modern fork of
+  CadQuery (same OCP kernel) with a cleaner API. Optional alt backend.
+- [**OCP**](https://github.com/CadQuery/OCP) — the underlying OpenCascade
+  Python bindings. Already pulled in via CadQuery. Direct use only for
+  things CadQuery can't express.
+- **OpenSCAD**, **FreeCAD scripting** — possible secondary backends
+  behind the same rule abstraction; out of scope for v1.0 unless
+  someone has a strong use case.
+
+**What CADCLAW adds on top** (none of which is a kernel):
+
+1. The rule file as the canonical spec. Each piece optionally carries a
+   `build:` block with a parametric recipe (e.g. CadQuery snippet, or a
+   reference to a named primitive). Validation logic stays as-is.
+2. A `cadclaw build` / `cadclaw build-piece` CLI that reads the spec,
+   composes pieces via the chosen backend, writes a STEP, and runs the
+   harness in one go.
+3. A build/validate REPL: AI agents (or humans) iterate
+   build-piece → validate → patch spec → continue. Each iteration is
+   visible in the harness's confidence budget.
+4. Honesty extensions: `confidence_budget.not_built_yet` for declared-
+   but-not-emitted pieces, `parametric_placeholder: true` markers for
+   stand-in geometry awaiting replacement, source-of-truth tracking when
+   the same piece exists in multiple backends (CadQuery script ↔ Fusion
+   STEP ↔ build123d script).
+5. A library of named primitives (vwheel, cbeam, plate, motor_nemaXX,
+   etc.) backed by CadQuery. Each primitive is a thin wrapper —
+   parameters in, OCP shape out — not a new modeling system.
+
+**Stepping stones**:
+
+- **v0.8** — design-doc + minimal `cadclaw build-piece` for one or two
+  primitives (vwheel, cbeam). Round-trip: declare in yaml, generate
+  STEP, validate against the same yaml. Prove the loop.
+- **v0.9** — primitive library expanded to cover the M3-CRETE BOM.
+  `cadclaw build` composes a full assembly. The rule file becomes
+  authoritative for both build and validate on that one project.
+- **v1.0** — backend abstraction (CadQuery default, build123d optional),
+  REPL-friendly MCP tools, confidence-budget extensions for
+  not-built-yet / parametric-placeholder. Documented "build a project
+  from scratch with cadclaw" tutorial.
+
+**Out of scope** (defensibly):
+
+- Writing a CAD kernel. OCP/OpenCascade does the geometry; CADCLAW
+  composes.
+- Native `.f3d` editing. Fusion stays an export source; CADCLAW reads
+  the resulting STEP.
+- A GUI. The CLI + MCP + rule file are the interface.
+- Replacing CadQuery's API. CADCLAW's value is the spec + audit + REPL,
+  not the modeling DSL.
+
+The honesty ethos carries forward: the v0.6 README's "What CADCLAW Does
+Not Prove" section gets a sibling — "What CADCLAW Did Not Build" —
+listing every piece that's specced but not yet emitted.
+
+---
+
 ## Previously: v0.5.0 (2026-04-19)
 
 - Tolerance stacking (9 tests, hand-calculated answers)
