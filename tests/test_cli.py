@@ -5,13 +5,23 @@ import os
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 
 from cadclaw_cli.main import build_parser, main
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+@contextmanager
+def _redirect_stderr(buf):
+    old = sys.stderr
+    sys.stderr = buf
+    try:
+        yield
+    finally:
+        sys.stderr = old
 
 
 class TestParser(unittest.TestCase):
@@ -23,7 +33,7 @@ class TestParser(unittest.TestCase):
                 names.update(action.choices.keys())
         for expected in ["doctor", "parity", "inventory",
                           "bom-audit", "claim-audit", "publish-audit",
-                          "harness"]:
+                          "harness", "inspect"]:
             self.assertIn(expected, names)
 
 
@@ -86,6 +96,93 @@ class TestHarnessTiming(unittest.TestCase):
         d = json.loads(buf.getvalue())
         self.assertGreater(d["duration_ms"], 0,
                            msg="aggregate Report.duration_ms must be set by _cmd_harness")
+
+
+class TestInspectCommands(unittest.TestCase):
+    """v0.7.1 Ergo-2: `cadclaw inspect sigs|part|overlaps <step>`."""
+
+    L3_GOOD = FIXTURES / "L3_good.step"
+
+    def setUp(self):
+        if not self.L3_GOOD.exists():
+            self.skipTest("L3 fixtures not generated; run tests/generate_fixtures.py")
+
+    def test_inspect_sigs_lists_unique_signatures(self):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            code = main(["inspect", "sigs", str(self.L3_GOOD)])
+        self.assertEqual(code, 0)
+        body = buf.getvalue()
+        self.assertIn("unique signatures", body)
+        # L3_good has at least beam, motor, wheel — multiple sigs.
+        self.assertIn("count", body)
+
+    def test_inspect_sigs_with_rules_resolves_labels(self):
+        rules_yaml = (
+            'schema_version: "0.7"\n'
+            'labels:\n'
+            '  beam:    [40.0, 80.0, 1000.0]\n'
+            '  motor:   [56.4, 56.4, 76.6]\n'
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+            f.write(rules_yaml)
+            rules_path = f.name
+        try:
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = main(["inspect", "sigs", str(self.L3_GOOD),
+                             "--rules", rules_path])
+            self.assertEqual(code, 0)
+            body = buf.getvalue()
+            self.assertIn("motor", body)
+        finally:
+            os.unlink(rules_path)
+
+    def test_inspect_part_no_filters_lists_all(self):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            code = main(["inspect", "part", str(self.L3_GOOD)])
+        self.assertEqual(code, 0)
+        self.assertIn("part(s) match", buf.getvalue())
+
+    def test_inspect_part_at_returns_empty_far_away(self):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            code = main(["inspect", "part", str(self.L3_GOOD),
+                         "--at", "999999,999999,999999"])
+        self.assertEqual(code, 0)
+        self.assertIn("no parts match", buf.getvalue())
+
+    def test_inspect_part_xyz_parser_rejects_bad_input(self):
+        buf = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(buf):
+            try:
+                with _redirect_stderr(err):
+                    main(["inspect", "part", str(self.L3_GOOD),
+                          "--at", "not,a,point"])
+                self.fail("should have exited 3")
+            except SystemExit as e:
+                self.assertEqual(e.code, 3)
+        self.assertIn("--at", err.getvalue())
+
+    def test_inspect_overlaps_requires_target(self):
+        # No --label and no --at → exit 3.
+        buf = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(buf), _redirect_stderr(err):
+            code = main(["inspect", "overlaps", str(self.L3_GOOD)])
+        self.assertEqual(code, 3)
+        self.assertIn("target", err.getvalue())
+
+    def test_inspect_overlaps_label_without_rules_fails(self):
+        buf = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(buf), _redirect_stderr(err):
+            code = main(["inspect", "overlaps", str(self.L3_GOOD),
+                         "--label", "plate"])
+        self.assertEqual(code, 3)
+        self.assertIn("--rules", err.getvalue())
 
 
 if __name__ == "__main__":

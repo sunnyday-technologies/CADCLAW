@@ -671,6 +671,98 @@ class TestLOW6UnmappedItemNoiseReduction(unittest.TestCase):
         self.assertEqual(unmapped[0].evidence.get("rule_id"), 400)
 
 
+class TestINFO9MojibakeDetection(unittest.TestCase):
+    """v0.7.1 INFO-9: detect cp1252-misencoded UTF-8 in BOM string fields."""
+
+    def _bom_with(self, items):
+        f = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False,
+                                         encoding="utf-8")
+        json.dump(items, f, ensure_ascii=False)
+        f.close()
+        return f.name
+
+    def _run_with_bom(self, items, **bom_audit_kwargs):
+        bom_path = self._bom_with(items)
+        try:
+            rules = RuleSet(
+                bom_audit=BomAuditModel(
+                    bom_path=bom_path,
+                    rules=[],
+                    **bom_audit_kwargs,
+                ),
+            )
+            report = run_bom_audit(
+                bom_path=bom_path, step_path=str(STEP), rules=rules,
+            )
+        finally:
+            Path(bom_path).unlink(missing_ok=True)
+        return report
+
+    def test_em_dash_mojibake_flagged(self):
+        if not STEP.exists():
+            self.skipTest("L3_good.step not generated.")
+        report = self._run_with_bom([
+            {"id": 1, "name": "C-beam â€” 1m",
+             "qty": 1, "mfg_type": "buy"},
+        ])
+        encoding_findings = [f for f in report.findings
+                             if f.id == "bom.encoding_issue"]
+        self.assertEqual(len(encoding_findings), 1)
+        self.assertEqual(encoding_findings[0].severity, Severity.WARN)
+        self.assertEqual(encoding_findings[0].evidence["bom_id"], 1)
+        self.assertIn("name", encoding_findings[0].evidence["fields"])
+
+    def test_e_acute_mojibake_flagged(self):
+        if not STEP.exists():
+            self.skipTest("L3_good.step not generated.")
+        report = self._run_with_bom([
+            {"id": 2, "name": "pulley", "qty": 1, "mfg_type": "buy",
+             "description": "tagged Ã© plate"},
+        ])
+        encoding_findings = [f for f in report.findings
+                             if f.id == "bom.encoding_issue"]
+        self.assertEqual(len(encoding_findings), 1)
+        self.assertIn("description", encoding_findings[0].evidence["fields"])
+
+    def test_clean_unicode_not_flagged(self):
+        if not STEP.exists():
+            self.skipTest("L3_good.step not generated.")
+        report = self._run_with_bom([
+            {"id": 3, "name": "C-beam — 1m",         # CLEAN em-dash
+             "qty": 1, "mfg_type": "buy",
+             "description": "made by São Paulo Industries"},  # CLEAN ã
+        ])
+        encoding_findings = [f for f in report.findings
+                             if f.id == "bom.encoding_issue"]
+        self.assertEqual(encoding_findings, [])
+
+    def test_warn_on_mojibake_false_suppresses(self):
+        if not STEP.exists():
+            self.skipTest("L3_good.step not generated.")
+        report = self._run_with_bom([
+            {"id": 4, "name": "C-beam â€” 1m",  # mojibake
+             "qty": 1, "mfg_type": "buy"},
+        ], warn_on_mojibake=False)
+        encoding_findings = [f for f in report.findings
+                             if f.id == "bom.encoding_issue"]
+        self.assertEqual(encoding_findings, [])
+
+    def test_multiple_fields_one_finding(self):
+        if not STEP.exists():
+            self.skipTest("L3_good.step not generated.")
+        report = self._run_with_bom([
+            {"id": 5, "name": "C-beam â€” 1m",
+             "qty": 1, "mfg_type": "buy",
+             "description": "tagged Ã© plate"},
+        ])
+        encoding_findings = [f for f in report.findings
+                             if f.id == "bom.encoding_issue"]
+        self.assertEqual(len(encoding_findings), 1)
+        # Both fields cited in evidence
+        self.assertIn("name", encoding_findings[0].evidence["fields"])
+        self.assertIn("description", encoding_findings[0].evidence["fields"])
+
+
 class TestPrivacy(unittest.TestCase):
     def test_vendors_field_never_in_report(self):
         # Build a BOM with vendors/sku/unit_cost on every item, run the audit,

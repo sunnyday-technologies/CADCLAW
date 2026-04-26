@@ -46,6 +46,37 @@ class TestStateClassification(unittest.TestCase):
                                 for f in report.findings))
             self.assertEqual(report.overall, Severity.FAIL)
 
+    def test_committed_finding_presents_both_cases(self):
+        """v0.7.1 LOW-7: the suggested_fix must present "file wrong" and "rule wrong"
+        symmetrically — not blindly recommend `git rm --cached`."""
+        if not _has_git():
+            self.skipTest("git not on PATH")
+        with tempfile.TemporaryDirectory() as tmp:
+            td = Path(tmp)
+            _make_repo(td)
+            (td / ".env").write_text("API_KEY=x\n")
+            _git(["add", ".env"], td)
+            _git(["commit", "-m", "oops", "-q"], td)
+
+            rules = RuleSet(
+                publish_audit=PublishAuditModel(ignore_globs=[".env*"]),
+            )
+            report = run_publish_audit(rules, repo_root=str(td))
+            committed = [f for f in report.findings
+                         if f.id == "publish.committed"]
+            self.assertEqual(len(committed), 1)
+            f = committed[0]
+            # Message body must signal "one of the two is wrong" to the user.
+            self.assertIn("one of the two is wrong", f.message.lower())
+            # Suggested fix must present BOTH cases — not just `git rm --cached`.
+            fix = (f.suggested_fix or "").lower()
+            self.assertIn("file is wrong", fix)
+            self.assertIn("rule is wrong", fix)
+            # The dangerous command must still appear (gated by case 1) but
+            # the wrapper must not blindly recommend it.
+            self.assertIn("git rm --cached", fix)
+            self.assertIn("do not blindly", fix)
+
     def test_staged_private_file_warns(self):
         if not _has_git():
             self.skipTest("git not on PATH")
