@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "name": "C-beam 4080 1m extrusion",
+    "qty": 17,
+    "mfg_type": "buy",
+    "description": "Primary 1m C-beam extrusion for the frame."
+  },
+  {
+    "id": 5,
+    "name": "Straight Line Internal Connectors",
+    "qty": 12,
+    "unit": "each",
+    "mfg_type": "buy",
+    "description": "Aluminum bars joining 1m C-beams to form 2m gantry rail. Four connector bars per joint, three butt joints in M3-2.",
+    "notes": "alignment aid only."
+  },
+  {
+    "id": 65,
+    "name": "X-Direction Internal Reinforcement (custom 2m cut)",
+    "qty": 3,
+    "unit": "bars (2.0m each)",
+    "mfg_type": "buy",
+    "description": "Custom 2m cut 2040 bars bonded with JB Weld inside the C-beam cavity.",
+    "notes": "West System adhesive for permanent assembly."
+  },
+  {
+    "id": 200,
+    "name": "M5 socket-head cap screws",
+    "qty": 200,
+    "mfg_type": "fastener",
+    "description": "Generic M5 SHCS."
+  }
+]

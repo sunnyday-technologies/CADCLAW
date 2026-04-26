@@ -1,0 +1,164 @@
+[
+  {
+    "id": 1,
+    "name": "C-beam 4080 1m extrusion",
+    "qty": 1,
+    "unit": "each",
+    "mfg_type": "buy",
+    "material": "6063-T5 aluminum",
+    "category": "frame",
+    "tags": ["primary-frame"],
+    "description": "Primary 1m C-beam extrusion for the frame.",
+    "notes": ""
+  },
+  {
+    "id": 2,
+    "name": "NEMA23 stepper motor",
+    "qty": 1,
+    "unit": "each",
+    "mfg_type": "buy",
+    "category": "drive",
+    "description": "NEMA23 hybrid stepper motor.",
+    "notes": ""
+  },
+  {
+    "id": 5,
+    "name": "Straight Line Internal Connectors",
+    "qty": 2,
+    "unit": "each",
+    "mfg_type": "buy",
+    "material": "6063 aluminum",
+    "category": "frame",
+    "tags": ["x-axis", "alignment"],
+    "description": "Aluminum bars joining 1m C-beams. Alignment aid only.",
+    "notes": ""
+  },
+  {
+    "id": 12,
+    "name": "V-wheel kit",
+    "qty": 6,
+    "unit": "each",
+    "mfg_type": "buy",
+    "category": "carriage",
+    "description": "Delrin V-wheel for C-beam V-slot.",
+    "notes": ""
+  },
+  {
+    "id": 30,
+    "name": "X-gantry GT2 belt 6mm",
+    "qty": 1,
+    "unit": "meters",
+    "mfg_type": "buy",
+    "category": "drive",
+    "description": "GT2 6mm belt for X-gantry, fits in the 6mm pulley slot.",
+    "notes": "",
+    "exempt_from_cad": true
+  },
+  {
+    "id": 31,
+    "name": "Y/Z GT2 belt 10mm",
+    "qty": 4,
+    "unit": "meters",
+    "mfg_type": "buy",
+    "category": "drive",
+    "description": "GT2 10mm wide belt for Y and Z axes.",
+    "notes": "",
+    "exempt_from_cad": true
+  },
+  {
+    "id": 41,
+    "name": "Z motor mount (printed integrated corner bracket)",
+    "qty": 1,
+    "unit": "each",
+    "mfg_type": "print",
+    "material": "PETG",
+    "category": "drive",
+    "description": "Printed combined corner bracket with integrated Z motor mount.",
+    "notes": "",
+    "exempt_from_cad": true
+  },
+  {
+    "id": 65,
+    "name": "X-Direction Internal Reinforcement (2040 insert)",
+    "qty": 2,
+    "unit": "bars (1.0m each)",
+    "mfg_type": "buy",
+    "material": "6063-T5 aluminum",
+    "category": "frame",
+    "tags": ["x-axis", "reinforcement"],
+    "description": "1m insert centered across each butt joint, friction-fit.",
+    "notes": ""
+  },
+  {
+    "id": 80,
+    "name": "Aluminum gantry plate 88x127",
+    "qty": 2,
+    "unit": "each",
+    "mfg_type": "buy",
+    "material": "6061 aluminum",
+    "category": "carriage",
+    "description": "Gantry plate.",
+    "notes": ""
+  },
+  {
+    "id": 81,
+    "name": "Y-mount (printed)",
+    "qty": 1,
+    "unit": "each",
+    "mfg_type": "print",
+    "material": "PETG",
+    "category": "carriage",
+    "description": "Printed Y-axis mount.",
+    "notes": ""
+  },
+  {
+    "id": 82,
+    "name": "Pulley",
+    "qty": 1,
+    "unit": "each",
+    "mfg_type": "buy",
+    "category": "drive",
+    "description": "GT2 pulley.",
+    "notes": ""
+  },
+  {
+    "id": 83,
+    "name": "Printed motor housing",
+    "qty": 1,
+    "unit": "each",
+    "mfg_type": "print",
+    "material": "PETG",
+    "category": "drive",
+    "description": "Printed shroud over the motor.",
+    "notes": ""
+  },
+  {
+    "id": 84,
+    "name": "Idler bracket",
+    "qty": 1,
+    "unit": "each",
+    "mfg_type": "buy",
+    "category": "drive",
+    "description": "Idler bracket.",
+    "notes": ""
+  },
+  {
+    "id": 200,
+    "name": "M5 socket-head cap screws",
+    "qty": 200,
+    "unit": "each",
+    "mfg_type": "fastener",
+    "category": "fasteners",
+    "description": "Generic M5 SHCS for V-slot.",
+    "notes": ""
+  },
+  {
+    "id": 300,
+    "name": "Stepper driver IC",
+    "qty": 6,
+    "unit": "each",
+    "mfg_type": "electronic",
+    "description": "TMC2209 driver.",
+    "notes": ""
+  }
+]
