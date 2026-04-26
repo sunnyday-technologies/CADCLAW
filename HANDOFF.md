@@ -77,6 +77,16 @@ report at `D:/SunnydayTech/M3-CRETE/cadclaw-v0.6-field-test-2026-04-26.md`.
 - **MED-5 — aggregate `cad.count_mismatch` per label** — when 3 BOM
   rules expect the same label, emit one finding summing the rules,
   not three separate ones.
+- **MED-6 — `expected_qty` conflates design count with order count**
+  — surfaced post-test (twin session) on M3-CRETE id=67 (cbeam): BOM
+  qty=18 = 17 design + 1 spare; CAD has 17. All three v0.6 workarounds
+  failed (rule expected_qty=17 fails BOM check; =18 fails CAD check;
+  omitting it falls back to BOM qty). Add `expected_design_qty` (vs
+  CAD) and `expected_order_qty` (vs BOM) as separate rule fields, plus
+  `spare_qty` as syntactic sugar (`order = design + spare`). Ship (1)
+  + (2) together; common procurement pattern. No v0.6 escape hatch
+  exists short of moving the label to `ignore_labels` (kills all
+  validation for that label).
 - **LOW-6 — `bom.unmapped_item` noise reduction** — 51/64 warns on a
   64-item BOM. Demote to `info` severity by default, AND/OR honor an
   optional `bom_audit.exempt_categories` field that maps to BOM items'
@@ -88,7 +98,11 @@ report at `D:/SunnydayTech/M3-CRETE/cadclaw-v0.6-field-test-2026-04-26.md`.
   present both options (file is wrong vs rule is wrong).
 - **INFO-9 — UTF-8 mojibake detection in BOM** — surface
   `bom.encoding_issue` when string fields contain `â€"`, `Ã©`, etc.
-  (cp1252-misencoded UTF-8). Nice-to-have.
+  (cp1252-misencoded UTF-8). Nice-to-have. (M3-CRETE artifact already
+  fixed in twin session — 44 corrupt sequences rewritten in place;
+  CADCLAW detector remains useful for catching the same issue on other
+  BOMs but is no longer a blocking concern for the M3-CRETE field
+  test.)
 
 ### v0.7 (deferred, defensible)
 
