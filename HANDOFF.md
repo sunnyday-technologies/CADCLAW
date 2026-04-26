@@ -1,6 +1,6 @@
 # CADCLAW — Session Handoff
 
-Last updated: 2026-04-20
+Last updated: 2026-04-25
 
 Authoritative cross-machine carry-over for post-release work. Travels with `git pull`.
 
@@ -8,11 +8,39 @@ Authoritative cross-machine carry-over for post-release work. Travels with `git 
 
 ## Current version
 
-**v0.5.0** — bundled release on 2026-04-19. Everything below is post-release work.
+**v0.6.0** — honest core release prepared on 2026-04-25.
+
+### What's in v0.6.0
+
+- **Findings / Severity / Report model** (`cadharness/findings.py`) — single shape every gate emits; `pass` / `warn` / `fail` rollup; JSON-safe `evidence`; locked `schema_version: "0.6"`.
+- **YAML rule loader** (`cadharness/rules.py`, pydantic v2) at `cadclaw.yaml`. Bbox sigs are 3-element lists, every section optional.
+- **BOM-vs-CAD audit** (`cadharness/bom_audit.py` + `bom_loader.py`) — headline gate. Catches qty / mfg_type / unit mismatches, required-or-forbidden text terms, and CAD-side count drift. Privacy enforced at the serializer (`vendors`, `sku`, `unit_cost`, `_*` always dropped).
+- **Doctor** (`cadharness/doctor.py`) — Python / venv / deps / MCP / repo signals. Catches the broken-pyvenv case where `pyvenv.cfg home =` points at a missing interpreter.
+- **Publish-audit** (`cadharness/publish_audit.py`) — three-state (untracked / staged / committed) file model + regex content scan with email allowlist. Never echoes matched secret values.
+- **Claim-audit** (`cadharness/claim_audit.py`) — forbidden absolutes, untagged numeric claims, user-supplied stale terms, plus two folded source-regex rules (protected output paths, silent fallback geometry) over `.py` files.
+- **`cadclaw` console script** (`cadclaw_cli/`) — argparse stdlib. Subcommands: `doctor`, `bom-audit`, `parity`, `claim-audit`, `publish-audit`, `inventory`, `harness`. Exit codes 0/1/2/3.
+- **Three reporters** (`cadharness/reporters/`) — text (CLI, ANSI auto), markdown (PR-comment ready), json (versioned, MCP/CI).
+- **6 new MCP tools** in `cadclaw_mcp/server.py`: `doctor`, `check_bom_against_cad`, `check_publish_boundary`, `check_claims`, `check_region_inventory`, `compare_step_parity`. Plus 11 v0.5 tools kept verbatim → 17 total.
+- **`examples/init_rules.py`** — one-shot scaffolder that emits a starter `cadclaw.yaml` from a STEP + BOM pair.
+- **README + `docs/index.html`** rewritten — softer hero, explicit "What CADCLAW Does Not Prove" section, honesty toolchain callout.
+- **156 passing tests** (73 v0.5 + 83 new): findings/rules/reporters, doctor, CLI, BOM audit acceptance (privacy + 13 cases), publish-audit (state classification + redact), claim-audit (forbidden + numeric + stale + source-regex).
+
+New deps: `pyyaml>=6.0`, `pydantic>=2.5`.
+
+### v0.7 (deferred, defensible)
+
+- Full source-lint AST module — only protected-output and silent-fallback regex rules ship in v0.6.
+- `cadclaw init-rules` as a CLI subcommand — ships as `examples/init_rules.py` script in v0.6.
+- Label confidence beyond bbox (volume, surface area, STEP product name, AP242 color).
+- MCP super-tool `run_harness(rules_path)`.
+- Subprocess-based MCP self-check inside `doctor`.
+- Cloud / virtual-python-host hosting (explicit out of scope).
+
+Run tests: `python -m unittest discover tests` — ~80 s, all 156 must pass.
 
 ---
 
-## What's in v0.5.0 (shipped)
+## Previously: v0.5.0 (2026-04-19)
 
 - Tolerance stacking (9 tests, hand-calculated answers)
 - Disassembly: `export_radial()` method, O(n²) lookup bug fixed in `export_exploded()`
@@ -20,8 +48,6 @@ Authoritative cross-machine carry-over for post-release work. Travels with `git 
 - MCP server: `disassembly_sequence`, `export_exploded_view` tools; stdout-to-stderr fix
 - 52 passing tests (up from 17); VTK + GIF stitching integration tests included
 - `pyproject.toml` fixes, Pillow dep, `cadclaw-mcp` console script
-
-Run tests: `python -m unittest tests.test_harness -v` — ~30 s, all 52 must pass.
 
 ---
 

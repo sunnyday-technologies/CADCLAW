@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>CADCLAW — the testing framework CAD never had</title>
-  <meta name="description" content="CADCLAW: automated validation, interference detection, and structural analysis for STEP assemblies. Like pytest for mechanical design." />
-  <meta property="og:title" content="CADCLAW — the testing framework CAD never had" />
-  <meta property="og:description" content="Automated validation, interference detection, and structural analysis for STEP assemblies. Like pytest for mechanical design." />
+  <title>CADCLAW — automated check suite for STEP assemblies</title>
+  <meta name="description" content="CADCLAW: automated geometric checks, BOM-vs-CAD audit, and an honesty toolchain (doctor, publish-audit, claim-audit) for STEP assemblies." />
+  <meta property="og:title" content="CADCLAW — automated check suite for STEP assemblies" />
+  <meta property="og:description" content="Automated geometric checks, BOM-vs-CAD audit, and an honesty toolchain for STEP assemblies. Like pytest for mechanical design — in spirit." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://cadclaw.io" />
   <meta property="og:image" content="https://cadclaw.io/media/m3crete_radial_spin.gif" />
@@ -23,6 +23,7 @@
   </a>
   <nav>
     <a href="#what">What it does</a>
+    <a href="#not-prove">What it doesn't</a>
     <a href="#how">How it works</a>
     <a href="#install">Install</a>
     <a href="#cite">Cite</a>
@@ -34,13 +35,13 @@
 
   <section class="hero">
     <div class="hero-copy">
-      <h1>The testing framework<br/>CAD never had.</h1>
-      <p class="tag">Automated validation, interference detection, and structural analysis for STEP assemblies. Like <code>pytest</code> for mechanical design.</p>
+      <h1>An automated check suite<br/>for STEP assemblies.</h1>
+      <p class="tag">Geometric checks, BOM-vs-CAD audit, and an honesty toolchain for STEP-based CAD. Like <code>pytest</code> for mechanical design — <em>in spirit</em>; CADCLAW reports findings with severity and a confidence budget rather than just pass/fail.</p>
       <div class="cta-row">
         <a class="cta primary" href="#install">Install CADCLAW</a>
         <a class="cta" href="https://github.com/sunnyday-technologies/CADCLAW">View on GitHub</a>
       </div>
-      <p class="sub">Open source · MIT · Python 3.10+ · No commercial CAD software required</p>
+      <p class="sub">Open source · MIT · Python 3.10+ · No commercial CAD software required for CADCLAW's own checks</p>
     </div>
     <div class="hero-mark">
       <img src="CADCLAW_logo.jpg" alt="CADCLAW" />
@@ -51,8 +52,9 @@
     <div class="stat"><span class="num">53</span><span class="lbl">interferences caught</span></div>
     <div class="stat"><span class="num">70 → 13 MB</span><span class="lbl">STEP size reduction</span></div>
     <div class="stat"><span class="num">150+</span><span class="lbl">validated design changes</span></div>
-    <div class="stat"><span class="num">8</span><span class="lbl">automated gates</span></div>
+    <div class="stat"><span class="num">10</span><span class="lbl">automated gates</span></div>
   </section>
+  <p class="muted-strip">Numbers from the M3-CRETE deployment. CADCLAW catches problems your config tells it to look for; it doesn't certify designs.</p>
 
   <section id="what" class="section">
     <h2>CAD assemblies break silently.</h2>
@@ -60,19 +62,39 @@
     <p class="lede"><strong>CADCLAW validates STEP assemblies through a chain of automated gates.</strong> The harness passes only if every gate passes.</p>
 
     <div class="gates">
-      <div class="gate"><h3>Inventory</h3><p>Missing or extra parts. Labels by bounding-box signature, counts against expected.</p></div>
+      <div class="gate"><h3>Inventory</h3><p>Missing or extra parts. Labels by bounding-box signature, counts against expected. Per-region (axis-aligned) constraints supported.</p></div>
       <div class="gate"><h3>Interference</h3><p>Solid-solid overlaps via BRep boolean intersection — not just bbox.</p></div>
       <div class="gate"><h3>Adjacency</h3><p>Parts that should be near each other but aren't. Catches the motor 600&nbsp;mm from its mount.</p></div>
       <div class="gate"><h3>Dimensional</h3><p>Wrong thickness, swapped <code>box()</code> args, impossible dimensions.</p></div>
       <div class="gate"><h3>Kinematics</h3><p>Beam deflection, motor torque budgets, belt tension, racking.</p></div>
       <div class="gate"><h3>Tolerance</h3><p>Worst-case, RSS, Monte Carlo stacking with C<sub>pk</sub> and variance decomposition.</p></div>
+      <div class="gate new"><h3>BOM audit <span class="badge">v0.6</span></h3><p>BOM JSON ↔ CAD assembly: <code>qty</code>, <code>mfg_type</code>, required/forbidden text terms, CAD-side count drift. Private fields never echoed.</p></div>
+      <div class="gate new"><h3>Parity</h3><p>STEP-vs-STEP comparison; flags the Fusion visibility-toggle bug (file shrinks but unique signatures grow).</p></div>
       <div class="gate"><h3>Disassembly</h3><p>Sequenced part removal, radial exploded views, animation frame export.</p></div>
       <div class="gate"><h3>Render</h3><p>STEP → PNG → animated GIF via offscreen VTK. Closes the loop to shareable visuals.</p></div>
     </div>
 
     <div class="callout">
-      <strong>MCP Server included.</strong> Every module is also exposed as an MCP tool — drive the harness from Claude, ChatGPT, Gemini, Cursor, or any MCP-compatible client. No code generation required.
+      <strong>Honesty toolchain (v0.6):</strong> <code>cadclaw doctor</code> verifies your environment before MCP errors get opaque · <code>cadclaw publish-audit</code> stops private build BOMs from being committed · <code>cadclaw claim-audit</code> flags overclaims and untagged numeric assertions in your README and BOM notes. Configure once in <code>cadclaw.yaml</code>, run from the <code>cadclaw</code> CLI.
     </div>
+
+    <div class="callout">
+      <strong>MCP Server included.</strong> The same modules are exposed as MCP tools so an MCP-compatible assistant (Claude Desktop, Cursor, etc.) can call them directly. The MCP server only exposes CADCLAW's own checks; it does not give the assistant access to your CAD application or to anything outside what <code>cadclaw</code> itself can do.
+    </div>
+  </section>
+
+  <section id="not-prove" class="section dark">
+    <h2>What CADCLAW does NOT prove</h2>
+    <p class="lede">CADCLAW checks the geometry of a STEP file, the JSON of a BOM, and the text of your README against rules <em>you</em> write. It does not prove:</p>
+    <ul class="not-prove-list">
+      <li>That the <strong>native CAD model</strong> (Fusion, SolidWorks, etc.) has no hidden or suppressed parts. CADCLAW reads the STEP export, which can silently drop invisible parts.</li>
+      <li>That the <strong>physical build</strong> matches the CAD. CAD passing CADCLAW says nothing about whether the parts on your bench match the file.</li>
+      <li>That a <strong>vendor part is in stock</strong>, available, or the price you assumed.</li>
+      <li>That a <strong>printed part is strong enough</strong> for production use. CADCLAW's kinematics gates do bare-beam math; they don't simulate printed-PLA fatigue, layer adhesion, or thermal creep.</li>
+      <li>That a <strong>structural claim is physically certified</strong>, unless you've attached measurement data with an evidence tag.</li>
+      <li>That an <strong>AI-generated CAD change is correct</strong> without passing the gates. CADCLAW is the check; not passing it doesn't make a change correct, only "passed the gates we have."</li>
+    </ul>
+    <p>Each report includes a <strong>confidence budget</strong> per gate: <code>checked</code>, <code>not_checked</code>, <code>assumptions</code>. Read it.</p>
   </section>
 
   <section id="how" class="section dark">
@@ -98,8 +120,36 @@
   <section id="install" class="section">
     <h2>Quick start</h2>
 
-<pre class="code">pip install cadclaw</pre>
+<pre class="code">pip install cadclaw
+cadclaw doctor                <span class="g"># 1. verify the environment</span></pre>
 
+    <h3>CLI workflow (v0.6)</h3>
+    <p>Configure once in <code>cadclaw.yaml</code> — labels, expected inventory, regions, BOM rules, claim-audit terms, publish-audit globs — then drive everything from the <code>cadclaw</code> console script:</p>
+<pre class="code">cadclaw harness --rules cadclaw.yaml             <span class="g"># run every gate the rule file declares</span>
+cadclaw bom-audit --rules cadclaw.yaml           <span class="g"># or run a single gate</span>
+cadclaw publish-audit --rules cadclaw.yaml       <span class="g"># before `git push`</span>
+cadclaw claim-audit --rules cadclaw.yaml --report-format md -o report.md</pre>
+    <p class="muted">Exit codes: <code>0</code> pass · <code>1</code> fail · <code>2</code> warn-only · <code>3</code> internal error.</p>
+
+    <h3>BOM-vs-CAD audit (the v0.6 headline)</h3>
+<pre class="code"><span class="g"># cadclaw.yaml fragment</span>
+bom_audit:
+  bom_path: bom/data.json
+  rules:
+    - id: 5
+      expected_qty: 12
+      expected_label: connector_bar
+      forbidden_terms: [<span class="o">"maximum rigidity"</span>, <span class="o">"primary stiffness"</span>]
+    - id: 65
+      expected_qty: 3
+      expected_unit: <span class="o">"bars (1.0m each)"</span>
+      expected_mfg_type: buy
+      required_terms: [<span class="o">"1m"</span>, <span class="o">"friction-fit"</span>]
+      forbidden_terms: [<span class="o">"JB Weld"</span>, <span class="o">"West System"</span>, <span class="o">"custom 2m cut"</span>]</pre>
+
+    <p>Catches BOM <code>qty</code> / <code>mfg_type</code> / <code>unit</code> mismatches, required-term-missing or forbidden-term-present in the description, CAD-side count drift, and BOM items with no CAD geometry (suppressed for <code>mfg_type: consumable</code> / <code>electronic</code> / <code>fastener</code>). Private BOM fields (<code>vendors</code>, <code>sku</code>, <code>unit_cost</code>) are dropped at the serializer and never appear in any report.</p>
+
+    <h3>Programmatic API</h3>
 <pre class="code"><span class="k">from</span> cadharness.harness <span class="k">import</span> Harness
 <span class="k">from</span> cadharness.adjacency <span class="k">import</span> AdjacencyRule
 
@@ -109,30 +159,22 @@ h.add_inventory(
     labels={(40.0, 80.0, 1000.0): <span class="o">'beam'</span>, (56.4, 56.4, 76.6): <span class="o">'motor'</span>},
     expected={<span class="o">'beam'</span>: 4, <span class="o">'motor'</span>: 2, <span class="o">'belt'</span>: 3}
 )
-
 h.add_interference(skip_labels={<span class="o">'belt'</span>, <span class="o">'wheel'</span>})
-
 h.add_adjacency(rules=[
     AdjacencyRule(<span class="o">'motor'</span>, <span class="o">'bracket'</span>, max_distance=50)
 ])
 
 report = h.run()
-<span class="k">print</span>(report)
-<span class="g"># CAD HARNESS REPORT — PASSED
-#   Parts: 42
-#   Time:  3200ms
-#
-#   [PASS] inventory (120ms)
-#   [PASS] interference (2800ms)
-#   [PASS] adjacency (15ms)</span></pre>
+<span class="k">print</span>(report)</pre>
 
     <h3>CI/CD in any system</h3>
 <pre class="code"><span class="g"># .github/workflows/cad-check.yml</span>
 - <span class="k">name</span>: Validate assembly
   <span class="k">run</span>: |
     pip install cadclaw
-    python check.py assembly.step</pre>
-    <p class="muted">Exit code 0 = passed. Exit code 1 = failed.</p>
+    cadclaw doctor
+    cadclaw harness --rules cadclaw.yaml</pre>
+    <p class="muted">Exit code 0 = passed. Exit code 1 = failed. Exit code 2 = warn-only.</p>
   </section>
 
   <section class="section">
@@ -174,7 +216,7 @@ DOI: 10.5281/zenodo.19647391</pre>
   <div class="foot-grid">
     <div>
       <h4>CADCLAW</h4>
-      <p>The testing framework CAD never had.</p>
+      <p>An automated check suite for STEP assemblies.</p>
       <p class="muted">MIT License · © 2026 <a href="https://sunn3d.com">Sunnyday Technologies</a></p>
     </div>
     <div>

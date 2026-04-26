@@ -442,3 +442,49 @@ footer {
   .hero h1 { font-size: 30px; }
   pre.code { padding: 14px 16px; font-size: 12.5px; }
 }
+
+/* v0.6 additions */
+.muted-strip {
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-dim);
+  margin: 14px auto 0;
+  max-width: 720px;
+  padding: 0 20px;
+}
+
+.gate.new {
+  border-color: var(--green);
+  position: relative;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--green);
+  padding: 2px 7px;
+  border-radius: 3px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.not-prove-list {
+  list-style: none;
+  padding: 0;
+  margin: 24px 0 0;
+}
+.not-prove-list li {
+  border-left: 2px solid var(--green);
+  padding: 8px 0 8px 16px;
+  margin-bottom: 14px;
+  color: var(--ink-dim);
+  line-height: 1.55;
+  font-size: 15px;
+}
+.not-prove-list li strong {
+  color: var(--ink);
+}

@@ -2,45 +2,73 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19647391.svg)](https://doi.org/10.5281/zenodo.19647391)
 
-**The testing framework CAD never had.**
+**An automated check suite for STEP-based CAD assemblies.**
 
 ![M3-CRETE radial explode animation](docs/media/m3crete_radial_spin.gif)
 
 *Generated end-to-end with `render_radial_explode_gif("M3-2_Assembly.step", "out.gif")` — parts explode radially from the centroid, then camera orbits 360°. 99+ parts, no manual animation work.*
 
-Automated validation, interference detection, and structural analysis for STEP assemblies. Like pytest for mechanical design.
+Automated geometric checks (inventory, interference, adjacency, dimensional, tolerance stacking) plus a **BOM-vs-CAD audit** and an **honesty toolchain** (doctor, publish-audit, claim-audit) for STEP assemblies. Like pytest for mechanical design — *in spirit*. Real CAD has analog characteristics pytest doesn't have (a part isn't binary present/absent — it can be slightly the wrong size, slightly clipping, slightly misplaced); CADCLAW reports findings with severity, evidence, and a confidence budget rather than just pass/fail.
 
 ## The Problem
 
-CAD assemblies break silently. Parts clip into each other, BOMs drift from geometry, motor mounts end up 600mm from the motor. Engineers catch these errors by eye — if they catch them at all. There is no `pytest` for CAD.
+CAD assemblies break silently. Parts clip into each other, BOMs drift from geometry, motor mounts end up 600mm from the motor. Engineers catch these errors by eye — if they catch them at all. CADCLAW automates the geometric checks. It does **not** replace engineering judgment, structural certification, or physical-build validation.
 
 ## What CADCLAW Does
 
-CADCLAW validates STEP assemblies through a chain of automated gates:
+CADCLAW validates STEP assemblies + BOM JSON through a chain of automated gates:
 
 | Gate | What it catches |
 |------|----------------|
-| **Inventory** | Missing/extra parts. Labels by bbox signature, counts against expected. |
+| **Inventory** | Missing/extra parts. Labels by bbox signature, counts against expected. Per-region (axis-aligned) constraints supported. |
 | **Interference** | Solid-solid overlaps. BRep boolean intersection, not just bbox. |
 | **Adjacency** | Parts that should be near each other but aren't (motor 600mm from mount). |
 | **Dimensional** | Wrong thickness, swapped `box()` args, impossible dimensions. |
 | **Kinematics** | Beam deflection, motor torque budgets, belt tension, racking. |
 | **Tolerance** | Worst-case, RSS, Monte Carlo tolerance stacking with Cpk and variance decomposition. |
+| **Parity** | STEP-vs-STEP comparison; flags the Fusion visibility-toggle bug. |
+| **BOM audit** *(v0.6)* | BOM JSON ↔ CAD assembly: qty, mfg_type, required/forbidden text terms, CAD-side count. |
 | **Disassembly** | Sequenced part removal, radial exploded views, animation frame export. |
-| **Render** | STEP → PNG → animated GIF via offscreen VTK. Closes the loop to shareable visuals. |
+| **Render** | STEP → PNG → animated GIF via offscreen VTK. |
 
-All gates run against a single loaded STEP file. The harness passes only if every gate passes.
+All gates run against a single loaded STEP file. Configure once in `cadclaw.yaml`, run from `cadclaw harness`. Every report includes a **confidence budget** that lists what was checked, what was not, and what assumptions were made.
 
-CADCLAW also includes an **MCP Server** — all modules exposed as tools for MCP-compatible hosts such as Claude Desktop, Cursor, and other clients that support the protocol.
+CADCLAW also includes an **MCP Server** — the same modules exposed as MCP tools, so an MCP-compatible assistant can call them directly. The MCP server only exposes CADCLAW's own checks; it does not give the assistant access to your CAD application or to anything outside what `cadclaw` itself can do. The full loop is: prompt → modify CadQuery script → regenerate STEP → run CADCLAW gates → inspect report.
+
+## What CADCLAW Does NOT Prove
+
+CADCLAW checks the geometry of a STEP file, the JSON of a BOM, and the text of your README against rules you write. It does **not** prove:
+
+- That the **native CAD model** (Fusion, SolidWorks, etc.) has no hidden or suppressed parts. CADCLAW reads the STEP export, which can silently drop invisible parts.
+- That the **physical build** matches the CAD. CAD passing CADCLAW says nothing about whether the parts on your bench match the file.
+- That a **vendor part is in stock**, available, or the price you assumed.
+- That a **printed part is strong enough** for production use. CADCLAW's kinematics gates do bare-beam math; they don't simulate printed-PLA fatigue, layer adhesion, or thermal creep.
+- That a **structural claim is physically certified**, unless you've attached measurement data with an evidence tag.
+- That an **AI-generated CAD change is correct** without passing the gates. CADCLAW is the check; not passing it doesn't make a change correct, only "passed the gates we have."
+
+Each report includes a **confidence budget** per gate: `checked`, `not_checked`, `assumptions`. Read it.
+
+## Honesty toolchain
+
+- `cadclaw doctor` — environment diagnostic. Run this first.
+- `cadclaw publish-audit` — scans the working tree for private data before you commit.
+- `cadclaw claim-audit` — text linter that flags overclaims and untagged numeric assertions in your README and BOM notes.
+
+These three tools exist because the truthfulness of CADCLAW's reports is only as good as the truthfulness of the docs and BOM that surround them.
 
 ## Quick Start
 
 ```bash
 pip install cadclaw
-# cadquery is pulled in automatically. For editable dev installs:
+# cadquery, pyyaml, pydantic are pulled in automatically.
+# For editable dev installs:
 #   git clone https://github.com/sunnyday-technologies/CADCLAW.git
 #   cd CADCLAW && pip install -e .
+
+cadclaw doctor                          # verify your environment first
 ```
+
+### Programmatic API
 
 ```python
 from cadharness.harness import Harness
@@ -69,6 +97,54 @@ print(report)
 #   [PASS] interference (2800ms)
 #   [PASS] adjacency (15ms)
 ```
+
+### CLI workflow (v0.6)
+
+Configure once in `cadclaw.yaml` — labels, expected inventory, regions, BOM
+rules, claim-audit terms, publish-audit globs — then drive everything from
+the `cadclaw` console script:
+
+```bash
+cadclaw doctor                                    # 1. verify the environment
+python examples/init_rules.py --step my.step      # 2. scaffold cadclaw.yaml
+                              --bom bom.json
+cadclaw harness --rules cadclaw.yaml              # 3. run every gate the rule file declares
+cadclaw bom-audit --rules cadclaw.yaml            # or run a single gate
+cadclaw publish-audit --rules cadclaw.yaml        # before `git push`
+cadclaw claim-audit --rules cadclaw.yaml --report-format md -o report.md
+```
+
+Exit codes: `0` pass, `1` fail, `2` warn-only (no fails), `3` internal error.
+
+### BOM-vs-CAD audit (the v0.6 headline)
+
+```yaml
+# cadclaw.yaml fragment
+bom_audit:
+  bom_path: bom/data.json
+  rules:
+    - id: 5
+      expected_qty: 12
+      expected_label: connector_bar
+      forbidden_terms: ["maximum rigidity", "primary stiffness"]
+    - id: 65
+      expected_qty: 3
+      expected_unit: "bars (1.0m each)"
+      expected_mfg_type: buy
+      required_terms: ["1m", "friction-fit"]
+      forbidden_terms: ["JB Weld", "West System", "custom 2m cut"]
+```
+
+The audit catches:
+
+- BOM `qty` / `mfg_type` / `unit` mismatches
+- Required-term-missing / forbidden-term-present in `name + description + notes`
+- CAD-side count drift (CAD has 16 connectors, BOM expects 12)
+- BOM items with no CAD geometry (suppressed for `mfg_type: consumable / electronic / fastener`)
+- CAD parts with no covering BOM rule
+
+Private BOM fields (`vendors`, `sku`, `unit_cost`, anything starting with `_`)
+are dropped at the serializer level and never appear in any report.
 
 ## How It Works
 
@@ -107,7 +183,7 @@ CADCLAW was developed alongside the [M3-CRETE](https://github.com/sunnyday-techn
 
 - Caught 53 solid-solid interferences in a single run
 - Reduced STEP file size from 70MB to 13MB by identifying geometry bloat
-- Validated 150+ assembly changes across 15 design sessions without visual inspection
+- Checked 150+ assembly changes across 15 design sessions without visual inspection [analysis]
 - Prevented 3 regressions that would have shipped broken geometry to builders
 
 See [examples/m3_crete/](examples/m3_crete/) for the reference implementation.
@@ -197,7 +273,10 @@ GIF rendering.
 
 - Python 3.10+
 - CadQuery 2.7+ (provides OCC/STEP support)
-- No commercial CAD software needed
+- pyyaml 6+ and pydantic 2.5+ (pulled in automatically)
+- No commercial CAD software needed for CADCLAW's own checks. Validation that depends on the native CAD application — feature-tree review, native-format parametric checks — is outside CADCLAW's scope.
+
+Run `cadclaw doctor` after install to verify your environment.
 
 ## License
 
@@ -205,4 +284,4 @@ MIT License. Copyright (c) 2026 Sunnyday Technologies.
 
 Built during the [M3-CRETE](https://m3-crete.com) project — an open-source concrete
 3D printer where CADCLAW caught 53 interferences, reduced STEP file size from
-70 MB to 13 MB, and validated 150+ assembly changes across a human-AI design collaboration.
+70 MB to 13 MB, and ran 150+ assembly checks across a human-AI design collaboration [analysis].
