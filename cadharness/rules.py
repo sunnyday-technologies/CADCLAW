@@ -73,6 +73,7 @@ class BomAuditModel(_Strict):
     ignore_labels: List[str] = Field(default_factory=list)
     exempt_categories: List[str] = Field(default_factory=list)
     warn_on_unmapped: bool = True
+    warn_on_mojibake: bool = True
     rules: List[BomRuleModel] = Field(default_factory=list)
 
 
@@ -107,6 +108,19 @@ class PublishAuditModel(_Strict):
     blob_size_warn_bytes: int = 20 * 1024 * 1024
 
 
+class InterferenceModel(_Strict):
+    """Pairwise solid-solid interference gate config.
+
+    `min_clearance_mm` is the running clearance added to the suggested
+    fix-vector when a clip is reported. The suggestion shifts part A by
+    `overlap_on_axis + min_clearance_mm` along the cheapest axis so the
+    moved part lands clear of the other rather than tangent to it.
+    """
+    skip_labels: List[str] = Field(default_factory=list)
+    min_volume_mm3: float = 1.0
+    min_clearance_mm: float = 1.0
+
+
 class ConfidenceBudgetModel(_Strict):
     checked: List[str] = Field(default_factory=list)
     not_checked: List[str] = Field(default_factory=list)
@@ -126,6 +140,7 @@ class RuleSet(_Strict):
     bom_audit: BomAuditModel = Field(default_factory=BomAuditModel)
     claim_audit: ClaimAuditModel = Field(default_factory=ClaimAuditModel)
     publish_audit: PublishAuditModel = Field(default_factory=PublishAuditModel)
+    interference: InterferenceModel = Field(default_factory=InterferenceModel)
     confidence_budget: ConfidenceBudgetModel = Field(default_factory=ConfidenceBudgetModel)
 
     @field_validator("schema_version")

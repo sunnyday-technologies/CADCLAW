@@ -145,11 +145,24 @@ def run_publish_audit(rules: RuleSet, repo_root: str = ".") -> Report:
                     category="publish_audit",
                     severity=Severity.FAIL,
                     message=(
-                        f"{path} is committed but listed in publish_audit.ignore_globs."
+                        f"{path} is committed but matches "
+                        "publish_audit.ignore_globs — one of the two is wrong."
                     ),
                     suggested_fix=(
-                        f"git rm --cached {path}\n"
-                        "Then add a matching pattern to .gitignore so it stays out."
+                        "Pick the case that applies — do NOT blindly run "
+                        "`git rm --cached`:\n"
+                        "  (1) The FILE is wrong (sensitive content got "
+                        "committed):\n"
+                        f"      git rm --cached {path}\n"
+                        "      then add a matching pattern to .gitignore so it "
+                        "stays out.\n"
+                        "  (2) The RULE is wrong (ignore_globs over-matches a "
+                        "file that\n"
+                        "      is intentionally public — e.g. `blog/**` "
+                        "covering live\n"
+                        "      GitHub Pages content): narrow the ignore_globs "
+                        "pattern in\n"
+                        "      cadclaw.yaml so this path no longer matches."
                     ),
                     evidence={"path": path, "state": state},
                 ))

@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from cadharness.rules import (
     BomRuleModel,
+    InterferenceModel,
     RuleSet,
     SCHEMA_VERSION,
     dump_rules,
@@ -182,6 +183,46 @@ class TestBomRuleModel(unittest.TestCase):
     def test_extra_field_rejected(self):
         with self.assertRaises(ValidationError):
             BomRuleModel(id=5, not_a_field="x")
+
+
+class TestInterferenceModel(unittest.TestCase):
+    """v0.7.1 Ergo-1: optional `interference:` section in cadclaw.yaml."""
+
+    def _write_tmp(self, text: str) -> str:
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+            f.write(text)
+            return f.name
+
+    def test_defaults_when_section_omitted(self):
+        path = self._write_tmp('schema_version: "0.7"\n')
+        try:
+            rules = load_rules(path)
+            self.assertEqual(rules.interference.skip_labels, [])
+            self.assertEqual(rules.interference.min_volume_mm3, 1.0)
+            self.assertEqual(rules.interference.min_clearance_mm, 1.0)
+        finally:
+            os.unlink(path)
+
+    def test_yaml_overrides_clearance_and_skips(self):
+        text = (
+            'schema_version: "0.7"\n'
+            'interference:\n'
+            '  skip_labels: [belt, vwheel]\n'
+            '  min_clearance_mm: 0.5\n'
+            '  min_volume_mm3: 2.0\n'
+        )
+        path = self._write_tmp(text)
+        try:
+            rules = load_rules(path)
+            self.assertEqual(rules.interference.skip_labels, ["belt", "vwheel"])
+            self.assertEqual(rules.interference.min_clearance_mm, 0.5)
+            self.assertEqual(rules.interference.min_volume_mm3, 2.0)
+        finally:
+            os.unlink(path)
+
+    def test_extra_field_rejected(self):
+        with self.assertRaises(ValidationError):
+            InterferenceModel(skip_labels=["belt"], not_a_field=True)
 
 
 if __name__ == "__main__":

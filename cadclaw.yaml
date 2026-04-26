@@ -15,10 +15,14 @@ meta:
   step: ""               # path to your authoritative STEP export
   bom: ""                # path to your public BOM JSON
 
-# Bbox-signature → human label.
+# Bbox-signature → human label. Labels are observational, NOT generative —
+# `nema23: [56.4, 56.4, 76.6]` says "any part with this bbox signature is a
+# NEMA23"; it does NOT generate one. The user authors geometry in Fusion /
+# Rhino; CADCLAW labels and verifies. See AGENTS.md for the full rule.
+#
 # A signature is the SORTED (dx, dy, dz) tuple rounded to 0.1 mm.
 # Run examples/init_rules.py to scaffold this section from a STEP file.
-labels:
+labels: {}
   # Example entries — replace with your own:
   # cbeam_4080_1m:    [40.0, 80.0, 1000.0]
   # nema23:           [56.4, 56.4, 76.6]
@@ -26,11 +30,11 @@ labels:
 
 belt_heuristic: true     # auto-label parts with 1.5x6 cross-section as 'belt'
 
-expected_inventory:
+expected_inventory: {}
   # cbeam_4080_1m: 17
   # nema23: 6
 
-regions:
+regions: []
   # - name: x_carriage
   #   z_range: [100.0, 250.0]
   #   expected: { vwheel: 8 }
@@ -40,15 +44,32 @@ bom_audit:
   ignore_labels:
     - other
     - belt
-  rules:
+  rules: []
     # - id: 5
     #   expected_qty: 12
     #   expected_label: connector_bar
     #   forbidden_terms: ["maximum rigidity"]
 
+interference:
+  # Skip pairs where either part has one of these labels. Belts wrap
+  # pulleys (unavoidable tooth-mesh overlap); reserve skips for labels
+  # with that kind of geometric justification — avoid 'vwheel' here
+  # (it suppresses misplacement detection).
+  skip_labels:
+    - belt
+  # Minimum BRep boolean overlap volume (mm^3) to report.
+  min_volume_mm3: 1.0
+  # Running clearance added to the suggested fix-shift when a clip is
+  # reported. The suggestion shifts part A by
+  # `overlap_on_axis + min_clearance_mm` along the cheapest bbox axis
+  # so the moved part lands clear of the other with this clearance,
+  # not tangent to it.
+  min_clearance_mm: 1.0
+
 claim_audit:
   scan_paths:
     - README.md
+    - AGENTS.md     # if you ship one — see CADCLAW's AGENTS.md as a template
   stale_terms: []
   source_regex_rules: []
 

@@ -81,6 +81,41 @@ def _is_negated(haystack: str, term_index: int) -> bool:
     return bool(_NEGATION_PATTERN.search(_negation_window(haystack, term_index)))
 
 
+# v0.7.1 / INFO-9: detect cp1252-misencoded UTF-8 in BOM string fields.
+#
+# When a BOM author saves a UTF-8 file as cp1252 (or vice-versa), characters
+# like em-dash, smart quotes, accents, NBSP, and degree become double-byte
+# mojibake sequences such as `â€"`, `â€™`, `Ã©`, `Ã¼`, `Â `, `Â°`. The pattern
+# is the high-byte UTF-8 lead-byte (0xC3 / 0xC2 / 0xE2-0x80) read through the
+# cp1252 codepage, producing visible Latin Capital Letter A With Tilde (Ã),
+# Latin Capital Letter A With Circumflex (Â), or Latin Small Letter A With
+# Circumflex (â) followed by another non-ASCII byte. Detecting any of these
+# pairs is a reliable mojibake signal.
+_MOJIBAKE_PATTERN = re.compile(r"[ÃÂ][-ÿ]|â€[-ÿ]?")
+
+
+def _string_fields_with_mojibake(item: Dict[str, Any]) -> List[Tuple[str, str]]:
+    """Return [(field_name, sample_excerpt), ...] for fields that smell of
+    cp1252/UTF-8 double-encoding. Limited to public-allowlist string fields
+    so private content never leaks into a finding's evidence.
+    """
+    hits: List[Tuple[str, str]] = []
+    for field in ("name", "description", "notes"):
+        v = item.get(field)
+        if not isinstance(v, str):
+            continue
+        m = _MOJIBAKE_PATTERN.search(v)
+        if m is None:
+            continue
+        # Show ~12 chars of context centered on the match. Keep it short
+        # so the report stays scannable on narrow PR comment widths.
+        i = m.start()
+        start = max(0, i - 8)
+        end = min(len(v), m.end() + 8)
+        hits.append((field, v[start:end]))
+    return hits
+
+
 def _label_fn_from_rules(rules: RuleSet):
     sig_to_label = rules.sig_to_label()
     belt_heuristic = rules.belt_heuristic
@@ -201,6 +236,38 @@ def run_bom_audit(
     parts = load_and_dedup(str(step_path))
     label_fn = _label_fn_from_rules(rules)
     cad_inventory = Counter(label_fn(p) for p in parts)
+
+    # v0.7.1 / INFO-9: scan BOM string fields for cp1252-misencoded UTF-8.
+    # One WARN per affected item; the cited excerpt is bounded to ~16 chars
+    # to keep PR-comment widths reasonable. Opt-out via
+    # bom_audit.warn_on_mojibake: false.
+    if rules.bom_audit.warn_on_mojibake:
+        for item in items:
+            hits = _string_fields_with_mojibake(item)
+            if not hits:
+                continue
+            field_list = ", ".join(name for name, _ in hits)
+            sample = hits[0][1]
+            findings.append(Finding(
+                id="bom.encoding_issue",
+                category="bom_audit",
+                severity=Severity.WARN,
+                message=(
+                    f"BOM id={item.get('id', '?')!r}: cp1252/UTF-8 mojibake "
+                    f"in field(s) {field_list} (sample: {sample!r})."
+                ),
+                suggested_fix=(
+                    "The BOM file was likely saved with the wrong encoding "
+                    "at some point — re-encode it as UTF-8 (in your editor: "
+                    "File > Save With Encoding > UTF-8). To suppress this "
+                    "check, set bom_audit.warn_on_mojibake: false."
+                ),
+                evidence={
+                    "bom_id": item.get("id"),
+                    "fields": [name for name, _ in hits],
+                    "sample": sample,
+                },
+            ))
 
     matched_bom_ids: set = set()
     matched_labels: set = set()
