@@ -24,6 +24,7 @@ from .inventory import InventoryCheck, InventoryResult, load_and_dedup, sig
 from .interference import InterferenceCheck, InterferenceResult
 from .adjacency import AdjacencyCheck, AdjacencyResult, AdjacencyRule
 from .dimensional import DimensionalCheck, DimensionalResult, DimRule
+from .findings import Finding, Report, Severity
 
 
 @dataclass
@@ -32,6 +33,7 @@ class GateResult:
     passed: bool
     details: str
     duration_ms: float
+    findings: List[Finding] = field(default_factory=list)
 
 
 @dataclass
@@ -40,6 +42,7 @@ class HarnessReport:
     total_parts: int
     gates: List[GateResult]
     duration_ms: float
+    report: Optional[Report] = None
 
     def __str__(self):
         lines = [
@@ -117,15 +120,18 @@ class Harness:
         label_fn = self._label_fn or self._default_label_fn
 
         results = []
+        all_findings: List[Finding] = []
 
         for name, config in self._gates:
             gt = time.time()
+            findings: List[Finding] = []
 
             if name == 'inventory':
                 check = config
                 r = check.run(parts=parts)
                 passed = r.passed
                 details = '\n'.join(r.mismatches) if r.mismatches else ''
+                findings = _inventory_findings(r)
 
             elif name == 'interference':
                 check = InterferenceCheck(
@@ -137,6 +143,7 @@ class Harness:
                 details = '\n'.join(
                     f"{c.label_a} vs {c.label_b}: {c.volume:.0f}mm3"
                     for c in r.clips) if r.clips else ''
+                findings = _interference_findings(r)
 
             elif name == 'adjacency':
                 check = AdjacencyCheck(parts, label_fn, config)
@@ -147,24 +154,132 @@ class Harness:
                     f"{v.source_center[1]:.0f},{v.source_center[2]:.0f}) "
                     f"nearest {v.nearest_target_label} = {v.nearest_distance:.0f}mm"
                     for v in r.violations) if r.violations else ''
+                findings = _adjacency_findings(r)
 
             elif name == 'dimensional':
                 check = DimensionalCheck(parts, label_fn, config)
                 r = check.run()
                 passed = r.passed
                 details = '\n'.join(v.message for v in r.violations) if r.violations else ''
+                findings = _dimensional_findings(r)
 
             else:
                 continue
 
             results.append(GateResult(
                 name=name, passed=passed, details=details,
-                duration_ms=(time.time() - gt) * 1000))
+                duration_ms=(time.time() - gt) * 1000,
+                findings=findings))
+            all_findings.extend(findings)
 
         all_passed = all(r.passed for r in results)
+        duration_ms = (time.time() - t0) * 1000
+
+        rich = Report(
+            findings=all_findings,
+            duration_ms=duration_ms,
+            meta={"step": self.step_path, "total_parts": len(parts)},
+        )
+        rich.overall = rich.compute_overall()
+
         return HarnessReport(
             passed=all_passed,
             total_parts=len(parts),
             gates=results,
-            duration_ms=(time.time() - t0) * 1000,
+            duration_ms=duration_ms,
+            report=rich,
         )
+
+
+def _inventory_findings(r: InventoryResult) -> List[Finding]:
+    out: List[Finding] = []
+    for mismatch in r.mismatches:
+        # mismatch format: "label: got N, expected M"
+        try:
+            label, rest = mismatch.split(":", 1)
+            out.append(Finding(
+                id="inventory.count_mismatch",
+                category="inventory",
+                severity=Severity.FAIL,
+                message=mismatch,
+                evidence={"label": label.strip(), "summary": rest.strip()},
+            ))
+        except ValueError:
+            out.append(Finding(
+                id="inventory.count_mismatch",
+                category="inventory",
+                severity=Severity.FAIL,
+                message=mismatch,
+            ))
+    for region_name, region_result in r.region_results.items():
+        for mismatch in region_result.mismatches:
+            try:
+                label, rest = mismatch.split(":", 1)
+            except ValueError:
+                label, rest = mismatch, ""
+            out.append(Finding(
+                id="inventory.region_count_mismatch",
+                category="inventory",
+                severity=Severity.FAIL,
+                message=f"region {region_name}: {mismatch}",
+                evidence={
+                    "region": region_name,
+                    "label": label.strip(),
+                    "summary": rest.strip(),
+                },
+            ))
+    return out
+
+
+def _interference_findings(r: InterferenceResult) -> List[Finding]:
+    out: List[Finding] = []
+    for c in r.clips:
+        out.append(Finding(
+            id="interference.clip",
+            category="interference",
+            severity=Severity.FAIL,
+            message=f"{c.label_a} vs {c.label_b}: {c.volume:.0f} mm3 overlap",
+            evidence={
+                "label_a": c.label_a,
+                "label_b": c.label_b,
+                "volume_mm3": round(c.volume, 1),
+                "center_a": list(c.center_a),
+                "center_b": list(c.center_b),
+            },
+        ))
+    return out
+
+
+def _adjacency_findings(r: AdjacencyResult) -> List[Finding]:
+    out: List[Finding] = []
+    for v in r.violations:
+        out.append(Finding(
+            id="adjacency.too_far",
+            category="adjacency",
+            severity=Severity.FAIL,
+            message=(
+                f"{v.source_label} nearest {v.nearest_target_label} "
+                f"= {v.nearest_distance:.0f}mm (max {v.max_allowed:.0f}mm)"
+            ),
+            evidence={
+                "source_label": v.source_label,
+                "source_center": list(v.source_center),
+                "nearest_target_label": v.nearest_target_label,
+                "nearest_distance_mm": round(v.nearest_distance, 1),
+                "max_allowed_mm": v.max_allowed,
+            },
+        ))
+    return out
+
+
+def _dimensional_findings(r: DimensionalResult) -> List[Finding]:
+    out: List[Finding] = []
+    for v in r.violations:
+        out.append(Finding(
+            id="dimensional.violation",
+            category="dimensional",
+            severity=Severity.FAIL,
+            message=v.message,
+            evidence={"label": v.label},
+        ))
+    return out
