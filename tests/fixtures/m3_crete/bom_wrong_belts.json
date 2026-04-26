@@ -1,0 +1,16 @@
+[
+  {
+    "id": 30,
+    "name": "X-gantry belt 10mm",
+    "qty": 1,
+    "mfg_type": "buy",
+    "description": "GT2 10mm belt for X-gantry."
+  },
+  {
+    "id": 31,
+    "name": "Y/Z belt 6mm",
+    "qty": 4,
+    "mfg_type": "buy",
+    "description": "GT2 6mm belt for Y and Z axes."
+  }
+]

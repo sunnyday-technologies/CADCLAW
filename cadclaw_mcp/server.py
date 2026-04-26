@@ -35,13 +35,22 @@ import traceback
 # Add parent to path so cadharness imports work
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from cadharness.inventory import load_and_dedup, sig, InventoryCheck
+from cadharness.inventory import load_and_dedup, sig, InventoryCheck, Region
 from cadharness.interference import InterferenceCheck
 from cadharness.adjacency import AdjacencyCheck, AdjacencyRule
 from cadharness.dimensional import DimensionalCheck, DimRule
 from cadharness.kinematics import beam_deflection, motor_torque_budget, belt_tension
 from cadharness.tolerance import ToleranceChain
 from cadharness.disassembly import DisassemblySequence
+
+# v0.6 additions — gates that take a rule file and return a structured Report.
+from cadharness.findings import Severity
+from cadharness.doctor import run_doctor
+from cadharness.rules import load_rules
+from cadharness.bom_audit import run_bom_audit
+from cadharness.publish_audit import run_publish_audit
+from cadharness.claim_audit import run_claim_audit
+from cadharness.parity import compare_steps
 
 # ============================================================
 # MCP Protocol Implementation (stdio transport)
@@ -333,6 +342,95 @@ def tool_disassembly_sequence(path: str, labels: dict = None,
     }
 
 
+def tool_doctor() -> dict:
+    """Run the v0.6 environment doctor (Python, venv, deps, MCP, repo signals)."""
+    report = run_doctor()
+    return report.to_dict()
+
+
+def tool_check_bom_against_cad(rules_path: str,
+                                bom_path: str = None,
+                                step_path: str = None) -> dict:
+    """Compare a BOM JSON against a STEP assembly using a cadclaw.yaml rule file."""
+    rules = load_rules(rules_path)
+    bp = bom_path or rules.bom_audit.bom_path
+    sp = step_path or rules.meta.step
+    if not bp:
+        return {"error": "bom_path required (pass argument or set bom_audit.bom_path in rules)"}
+    if not sp:
+        return {"error": "step_path required (pass argument or set meta.step in rules)"}
+    report = run_bom_audit(bom_path=bp, step_path=sp, rules=rules)
+    return report.to_dict()
+
+
+def tool_check_publish_boundary(rules_path: str, repo_root: str = ".") -> dict:
+    """Privacy-boundary scan: ignore_globs vs git state + redact-pattern content scan."""
+    rules = load_rules(rules_path)
+    report = run_publish_audit(rules, repo_root=repo_root)
+    return report.to_dict()
+
+
+def tool_check_claims(rules_path: str, repo_root: str = ".") -> dict:
+    """Scan README/docs/BOM notes for forbidden absolutes, untagged numerics, stale terms."""
+    rules = load_rules(rules_path)
+    report = run_claim_audit(rules, repo_root=repo_root)
+    return report.to_dict()
+
+
+def tool_check_region_inventory(rules_path: str, step_path: str = None) -> dict:
+    """Run the inventory gate with per-region constraints from cadclaw.yaml."""
+    rules = load_rules(rules_path)
+    sp = step_path or rules.meta.step
+    if not sp:
+        return {"error": "step_path required (pass argument or set meta.step in rules)"}
+    sig_to_label = rules.sig_to_label()
+    label_dict = {sig: name for sig, name in sig_to_label.items()}
+    regions = [
+        Region(
+            name=r.name,
+            x_range=tuple(r.x_range) if r.x_range else None,
+            y_range=tuple(r.y_range) if r.y_range else None,
+            z_range=tuple(r.z_range) if r.z_range else None,
+            expected=dict(r.expected),
+        )
+        for r in rules.regions
+    ] or None
+    check = InventoryCheck(sp, label_dict, dict(rules.expected_inventory),
+                            belt_heuristic=rules.belt_heuristic, regions=regions)
+    result = check.run()
+    return {
+        "passed": result.passed,
+        "total_parts": result.total_parts,
+        "inventory": result.inventory,
+        "expected": result.expected,
+        "mismatches": result.mismatches,
+        "regions": {
+            name: {
+                "passed": rr.passed,
+                "total_parts": rr.total_parts,
+                "inventory": rr.inventory,
+                "mismatches": rr.mismatches,
+            }
+            for name, rr in result.region_results.items()
+        },
+    }
+
+
+def tool_compare_step_parity(step_a: str, step_b: str) -> dict:
+    """Compare two STEP files by dim-signature inventory; flag visibility-toggle bugs."""
+    parity = compare_steps(step_a, step_b)
+    return {
+        "passed": parity.passed,
+        "a_path": parity.a_path,
+        "b_path": parity.b_path,
+        "a_parts": parity.a_parts,
+        "b_parts": parity.b_parts,
+        "only_in_a": [{"sig": list(s), "count": c} for s, c in parity.only_in_a],
+        "only_in_b": [{"sig": list(s), "count": c} for s, c in parity.only_in_b],
+        "size_shrunk_warning": parity.size_shrunk_warning,
+    }
+
+
 def tool_export_exploded_view(path: str, output_path: str,
                                mode: str = "radial",
                                expansion: float = 0.35,
@@ -547,6 +645,72 @@ TOOLS = [
         },
     },
     {
+        "name": "doctor",
+        "description": "Run the v0.6 environment doctor: Python, venv, dependencies, MCP self-check, repo signals.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "check_bom_against_cad",
+        "description": "Compare a BOM JSON against a STEP assembly using a cadclaw.yaml rule file. Returns structured findings including BOM qty/mfg_type/term checks and CAD count comparison. Private BOM fields (vendors, sku, unit_cost) are never returned.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "rules_path": {"type": "string", "description": "Path to cadclaw.yaml"},
+                "bom_path": {"type": "string", "description": "Optional override for the BOM JSON path"},
+                "step_path": {"type": "string", "description": "Optional override for the STEP file path"},
+            },
+            "required": ["rules_path"],
+        },
+    },
+    {
+        "name": "check_publish_boundary",
+        "description": "Scan the working tree for private files that are tracked or staged (publish-audit). Uses ignore_globs vs git state, plus regex redact_patterns over scan_globs. Never echoes matched secret values.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "rules_path": {"type": "string"},
+                "repo_root": {"type": "string", "description": "Path to the repo root (default '.')"},
+            },
+            "required": ["rules_path"],
+        },
+    },
+    {
+        "name": "check_claims",
+        "description": "Lint README/docs/BOM notes for forbidden absolutes, untagged numeric claims, and user-supplied stale terms. Plus folded source-regex rules over .py files (protected output paths, silent fallback geometry).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "rules_path": {"type": "string"},
+                "repo_root": {"type": "string"},
+            },
+            "required": ["rules_path"],
+        },
+    },
+    {
+        "name": "check_region_inventory",
+        "description": "Run the inventory gate with per-region (axis-aligned bounding-box) constraints from a cadclaw.yaml rule file.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "rules_path": {"type": "string"},
+                "step_path": {"type": "string", "description": "Optional override for the STEP path"},
+            },
+            "required": ["rules_path"],
+        },
+    },
+    {
+        "name": "compare_step_parity",
+        "description": "Compare two STEP files by dim-signature inventory. Detects parts present in one but not the other, plus the Fusion visibility-toggle bug (file shrinks but unique signatures grow).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "step_a": {"type": "string"},
+                "step_b": {"type": "string"},
+            },
+            "required": ["step_a", "step_b"],
+        },
+    },
+    {
         "name": "tolerance_stack",
         "description": "Compute tolerance stack analysis along an assembly chain. Returns worst-case, RSS (3-sigma), and Monte Carlo results with Cpk process capability and per-dimension variance contribution.",
         "inputSchema": {
@@ -591,6 +755,13 @@ TOOL_HANDLERS = {
     "tolerance_stack": lambda args: tool_tolerance_stack(**args),
     "disassembly_sequence": lambda args: tool_disassembly_sequence(**args),
     "export_exploded_view": lambda args: tool_export_exploded_view(**args),
+    # v0.6 additions
+    "doctor": lambda args: tool_doctor(**args),
+    "check_bom_against_cad": lambda args: tool_check_bom_against_cad(**args),
+    "check_publish_boundary": lambda args: tool_check_publish_boundary(**args),
+    "check_claims": lambda args: tool_check_claims(**args),
+    "check_region_inventory": lambda args: tool_check_region_inventory(**args),
+    "compare_step_parity": lambda args: tool_compare_step_parity(**args),
 }
 
 
@@ -613,7 +784,7 @@ def handle_request(request: dict) -> dict:
                 "capabilities": {"tools": {}},
                 "serverInfo": {
                     "name": "CADCLAW",
-                    "version": "0.1.0",
+                    "version": "0.6.0",
                 },
             },
         }
