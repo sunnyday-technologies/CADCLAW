@@ -1,0 +1,123 @@
+schema_version: "0.6"
+
+meta:
+  project: m3-crete
+  description: "M3-CRETE acceptance fixture — rule file aligned to L3_good.step"
+  step: tests/fixtures/L3_good.step
+
+# This is a TEST FIXTURE. Counts are aligned to the generated L3_good.step
+# (see tests/generate_fixtures.py), not to the real M3-CRETE M3-2 export.
+# The acceptance tests use this rule file plus the bom_*.json fixtures to
+# verify each finding code path. The real M3-CRETE rule file lives at
+# the repo root as `cadclaw.yaml`.
+
+labels:
+  vwheel:           [10.2, 23.9, 23.9]
+  cbeam:            [40.0, 80.0, 1000.0]
+  motor_nema23:     [56.4, 56.4, 76.6]
+  plate:            [3.0, 88.0, 127.0]
+  connector_bar:    [4.0, 40.0, 80.0]
+  insert_2040_1m:   [40.0, 80.0, 500.0]
+  zmount_printed:   [4.0, 80.0, 80.0]
+  bot_mount:        [4.0, 80.0, 100.0]
+  pulley:           [14.0, 15.0, 15.0]
+  idler_brk:        [5.0, 40.0, 80.0]
+  printed_motor:    [65.0, 69.0, 69.0]
+  ymount_printed:   [4.0, 68.0, 80.0]
+
+belt_heuristic: true
+
+bom_audit:
+  bom_path: tests/fixtures/m3_crete/bom_good.json
+  ignore_labels: [other, belt]
+  rules:
+    - id: 1
+      expected_qty: 1
+      expected_mfg_type: buy
+      expected_label: cbeam
+    - id: 2
+      expected_qty: 1
+      expected_mfg_type: buy
+      expected_label: motor_nema23
+    - id: 5
+      expected_qty: 2
+      expected_mfg_type: buy
+      expected_label: connector_bar
+      forbidden_terms:
+        - "maximum rigidity"
+        - "primary stiffness"
+    - id: 12
+      expected_qty: 6
+      expected_label: vwheel
+    - id: 30
+      required_terms: ["6mm"]
+      forbidden_terms: ["10mm"]
+    - id: 31
+      required_terms: ["10mm"]
+      forbidden_terms: ["6mm"]
+    - id: 41
+      expected_mfg_type: print
+      forbidden_terms:
+        - "aluminum"
+        - "machined"
+        - "purchased"
+        - "L-bracket"
+        - "steel"
+    - id: 65
+      expected_qty: 2
+      expected_unit: "bars (1.0m each)"
+      expected_mfg_type: buy
+      expected_label: insert_2040_1m
+      required_terms: ["1m", "friction-fit"]
+      forbidden_terms:
+        - "JB Weld"
+        - "West System"
+        - "bonded"
+        - "custom 2m cut"
+    - id: 80
+      expected_qty: 2
+      expected_label: plate
+    - id: 81
+      expected_mfg_type: print
+      expected_label: ymount_printed
+    - id: 82
+      expected_label: pulley
+    - id: 83
+      expected_mfg_type: print
+      expected_label: printed_motor
+    - id: 84
+      expected_label: idler_brk
+
+claim_audit:
+  scan_paths:
+    - README.md
+  stale_terms:
+    - "JB Weld"
+    - "West System"
+    - "custom 2m cut"
+
+publish_audit:
+  ignore_globs:
+    - ".env*"
+    - "bom/build_bom_*.py"
+    - "bom/M3-CRETE_*_build_bom.xlsx"
+    - "bom/orders/**"
+    - "_archive/**"
+  scan_globs:
+    - "README.md"
+  redact_patterns:
+    api_key: 'sk-[A-Za-z0-9]{32,}'
+    aws_key: 'AKIA[0-9A-Z]{16}'
+  email_allowlist:
+    - "info@sunn3d.com"
+    - "noreply@anthropic.com"
+
+confidence_budget:
+  not_checked:
+    - thread engagement (bbox signatures only)
+    - belt slip under dynamic load
+    - native-CAD hidden/suppressed parts
+    - vendor stock and pricing
+  assumptions:
+    - all parts are rigid bodies
+    - mm units throughout

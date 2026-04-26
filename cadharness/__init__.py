@@ -1,8 +1,9 @@
 """
-CADCLAW — Automated validation, interference detection, and structural
-analysis for STEP assemblies. The testing framework CAD never had.
+CADCLAW — Automated geometric validation, BOM-vs-CAD audit, and an honesty
+toolchain (doctor / publish-audit / claim-audit) for STEP-based CAD
+assemblies, with an MCP server for assistant-driven workflows.
 
 https://github.com/sunnyday-technologies/CADCLAW
 """
-__version__ = "0.1.0"
+__version__ = "0.6.0"
 __author__ = "Sunnyday Technologies"
