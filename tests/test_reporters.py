@@ -109,12 +109,12 @@ class TestJsonReporter(unittest.TestCase):
         s = render_json(_sample_report())
         d = json.loads(s)
         self.assertEqual(d["overall"], "fail")
-        self.assertEqual(d["schema_version"], "0.6")
+        self.assertEqual(d["schema_version"], "0.7")
 
     def test_locked_schema_version(self):
         s = render_json(_sample_report())
         d = json.loads(s)
-        self.assertEqual(d["schema_version"], "0.6")
+        self.assertEqual(d["schema_version"], "0.7")
 
     def test_findings_are_round_trippable(self):
         s = render_json(_sample_report())

@@ -6,8 +6,9 @@ labels, expected inventory, regions, BOM rules, claim-audit rules,
 publish-audit globs, and the confidence budget. Every section is optional;
 missing sections skip their gate and append to `confidence_budget.not_checked`.
 
-Schema version is locked at "0.6". Bumping it is a deliberate breaking-change
-signal; minor field additions stay at 0.6 and remain backwards compatible.
+Schema version is locked at "0.7". Bumping it is a deliberate breaking-change
+signal; minor field additions stay at the current version and remain
+backwards compatible.
 
 Usage:
     from cadharness.rules import load_rules
@@ -24,7 +25,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-SCHEMA_VERSION = "0.6"
+SCHEMA_VERSION = "0.7"
 
 
 class _Strict(BaseModel):
@@ -58,6 +59,8 @@ class BomRuleModel(_Strict):
     expected_label: Optional[Union[str, List[str]]] = None
     expected_sig: Optional[List[List[float]]] = None
     expected_cad_count: Optional[int] = None
+    expected_design_qty: Optional[int] = None
+    spare_qty: Optional[int] = None
     pack_size: Optional[int] = None
     min_cad_count: Optional[int] = None
     max_cad_count: Optional[int] = None
@@ -68,6 +71,8 @@ class BomRuleModel(_Strict):
 class BomAuditModel(_Strict):
     bom_path: Optional[str] = None
     ignore_labels: List[str] = Field(default_factory=list)
+    exempt_categories: List[str] = Field(default_factory=list)
+    warn_on_unmapped: bool = True
     rules: List[BomRuleModel] = Field(default_factory=list)
 
 
@@ -128,7 +133,11 @@ class RuleSet(_Strict):
     def _check_version(cls, v: str) -> str:
         if v != SCHEMA_VERSION:
             raise ValueError(
-                f"unsupported schema_version {v!r}; this CADCLAW expects {SCHEMA_VERSION!r}"
+                f"unsupported schema_version {v!r}; this CADCLAW expects "
+                f"{SCHEMA_VERSION!r}. Migration: change schema_version to "
+                f"{SCHEMA_VERSION!r}; new optional fields are "
+                "expected_design_qty, spare_qty, exempt_categories, "
+                "warn_on_unmapped — no field renames required."
             )
         return v
 
