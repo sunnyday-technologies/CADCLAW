@@ -784,7 +784,7 @@ def handle_request(request: dict) -> dict:
                 "capabilities": {"tools": {}},
                 "serverInfo": {
                     "name": "CADCLAW",
-                    "version": "0.6.0",
+                    "version": "0.6.1",
                 },
             },
         }
