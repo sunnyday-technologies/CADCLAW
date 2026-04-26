@@ -97,11 +97,19 @@ class Harness:
         self._gates.append(('inventory', InventoryCheck(
             self.step_path, labels, expected)))
 
-    def add_interference(self, skip_labels=None, min_volume=1.0):
-        """Add an interference gate."""
+    def add_interference(self, skip_labels=None, min_volume=1.0,
+                         min_clearance_mm=1.0):
+        """Add an interference gate.
+
+        `min_clearance_mm` controls the suggested fix-vector: when a
+        clip is reported, the suggestion shifts part A by
+        `overlap_on_axis + min_clearance_mm` along the cheapest axis so
+        it lands clear of part B with that running clearance.
+        """
         self._gates.append(('interference', {
             'skip_labels': skip_labels or set(),
             'min_volume': min_volume,
+            'min_clearance_mm': min_clearance_mm,
         }))
 
     def add_adjacency(self, rules: List[AdjacencyRule]):
@@ -137,12 +145,11 @@ class Harness:
                 check = InterferenceCheck(
                     parts, label_fn,
                     skip_labels=config['skip_labels'],
-                    min_volume=config['min_volume'])
+                    min_volume=config['min_volume'],
+                    min_clearance_mm=config.get('min_clearance_mm', 1.0))
                 r = check.run()
                 passed = r.passed
-                details = '\n'.join(
-                    f"{c.label_a} vs {c.label_b}: {c.volume:.0f}mm3"
-                    for c in r.clips) if r.clips else ''
+                details = '\n'.join(_format_clip_detail(c) for c in r.clips) if r.clips else ''
                 findings = _interference_findings(r)
 
             elif name == 'adjacency':
@@ -231,20 +238,52 @@ def _inventory_findings(r: InventoryResult) -> List[Finding]:
     return out
 
 
+def _format_shift_suggestion(c) -> str:
+    """e.g. 'shift +Y by 1.35mm to clear with 1mm clearance'."""
+    axis_upper = c.suggest_axis.upper()
+    sign = "+" if c.suggest_shift_mm >= 0 else "-"
+    mag = abs(c.suggest_shift_mm)
+    clearance = c.clearance_mm
+    clearance_str = f"{clearance:g}mm"
+    return (f"shift {sign}{axis_upper} by {mag:.2f}mm "
+            f"to clear with {clearance_str} clearance")
+
+
+def _format_clip_detail(c) -> str:
+    """Compact CLI line: 'plate at (x,y,z) clips cbeam by Vmm3 — shift +Y by ...'."""
+    cx, cy, cz = c.center_a
+    head = (f"{c.label_a} at ({cx:.0f}, {cy:.0f}, {cz:.0f}) "
+            f"clips {c.label_b} by {c.volume:.0f} mm^3")
+    if c.suggest_shift_mm == 0.0:
+        return head
+    return f"{head} — {_format_shift_suggestion(c)}"
+
+
 def _interference_findings(r: InterferenceResult) -> List[Finding]:
     out: List[Finding] = []
     for c in r.clips:
+        suggestion = _format_shift_suggestion(c)
         out.append(Finding(
             id="interference.clip",
             category="interference",
             severity=Severity.FAIL,
-            message=f"{c.label_a} vs {c.label_b}: {c.volume:.0f} mm3 overlap",
+            message=(f"{c.label_a} vs {c.label_b}: {c.volume:.0f} mm3 overlap"
+                     f" — {suggestion}"),
+            suggested_fix=suggestion,
             evidence={
                 "label_a": c.label_a,
                 "label_b": c.label_b,
                 "volume_mm3": round(c.volume, 1),
                 "center_a": list(c.center_a),
                 "center_b": list(c.center_b),
+                "bbox_a": list(c.bbox_a),
+                "bbox_b": list(c.bbox_b),
+                "overlap_dims_mm": [round(x, 3) for x in c.overlap_dims],
+                "suggest_shift": {
+                    "axis": c.suggest_axis,
+                    "mm": round(c.suggest_shift_mm, 3),
+                    "clearance_mm": c.clearance_mm,
+                },
             },
         ))
     return out

@@ -8,6 +8,90 @@ Authoritative cross-machine carry-over for post-release work. Travels with `git 
 
 ## Current version
 
+**v0.7.1** — ergonomics polish prepared on 2026-04-26 (same day as v0.7.0).
+
+### What's in v0.7.1
+
+Closes the M3-CRETE 2026-04-26 nudge-session field-test backlog
+(handoff: `M3-CRETE/docs/session_logs/2026-04-26-cadclaw-nudge-handoff.md`).
+The session demonstrated CADCLAW's canonical success — a 0.35mm rear
+X-rail clip detected against the X-carriage gantry plate, fixed by
+shifting the plate +1.35mm in Y — but exposed three ergonomics gaps:
+
+- **Ergo-1 — Auto-suggested fix vector for interference clips.**
+  ([cadharness/interference.py](cadharness/interference.py)) `Clip` now
+  carries `bbox_a`, `bbox_b`, `overlap_dims`, `suggest_axis`,
+  `suggest_shift_mm`, `clearance_mm`. The harness picks the axis with
+  the smallest bbox overlap (cheapest fix) and computes a signed
+  translation that pushes part A clear with the configured clearance
+  (default 1mm). Reports now read `plate at (1495, 540, 366) clips
+  cbeam by 264 mm³ — shift +Y by 1.35mm to clear with 1mm clearance`
+  instead of just the volume number. Wired through the MCP
+  `check_interference` tool. New optional `interference:` section in
+  `cadclaw.yaml` (`skip_labels`, `min_volume_mm3`, `min_clearance_mm`)
+  — additive, no schema bump.
+- **Ergo-2 — `cadclaw inspect <step>` subcommand.**
+  ([cadharness/inspect.py](cadharness/inspect.py),
+  [cadclaw_cli/main.py](cadclaw_cli/main.py)) Three sub-subcommands
+  replace the throwaway probe scripts users were writing:
+  `cadclaw inspect sigs <step>` for a bbox-signature histogram,
+  `cadclaw inspect part <step> --at X,Y,Z|--sig dx,dy,dz|--label NAME`
+  for "what is this part", and `cadclaw inspect overlaps <step>
+  --label NAME|--at X,Y,Z [--clearance MM]` for "what overlaps with X"
+  (uses the same fix-vector math from Ergo-1). All accept optional
+  `--rules cadclaw.yaml` for label resolution.
+- **Ergo-3 — `AGENTS.md` + de-bias starter examples.**
+  ([AGENTS.md](AGENTS.md), [README.md](README.md),
+  [cadclaw.yaml](cadclaw.yaml)) New top-level `AGENTS.md` documents
+  the "place authored parts; do not generate them" rule for AI
+  assistants. README links to it from a new "Using CADCLAW with an
+  AI assistant" section. Starter `cadclaw.yaml` clarifies that labels
+  are *observational* (CADCLAW labels what's there; it does not
+  generate parts) and now uses explicit `{}` / `[]` for empty
+  sections so it loads cleanly out of the box (was: `labels:` with
+  only commented entries parsed as `None` and tripped pydantic).
+- **LOW-7 — `publish.committed` finding text rephrased.**
+  ([cadharness/publish_audit.py](cadharness/publish_audit.py)) The
+  v0.7 message auto-suggested `git rm --cached` without considering
+  that `ignore_globs` over-matching is also a possibility (e.g.
+  `blog/**` accidentally covering live GitHub Pages content).
+  Rephrased to present "(1) the FILE is wrong" vs "(2) the RULE is
+  wrong" symmetrically with `Do NOT blindly run git rm --cached`.
+- **INFO-9 — UTF-8 mojibake detection in BOM strings.**
+  ([cadharness/bom_audit.py](cadharness/bom_audit.py),
+  [cadharness/rules.py](cadharness/rules.py)) New `bom.encoding_issue`
+  WARN finding when BOM `name`/`description`/`notes` fields contain
+  cp1252-misencoded UTF-8 sequences (`â€"`, `Ã©`, `Ã¼`, `Â°`, etc.).
+  Opt-out via `bom_audit.warn_on_mojibake: false`. Detection is
+  conservative (matches `Ã` or `Â` followed by a high-Latin-1 char,
+  plus the literal `â€` prefix) so legitimate Latin text like
+  "São Paulo" is not flagged.
+
+**Test count**: 207 → 234 passing (27 new tests across Ergo-1, Ergo-2,
+LOW-7, INFO-9). No schema bump — `cadclaw.yaml` files written for
+v0.7.0 continue to load with no changes required.
+
+### Migration from v0.7.0 to v0.7.1
+
+No required changes. New optional fields:
+
+- `interference.skip_labels`, `interference.min_volume_mm3`,
+  `interference.min_clearance_mm` (Ergo-1)
+- `bom_audit.warn_on_mojibake: bool = True` (INFO-9 — set to `false`
+  to suppress the detector)
+- `claim_audit.scan_paths: [README.md, AGENTS.md]` is suggested if
+  you ship an AGENTS.md.
+
+The `interference:` section is currently used by the harness Python
+API (`Harness.add_interference(min_clearance_mm=...)`) and by the MCP
+`check_interference` tool. Wiring `cadclaw harness` (the YAML-driven
+runner) to read `rules.interference` is part of v0.8 — see "v0.8 —
+ergonomics, take 2" below.
+
+---
+
+## Previously: v0.7.0 (2026-04-26)
+
 **v0.7.0** — field-test-driven polish release prepared on 2026-04-26.
 
 ### What's in v0.7.0

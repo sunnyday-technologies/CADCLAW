@@ -120,14 +120,16 @@ def tool_check_inventory(expected: dict) -> dict:
     }
 
 
-def tool_check_interference(skip_labels: list = None, min_volume: float = 1.0) -> dict:
+def tool_check_interference(skip_labels: list = None, min_volume: float = 1.0,
+                            min_clearance_mm: float = 1.0) -> dict:
     """Find solid-solid overlaps between parts."""
     if _loaded_parts is None:
         return {"error": "No assembly loaded. Call load_assembly first."}
 
     skip = set(skip_labels) if skip_labels else set()
     check = InterferenceCheck(_loaded_parts, _label_fn,
-                               skip_labels=skip, min_volume=min_volume)
+                               skip_labels=skip, min_volume=min_volume,
+                               min_clearance_mm=min_clearance_mm)
     result = check.run()
 
     clips = []
@@ -138,6 +140,12 @@ def tool_check_interference(skip_labels: list = None, min_volume: float = 1.0) -
             "center_a": list(c.center_a),
             "center_b": list(c.center_b),
             "overlap_mm3": round(c.volume, 1),
+            "overlap_dims_mm": [round(x, 3) for x in c.overlap_dims],
+            "suggest_shift": {
+                "axis": c.suggest_axis,
+                "mm": round(c.suggest_shift_mm, 3),
+                "clearance_mm": c.clearance_mm,
+            },
         })
 
     return {
@@ -505,7 +513,7 @@ TOOLS = [
     },
     {
         "name": "check_interference",
-        "description": "Find solid-solid overlaps between assembly parts using exact BRep boolean intersection. Reports overlap volume in mm^3.",
+        "description": "Find solid-solid overlaps between assembly parts using exact BRep boolean intersection. Reports overlap volume in mm^3 plus a per-clip suggested fix shift (axis, signed mm, clearance) along the cheapest bbox-overlap axis.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -517,6 +525,10 @@ TOOLS = [
                 "min_volume": {
                     "type": "number",
                     "description": "Minimum overlap volume in mm^3 to report (default 1.0)",
+                },
+                "min_clearance_mm": {
+                    "type": "number",
+                    "description": "Running clearance added to the suggested fix-shift (default 1.0). The shift = overlap_on_axis + min_clearance_mm.",
                 },
             },
         },
@@ -784,7 +796,7 @@ def handle_request(request: dict) -> dict:
                 "capabilities": {"tools": {}},
                 "serverInfo": {
                     "name": "CADCLAW",
-                    "version": "0.7.0",
+                    "version": "0.7.1",
                 },
             },
         }

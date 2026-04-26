@@ -89,6 +89,182 @@ class TestL1Interference(unittest.TestCase):
         self.assertGreater(len(result.clips), 0)
 
 
+class TestInterferenceFixVector(unittest.TestCase):
+    """v0.7.1 Ergo-1: clips carry an auto-suggested fix-vector."""
+
+    def test_suggest_clear_shift_picks_smallest_overlap_axis(self):
+        from cadharness.interference import _suggest_clear_shift
+        # bbox A nudged into B mostly along Y; X and Z overlaps are larger.
+        # A: X=[1451,1539] Y=[538.16,541.16] Z=[302,429]
+        # B: X=[1040,2040] Y=[498.51,538.51] Z=[331,411]
+        # Overlap: X=88, Y=0.35, Z=80 → cheapest axis is Y.
+        # Center A.y = 539.66 > Center B.y = 518.51 → push A in +Y.
+        bb_a = (1451.0, 538.16, 302.0, 1539.0, 541.16, 429.0)
+        bb_b = (1040.0, 498.51, 331.0, 2040.0, 538.51, 411.0)
+        axis, shift, overlap = _suggest_clear_shift(bb_a, bb_b, clearance_mm=1.0)
+        self.assertEqual(axis, "y")
+        self.assertAlmostEqual(overlap[0], 88.0, places=2)
+        self.assertAlmostEqual(overlap[1], 0.35, places=2)
+        self.assertAlmostEqual(overlap[2], 80.0, places=2)
+        self.assertAlmostEqual(shift, 1.35, places=2)
+        self.assertGreater(shift, 0.0, "Should push A in +Y away from B's center")
+
+    def test_suggest_clear_shift_honors_custom_clearance(self):
+        from cadharness.interference import _suggest_clear_shift
+        bb_a = (0.0, 0.0, 0.0, 10.0, 10.0, 10.0)
+        bb_b = (5.0, 0.0, 0.0, 20.0, 10.0, 10.0)  # X-only overlap = 5
+        axis, shift, _ = _suggest_clear_shift(bb_a, bb_b, clearance_mm=2.5)
+        self.assertEqual(axis, "x")
+        # A center at X=5, B center at X=12.5 → push A in -X by (5 + 2.5) = 7.5
+        self.assertAlmostEqual(shift, -7.5, places=3)
+
+    def test_suggest_clear_shift_sign_matches_center_offset(self):
+        from cadharness.interference import _suggest_clear_shift
+        # B is to the LEFT of A on X → push A in +X. X is the cheapest
+        # axis (overlap 2 < Y/Z overlap 10 each).
+        bb_a = (8.0, 0.0, 0.0, 12.0, 10.0, 10.0)
+        bb_b = (0.0, 0.0, 0.0, 10.0, 10.0, 10.0)
+        axis, shift, _ = _suggest_clear_shift(bb_a, bb_b, clearance_mm=0.5)
+        self.assertEqual(axis, "x")
+        self.assertAlmostEqual(shift, 2.5, places=3)
+        self.assertGreater(shift, 0.0)
+
+    def test_format_shift_suggestion_canonical_string(self):
+        from cadharness.interference import Clip
+        from cadharness.harness import _format_shift_suggestion
+        c = Clip(
+            label_a="plate", label_b="cbeam",
+            center_a=(1495.0, 540.0, 366.0),
+            center_b=(1540.0, 518.5, 371.0),
+            volume=264.0,
+            bbox_a=(1451.0, 538.16, 302.0, 1539.0, 541.16, 429.0),
+            bbox_b=(1040.0, 498.51, 331.0, 2040.0, 538.51, 411.0),
+            overlap_dims=(88.0, 0.35, 80.0),
+            suggest_axis="y",
+            suggest_shift_mm=1.35,
+            clearance_mm=1.0,
+        )
+        msg = _format_shift_suggestion(c)
+        self.assertEqual(msg, "shift +Y by 1.35mm to clear with 1mm clearance")
+
+    def test_interference_finding_evidence_has_suggest_shift(self):
+        from cadharness.interference import Clip, InterferenceResult
+        from cadharness.harness import _interference_findings
+        c = Clip(
+            label_a="plate", label_b="cbeam",
+            center_a=(1495.0, 540.0, 366.0),
+            center_b=(1540.0, 518.5, 371.0),
+            volume=264.0,
+            bbox_a=(1451.0, 538.16, 302.0, 1539.0, 541.16, 429.0),
+            bbox_b=(1040.0, 498.51, 331.0, 2040.0, 538.51, 411.0),
+            overlap_dims=(88.0, 0.35, 80.0),
+            suggest_axis="y",
+            suggest_shift_mm=1.35,
+            clearance_mm=1.0,
+        )
+        findings = _interference_findings(
+            InterferenceResult(passed=False, checked_pairs=1, clips=[c]))
+        self.assertEqual(len(findings), 1)
+        f = findings[0]
+        self.assertEqual(f.id, "interference.clip")
+        self.assertIn("shift +Y by 1.35mm", f.message)
+        self.assertEqual(f.suggested_fix,
+                         "shift +Y by 1.35mm to clear with 1mm clearance")
+        self.assertEqual(f.evidence["suggest_shift"]["axis"], "y")
+        self.assertAlmostEqual(f.evidence["suggest_shift"]["mm"], 1.35)
+        self.assertEqual(f.evidence["suggest_shift"]["clearance_mm"], 1.0)
+        self.assertEqual(f.evidence["overlap_dims_mm"], [88.0, 0.35, 80.0])
+
+    def test_real_clip_populates_fix_vector_fields(self):
+        """Integration: L1_bad's plate-beam clip emits a non-zero fix shift."""
+        parts = load_and_dedup(os.path.join(FIXTURES, "L1_bad.step"))
+        def label_fn(s):
+            return L1_LABELS.get(sig(s), 'other')
+        check = InterferenceCheck(parts, label_fn, skip_labels={'other'},
+                                  min_clearance_mm=1.5)
+        result = check.run()
+        self.assertGreater(len(result.clips), 0)
+        c = result.clips[0]
+        self.assertIn(c.suggest_axis, ("x", "y", "z"))
+        self.assertNotEqual(c.suggest_shift_mm, 0.0,
+                            "Solid clip implies non-zero suggested shift")
+        self.assertEqual(c.clearance_mm, 1.5)
+        # Suggested shift magnitude = overlap_on_axis + clearance
+        idx = {"x": 0, "y": 1, "z": 2}[c.suggest_axis]
+        self.assertAlmostEqual(
+            abs(c.suggest_shift_mm),
+            c.overlap_dims[idx] + 1.5,
+            places=3,
+        )
+        # bbox_a and bbox_b are populated 6-tuples
+        self.assertEqual(len(c.bbox_a), 6)
+        self.assertEqual(len(c.bbox_b), 6)
+
+
+class TestInspectModule(unittest.TestCase):
+    """v0.7.1 Ergo-2: pure-function diagnostics in cadharness.inspect."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.parts = load_and_dedup(os.path.join(FIXTURES, "L1_bad.step"))
+
+    def _label_fn(self, part):
+        return L1_LABELS.get(sig(part), "other")
+
+    def test_histogram_signatures_counts_and_orders(self):
+        from cadharness.inspect import histogram_signatures
+        buckets = histogram_signatures(self.parts, label_fn=self._label_fn)
+        # L1_bad has 5 parts across at most 3 sigs.
+        self.assertGreater(len(buckets), 0)
+        total = sum(b.count for b in buckets)
+        self.assertEqual(total, len(self.parts))
+        # Sorted by count desc.
+        for i in range(len(buckets) - 1):
+            self.assertGreaterEqual(buckets[i].count, buckets[i + 1].count)
+        # At least one bucket got a label from the label_fn.
+        self.assertTrue(any(b.label for b in buckets))
+
+    def test_describe_parts_label_filter(self):
+        from cadharness.inspect import describe_parts
+        plates = describe_parts(self.parts, label="plate", label_fn=self._label_fn)
+        self.assertEqual(len(plates), 2)
+        for p in plates:
+            self.assertEqual(p.label, "plate")
+
+    def test_describe_parts_at_filter_far_away_returns_empty(self):
+        from cadharness.inspect import describe_parts
+        matches = describe_parts(self.parts, at=(1e6, 1e6, 1e6))
+        self.assertEqual(matches, [])
+
+    def test_describe_parts_no_filters_returns_all(self):
+        from cadharness.inspect import describe_parts
+        matches = describe_parts(self.parts)
+        self.assertEqual(len(matches), len(self.parts))
+
+    def test_find_overlaps_target_label(self):
+        from cadharness.inspect import find_overlaps
+        clips, target_count = find_overlaps(
+            self.parts, self._label_fn, target_label="plate")
+        self.assertGreater(target_count, 0)
+        self.assertGreater(len(clips), 0)
+        for c in clips:
+            self.assertTrue(c.label_a == "plate" or c.label_b == "plate")
+            # Each clip carries a non-zero suggested shift.
+            self.assertNotEqual(c.suggest_shift_mm, 0.0)
+
+    def test_find_overlaps_unknown_label_returns_zero_target(self):
+        from cadharness.inspect import find_overlaps
+        clips, target_count = find_overlaps(
+            self.parts, self._label_fn, target_label="not_a_real_label")
+        self.assertEqual(target_count, 0)
+        self.assertEqual(clips, [])
+
+    def test_find_overlaps_requires_target(self):
+        from cadharness.inspect import find_overlaps
+        with self.assertRaises(ValueError):
+            find_overlaps(self.parts, self._label_fn)
+
+
 # ============================================================
 # LEVEL 2 TESTS: Motor mount assembly
 # ============================================================

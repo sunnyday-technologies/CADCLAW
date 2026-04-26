@@ -9,6 +9,7 @@ Subcommands:
   cadclaw publish-audit  --rules cadclaw.yaml    # private-data boundary scan
   cadclaw inventory      --rules cadclaw.yaml    # part counts + regions
   cadclaw harness        --rules cadclaw.yaml    # union runner
+  cadclaw inspect sigs|part|overlaps <step>      # diagnostic queries
 
 Exit codes:
   0  — pass
@@ -311,6 +312,146 @@ def _cmd_harness(args: argparse.Namespace) -> int:
     return _exit_code_for(aggregate)
 
 
+def _parse_xyz(text: str, flag: str) -> tuple:
+    """Parse 'X,Y,Z' (or 'X Y Z') into a 3-float tuple. Raises SystemExit on error."""
+    bits = [b.strip() for b in text.replace(" ", ",").split(",") if b.strip()]
+    if len(bits) != 3:
+        print(f"error: {flag} expects 'X,Y,Z' (got {text!r})", file=sys.stderr)
+        raise SystemExit(3)
+    try:
+        return tuple(float(b) for b in bits)
+    except ValueError:
+        print(f"error: {flag} values must be numeric (got {text!r})", file=sys.stderr)
+        raise SystemExit(3)
+
+
+def _resolve_label_fn(rules_path: str | None):
+    """Build a label_fn from cadclaw.yaml labels, or fall back to bbox-only."""
+    from cadharness.inventory import sig
+
+    if not rules_path:
+        return lambda part: ""
+
+    from cadharness.rules import load_rules
+    rules = load_rules(rules_path)
+    sig_to_label = rules.sig_to_label()
+
+    def label_fn(part):
+        d = sig(part)
+        if len(d) == 3:
+            key = (d[0], d[1], d[2])
+            if key in sig_to_label:
+                return sig_to_label[key]
+        if rules.belt_heuristic and len(d) >= 2 and d[0] == 1.5 and d[1] == 6.0:
+            return "belt"
+        return "other"
+
+    return label_fn
+
+
+def _cmd_inspect_sigs(args: argparse.Namespace) -> int:
+    from cadharness.inspect import histogram_signatures, load_parts
+
+    parts = load_parts(args.step)
+    label_fn = _resolve_label_fn(args.rules) if args.rules else None
+    buckets = histogram_signatures(parts, label_fn=label_fn)
+
+    if not buckets:
+        print(f"{args.step}: no parts found")
+        return 0
+
+    print(f"{args.step}: {len(parts)} parts, {len(buckets)} unique signatures")
+    print()
+    print(f"{'count':>5}  {'signature':<28}  label")
+    print(f"{'-' * 5}  {'-' * 28}  {'-' * 16}")
+    for b in buckets:
+        sig_str = "(" + ", ".join(f"{x:g}" for x in b.sig) + ")"
+        lbl = b.label or ""
+        print(f"{b.count:>5}  {sig_str:<28}  {lbl}")
+    return 0
+
+
+def _cmd_inspect_part(args: argparse.Namespace) -> int:
+    from cadharness.inspect import describe_parts, load_parts
+
+    parts = load_parts(args.step)
+    label_fn = _resolve_label_fn(args.rules) if args.rules else None
+
+    at = _parse_xyz(args.at, "--at") if args.at else None
+    sig_filter = _parse_xyz(args.sig, "--sig") if args.sig else None
+    if sig_filter is not None:
+        sig_filter = tuple(sorted(round(float(x), 1) for x in sig_filter))
+
+    matches = describe_parts(
+        parts, at=at, sig_filter=sig_filter, label=args.label,
+        label_fn=label_fn, tol=args.tol,
+    )
+
+    if not matches:
+        print("no parts match the given filter(s).")
+        return 0
+
+    print(f"{len(matches)} part(s) match:")
+    for p in matches:
+        sig_str = "(" + ", ".join(f"{x:g}" for x in p.sig) + ")"
+        cx, cy, cz = p.center
+        xmin, ymin, zmin, xmax, ymax, zmax = p.bbox
+        bbox_str = (f"X=[{xmin:.1f},{xmax:.1f}] "
+                    f"Y=[{ymin:.1f},{ymax:.1f}] "
+                    f"Z=[{zmin:.1f},{zmax:.1f}]")
+        label_str = p.label or "?"
+        print(f"  {label_str:<12} center=({cx:.1f}, {cy:.1f}, {cz:.1f})  "
+              f"sig={sig_str}  bbox={bbox_str}")
+    return 0
+
+
+def _cmd_inspect_overlaps(args: argparse.Namespace) -> int:
+    from cadharness.inspect import find_overlaps, load_parts
+    from cadharness.harness import _format_clip_detail
+
+    if not args.label and not args.at:
+        print("error: provide --label or --at to identify the target",
+              file=sys.stderr)
+        return 3
+
+    parts = load_parts(args.step)
+    if args.rules:
+        label_fn = _resolve_label_fn(args.rules)
+    else:
+        label_fn = lambda part: ""
+        if args.label:
+            print("error: --label requires --rules to resolve labels",
+                  file=sys.stderr)
+            return 3
+
+    target_at = _parse_xyz(args.at, "--at") if args.at else None
+    skip = set(args.skip.split(",")) if args.skip else None
+
+    clips, target_count = find_overlaps(
+        parts, label_fn,
+        target_label=args.label, target_at=target_at,
+        skip_labels=skip,
+        min_volume=args.min_volume,
+        min_clearance_mm=args.clearance,
+        tol=args.tol,
+    )
+
+    if target_count == 0:
+        print("no parts matched the target filter.")
+        return 0
+
+    if not clips:
+        target_desc = args.label or f"point ({args.at})"
+        print(f"{target_count} target part(s) found; "
+              f"no overlaps detected against {target_desc}.")
+        return 0
+
+    print(f"{len(clips)} clip(s) involving the target:")
+    for c in clips:
+        print(f"  {_format_clip_detail(c)}")
+    return 1 if clips else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="cadclaw",
@@ -363,6 +504,73 @@ def build_parser() -> argparse.ArgumentParser:
                      help="comma-separated list of gates to skip.")
     _add_format_args(p_h)
     p_h.set_defaults(func=_cmd_harness)
+
+    p_inspect = sub.add_parser(
+        "inspect",
+        help="Diagnostic queries against a STEP — sigs / part / overlaps.",
+        description=(
+            "Diagnostic queries (read-only). Replaces the throwaway "
+            "_probe_*.py scripts: signature histogram, what-is-this-part, "
+            "what-overlaps-X."
+        ),
+    )
+    insp_sub = p_inspect.add_subparsers(
+        dest="inspect_command", required=True, metavar="<query>")
+
+    p_sigs = insp_sub.add_parser(
+        "sigs", help="Bbox-signature histogram of an assembly.")
+    p_sigs.add_argument("step")
+    p_sigs.add_argument("--rules", default=None,
+                        help="Optional cadclaw.yaml for label resolution.")
+    p_sigs.set_defaults(func=_cmd_inspect_sigs)
+
+    p_part = insp_sub.add_parser(
+        "part",
+        help="Describe parts by location, signature, or label.",
+        description=(
+            "Filter parts by --at (point in bbox), --sig (exact signature), "
+            "or --label (requires --rules). Filters AND together. With no "
+            "filters, every part is listed."
+        ),
+    )
+    p_part.add_argument("step")
+    p_part.add_argument("--at", default=None,
+                        help="Point 'X,Y,Z' — match parts whose bbox contains it.")
+    p_part.add_argument("--sig", default=None,
+                        help="Signature 'dx,dy,dz' (sorted+rounded to 0.1mm).")
+    p_part.add_argument("--label", default=None,
+                        help="Label name; requires --rules.")
+    p_part.add_argument("--tol", type=float, default=0.0,
+                        help="Tolerance (mm) for --at containment. Default 0.")
+    p_part.add_argument("--rules", default=None,
+                        help="Optional cadclaw.yaml for label resolution.")
+    p_part.set_defaults(func=_cmd_inspect_part)
+
+    p_ov = insp_sub.add_parser(
+        "overlaps",
+        help="Show interference clips touching a target part.",
+        description=(
+            "List clips where either side of the pair matches the target "
+            "(--label or --at point). Uses the same fix-vector math as the "
+            "interference gate."
+        ),
+    )
+    p_ov.add_argument("step")
+    p_ov.add_argument("--label", default=None,
+                     help="Filter clips to those touching parts of this label.")
+    p_ov.add_argument("--at", default=None,
+                     help="Filter clips to those touching the part at 'X,Y,Z'.")
+    p_ov.add_argument("--clearance", type=float, default=1.0,
+                     help="Clearance (mm) for the suggested fix-shift. Default 1.0.")
+    p_ov.add_argument("--min-volume", type=float, default=1.0,
+                     help="Minimum overlap volume (mm^3) to report. Default 1.0.")
+    p_ov.add_argument("--skip", default=None,
+                     help="Comma-separated labels to skip in pairing (e.g. 'belt,pulley').")
+    p_ov.add_argument("--tol", type=float, default=0.0,
+                     help="Tolerance (mm) for --at containment. Default 0.")
+    p_ov.add_argument("--rules", default=None,
+                     help="cadclaw.yaml — required when using --label.")
+    p_ov.set_defaults(func=_cmd_inspect_overlaps)
 
     return p
 
