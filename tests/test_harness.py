@@ -627,10 +627,14 @@ class TestMCPServer(unittest.TestCase):
         with _MCPSession() as s:
             names = {t["name"] for t in s.list_tools()}
         expected = {
+            # v0.5 tools (kept for backwards compat)
             "load_assembly", "check_inventory", "check_interference",
             "check_adjacency", "check_dimensions", "compute_deflection",
             "compute_motor_budget", "compute_belt_tension", "tolerance_stack",
             "disassembly_sequence", "export_exploded_view",
+            # v0.6 additions
+            "doctor", "check_bom_against_cad", "check_publish_boundary",
+            "check_claims", "check_region_inventory", "compare_step_parity",
         }
         self.assertEqual(names, expected)
 

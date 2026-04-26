@@ -1,0 +1,78 @@
+# CADCLAW v0.6 starter rule file.
+#
+# Drop this in your repo root, edit to match your project, then run:
+#   cadclaw doctor                       (verify environment)
+#   cadclaw harness --rules cadclaw.yaml (run every gate this file declares)
+#
+# Sections are optional. Missing sections skip their gate and get listed
+# under confidence_budget.not_checked automatically.
+
+schema_version: "0.6"
+
+meta:
+  project: my-project
+  description: "Edit this. The project name appears in reports."
+  step: ""               # path to your authoritative STEP export
+  bom: ""                # path to your public BOM JSON
+
+# Bbox-signature → human label.
+# A signature is the SORTED (dx, dy, dz) tuple rounded to 0.1 mm.
+# Run examples/init_rules.py to scaffold this section from a STEP file.
+labels:
+  # Example entries — replace with your own:
+  # cbeam_4080_1m:    [40.0, 80.0, 1000.0]
+  # nema23:           [56.4, 56.4, 76.6]
+  # vwheel:           [10.2, 23.9, 23.9]
+
+belt_heuristic: true     # auto-label parts with 1.5x6 cross-section as 'belt'
+
+expected_inventory:
+  # cbeam_4080_1m: 17
+  # nema23: 6
+
+regions:
+  # - name: x_carriage
+  #   z_range: [100.0, 250.0]
+  #   expected: { vwheel: 8 }
+
+bom_audit:
+  bom_path: ""           # falls back to meta.bom if blank
+  ignore_labels:
+    - other
+    - belt
+  rules:
+    # - id: 5
+    #   expected_qty: 12
+    #   expected_label: connector_bar
+    #   forbidden_terms: ["maximum rigidity"]
+
+claim_audit:
+  scan_paths:
+    - README.md
+  stale_terms: []
+  source_regex_rules: []
+
+publish_audit:
+  ignore_globs:
+    - ".env*"
+    - "bom/build_bom_*.py"
+    - "bom/orders/**"
+    - "_archive/**"
+  scan_globs:
+    - "README.md"
+  redact_patterns:
+    api_key: 'sk-[A-Za-z0-9]{32,}'
+    aws_key: 'AKIA[0-9A-Z]{16}'
+  email_allowlist:
+    - "info@sunn3d.com"
+
+confidence_budget:
+  not_checked:
+    - thread engagement (bbox signatures only)
+    - native-CAD hidden/suppressed parts
+    - vendor stock and pricing
+    - physical build matching CAD
+  assumptions:
+    - all parts rigid bodies
+    - mm units throughout
+    - STEP export reflects native model state

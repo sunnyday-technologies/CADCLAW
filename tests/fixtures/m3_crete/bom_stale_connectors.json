@@ -1,0 +1,25 @@
+[
+  {
+    "id": 1,
+    "name": "C-beam 4080 1m extrusion",
+    "qty": 17,
+    "mfg_type": "buy",
+    "description": "Primary 1m C-beam extrusion for the frame."
+  },
+  {
+    "id": 5,
+    "name": "Straight Line Internal Connectors",
+    "qty": 16,
+    "unit": "each",
+    "mfg_type": "buy",
+    "description": "Connector bars provide maximum rigidity at 2m butt joints.",
+    "notes": "Primary stiffness contributor."
+  },
+  {
+    "id": 200,
+    "name": "M5 socket-head cap screws",
+    "qty": 200,
+    "mfg_type": "fastener",
+    "description": "Generic M5 SHCS."
+  }
+]
