@@ -1,6 +1,6 @@
 # CADCLAW — Session Handoff
 
-Last updated: 2026-04-25
+Last updated: 2026-04-26
 
 Authoritative cross-machine carry-over for post-release work. Travels with `git pull`.
 
@@ -8,7 +8,116 @@ Authoritative cross-machine carry-over for post-release work. Travels with `git 
 
 ## Current version
 
-**v0.6.0** — honest core release prepared on 2026-04-25.
+**v0.7.0** — field-test-driven polish release prepared on 2026-04-26.
+
+### What's in v0.7.0
+
+Closes the remaining 6 items from the M3-CRETE 2026-04-26 field test
+(HIGH-1 and LOW-8 already shipped in v0.6 PR5; v0.6.1 was a
+citation/version-string patch). Verification target: M3-CRETE harness
+failures **16 → ≤2** and warns **59 → ≤8**.
+
+- **Schema bump 0.6 → 0.7** ([cadharness/rules.py](cadharness/rules.py)).
+  Hard-fail with a one-line migration hint when an old `cadclaw.yaml`
+  with `schema_version: "0.6"` is loaded. New optional fields
+  (`expected_design_qty`, `spare_qty`, `exempt_categories`,
+  `warn_on_unmapped`) require no rename to migrate. Bumped because
+  observable behavior changed for users with multi-rule labels (MED-5
+  aggregation) and changed CAD-count fallback semantics (MED-6).
+- **MED-2 — negation-aware `forbidden_terms`**
+  ([cadharness/bom_audit.py](cadharness/bom_audit.py)). Forbidden-term
+  matches preceded by a negation token within 30 chars (bounded by
+  sentence punctuation) are suppressed. Tokens: `not`, `no`, `never`,
+  `do not`, `don't`, `doesn't`, `replaces`, `instead of`, `rather than`,
+  `without`, `excludes`. Required-term matching keeps dumb-substring
+  semantics — `required_terms: ["plastic"]` should still satisfy "no
+  plastic" because the rule asks about presence-of-token, not assertion.
+  `use_regex: true` rules bypass the lookback (authors get raw control
+  via lookbehinds).
+- **MED-3 — license- and negation-aware `claim_audit`**
+  ([cadharness/claim_audit.py](cadharness/claim_audit.py)). License
+  attribution lines (`(CC BY`, `MIT License`, `Apache License`, `GPL`,
+  `SPDX-License-Identifier:`, `Copyright (c)`, `Copyright ©`) and
+  single-line HTML comments (`<!-- ... -->`) are blanked before
+  `forbidden_absolutes` and `stale_terms` scanning so e.g. a CC BY-SA
+  attribution citing "OpenBuilds" doesn't trigger a fix that would be a
+  license violation. Numeric-claim regex still scans the original text
+  (license blocks citing deflection numbers should still warrant
+  evidence tags). Same negation logic as MED-2.
+- **MED-4 — drop "validated" from default `forbidden_absolutes`**
+  ([cadharness/claim_audit.py](cadharness/claim_audit.py)). The word is
+  too overloaded across third-party-product mentions and ASTM-validated
+  phrases to be a default. Projects that want it caught can opt in via
+  `forbidden_absolutes_extra: ["validated"]`.
+- **MED-5 — aggregate `cad.count_mismatch` per label**
+  ([cadharness/bom_audit.py](cadharness/bom_audit.py)). When multiple
+  BOM rules expect the same CAD label, the audit now emits ONE
+  aggregated finding showing per-rule expected counts and total delta
+  (`CAD has 6× motor_nema23, rules sum to 7 (ids 9+14+19 expect
+  1+2+4). Δ=-1.`) instead of N redundant findings. Single-rule labels
+  keep the v0.6 message verbatim. Severity for the aggregated finding
+  is the strictest of contributing rules' `severity_overrides`.
+- **MED-6 — `expected_design_qty` + `spare_qty`**
+  ([cadharness/rules.py](cadharness/rules.py),
+  [cadharness/bom_audit.py](cadharness/bom_audit.py)). Two new optional
+  `BomRuleModel` fields separate design count (CAD intent) from order
+  count (BOM `qty`, procurement). `expected_design_qty` takes precedence
+  in `_effective_cad_count` over the v0.6 fallback to BOM qty, fixing
+  the cbeam-with-spare false positive. `spare_qty` is informational; if
+  `expected_qty` AND `expected_design_qty` AND `spare_qty` are all set
+  and `expected_qty != design + spare`, a soft `bom.spare_qty_inconsistent`
+  WARN is emitted (real procurement legitimately diverges via split
+  shipments / replenishments — don't enforce).
+- **LOW-6 — `bom.unmapped_item` noise reduction**
+  ([cadharness/rules.py](cadharness/rules.py),
+  [cadharness/bom_audit.py](cadharness/bom_audit.py)). Two orthogonal
+  levers added to `BomAuditModel`: `exempt_categories: List[str]`
+  (case-insensitive substring match against the BOM item's `category`
+  field) and `warn_on_unmapped: bool = True` (set False to suppress
+  entirely). M3-CRETE recipe drops 51 → ~3 warns: `exempt_categories:
+  ["Fasteners", "Electronics", "Wire", "Consumables"]`.
+
+**Test count**: 176 → 207 passing (31 new tests across MED-2/3/4/5/6 and
+LOW-6).
+
+### Migration from v0.6.x to v0.7.0
+
+1. Bump `schema_version: "0.6"` → `schema_version: "0.7"` in your
+   `cadclaw.yaml`. No field renames required.
+2. If you relied on "validated" being flagged as a forbidden absolute,
+   add `forbidden_absolutes_extra: ["validated"]` under `claim_audit`.
+3. (Optional) Adopt `expected_design_qty` / `spare_qty` for BOM items
+   that intentionally order more than the design uses (e.g. spares,
+   pack-multiples). Example:
+   ```yaml
+   - id: 67
+     expected_design_qty: 17
+     spare_qty: 1
+     expected_label: cbeam
+   ```
+4. (Optional) Add `bom_audit.exempt_categories` and/or set
+   `warn_on_unmapped: false` to quiet the unmapped-item noise on real
+   BOMs with electronics, fasteners, wire, etc.
+
+### Deferred from v0.7 to v0.7.1
+
+- **LOW-7** — `publish.committed` finding text rephrasing (the
+  auto-suggested `git rm --cached` is dangerous when `ignore_globs` is
+  the bug; cosmetic-only diff, no impact on M3-CRETE numbers).
+- **INFO-9** — UTF-8 mojibake detection in BOM. M3-CRETE artifact
+  already fixed in field test; CADCLAW detector remains useful for
+  catching the same issue on other BOMs but isn't load-bearing for the
+  M3-CRETE field test rerun.
+
+---
+
+## Previously: v0.6.0 → v0.6.1 (2026-04-26)
+
+v0.6.1 was a citation/version-string patch (`CITATION.cff`,
+`pyproject.toml`, `cadharness/__init__.py`, `cadclaw_mcp/server.py`) —
+no logic changes.
+
+## Previously: v0.6.0 (2026-04-25, "honest core")
 
 ### What's in v0.6.0
 
@@ -60,37 +169,15 @@ Total: **176 passing tests**.
 Deferred from v0.6 to land as a coherent v0.7 polish release. Field-test
 report at `D:/SunnydayTech/M3-CRETE/cadclaw-v0.6-field-test-2026-04-26.md`.
 
-- **MED-2 — negation-aware `forbidden_terms`** — substring match catches
-  "not the primary stiffness" as if it were "primary stiffness". Cheap
-  win: look back ~30 chars for negation tokens (`not`, `no`, `never`,
-  `do not`, etc.) before flagging.
-- **MED-3 — license / comment / negation-aware `claim_audit`** — same
-  root cause as MED-2 but for docs. Skip lines starting with comment
-  markers (`#`, `//`, `<!--`); auto-exempt `LICENSE` / `NOTICE` /
-  `COPYING` / `AUTHORS`. The "OpenBuilds in CC BY-SA attribution" case
-  is high-priority — flagging it could lead to a license violation if a
-  user follows the suggested fix.
-- **MED-4 — `forbidden_absolutes` move out of defaults** — "validated"
-  is too aggressive as a default; flags legitimate third-party-product
-  mentions. Make the default list empty and let projects opt in via
-  `forbidden_absolutes_extra`.
-- **MED-5 — aggregate `cad.count_mismatch` per label** — when 3 BOM
-  rules expect the same label, emit one finding summing the rules,
-  not three separate ones.
-- **MED-6 — `expected_qty` conflates design count with order count**
-  — surfaced post-test (twin session) on M3-CRETE id=67 (cbeam): BOM
-  qty=18 = 17 design + 1 spare; CAD has 17. All three v0.6 workarounds
-  failed (rule expected_qty=17 fails BOM check; =18 fails CAD check;
-  omitting it falls back to BOM qty). Add `expected_design_qty` (vs
-  CAD) and `expected_order_qty` (vs BOM) as separate rule fields, plus
-  `spare_qty` as syntactic sugar (`order = design + spare`). Ship (1)
-  + (2) together; common procurement pattern. No v0.6 escape hatch
-  exists short of moving the label to `ignore_labels` (kills all
-  validation for that label).
-- **LOW-6 — `bom.unmapped_item` noise reduction** — 51/64 warns on a
-  64-item BOM. Demote to `info` severity by default, AND/OR honor an
-  optional `bom_audit.exempt_categories` field that maps to BOM items'
-  existing `category` field.
+**Shipped in v0.7.0** — see top of this file for what landed:
+- MED-2 — negation-aware `forbidden_terms`
+- MED-3 — license / negation-aware `claim_audit`
+- MED-4 — drop "validated" from default `forbidden_absolutes`
+- MED-5 — aggregate `cad.count_mismatch` per label
+- MED-6 — `expected_design_qty` + `spare_qty`
+- LOW-6 — `bom.unmapped_item` noise reduction (`exempt_categories` + `warn_on_unmapped`)
+
+**Deferred to v0.7.1**:
 - **LOW-7 — `publish.committed` finding text** — current message "X is
   committed but listed in ignore_globs" suggests `git rm --cached`,
   which is dangerous if the user's `ignore_globs` rule is the mistake

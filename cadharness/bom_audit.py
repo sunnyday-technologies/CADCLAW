@@ -11,6 +11,14 @@ The rule file (cadclaw.yaml) is the canonical mapping between BOM items and
 CAD signatures; the BOM JSON itself stays free of CAD knowledge so the
 project lead can author it without owning the labels.
 
+Forbidden-term matching is negation-aware (v0.7 / MED-2). When a forbidden
+term appears in a BOM description preceded by a negation token within 30
+characters (bounded by sentence punctuation) — e.g. "do not substitute the
+10mm belt" — the match is suppressed. The negation tokens are: not, no,
+never, do not, don't, doesn't, replaces, instead of, rather than, without,
+excludes. Required-term matching keeps dumb-substring semantics because
+required_terms asks about presence-of-token, not assertion strength.
+
 Usage:
     from cadharness.bom_audit import run_bom_audit
     from cadharness.rules import load_rules
@@ -26,7 +34,7 @@ from __future__ import annotations
 
 import re
 import time
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -43,6 +51,34 @@ from .rules import BomRuleModel, RuleSet
 
 
 _SEV = {"pass": Severity.PASS, "warn": Severity.WARN, "fail": Severity.FAIL}
+
+_NEGATION_PATTERN = re.compile(
+    r"\b(?:not|no|never|do not|don't|doesn't|replaces|instead of|rather than|without|excludes)\b",
+    re.IGNORECASE,
+)
+_SENTENCE_BOUNDARIES = (".", "!", "?", "\n")
+_NEGATION_LOOKBACK_CHARS = 30
+
+
+def _negation_window(haystack: str, term_index: int) -> str:
+    """Return the prefix preceding term_index, ≤30 chars, truncated to just
+    past the most-recent sentence boundary. Used to test whether a
+    forbidden-term hit is negated.
+    """
+    start = max(0, term_index - _NEGATION_LOOKBACK_CHARS)
+    window = haystack[start:term_index]
+    last_boundary = max(
+        (window.rfind(b) for b in _SENTENCE_BOUNDARIES),
+        default=-1,
+    )
+    if last_boundary >= 0:
+        window = window[last_boundary + 1:]
+    return window
+
+
+def _is_negated(haystack: str, term_index: int) -> bool:
+    """True if a negation token precedes the term hit within the lookback window."""
+    return bool(_NEGATION_PATTERN.search(_negation_window(haystack, term_index)))
 
 
 def _label_fn_from_rules(rules: RuleSet):
@@ -68,17 +104,41 @@ def _resolve_labels(rule: BomRuleModel) -> List[str]:
     return list(rule.expected_label)
 
 
-def _term_matches(haystack: str, term: str, *, case_sensitive: bool, use_regex: bool) -> bool:
-    if not case_sensitive:
-        h = haystack.lower()
-        t = term.lower()
-    else:
-        h = haystack
-        t = term
+def _term_matches(
+    haystack: str,
+    term: str,
+    *,
+    case_sensitive: bool,
+    use_regex: bool,
+    negation_aware: bool = False,
+) -> bool:
+    """Test whether `term` appears in `haystack`.
+
+    When `negation_aware=True` and `use_regex=False`, suppress the match if
+    a negation token precedes the hit within 30 chars (bounded by sentence
+    punctuation). Forbidden-term rules pass `negation_aware=True`;
+    required-term rules don't, because `required_terms: ["plastic"]`
+    should still satisfy "no plastic" — required asks about
+    presence-of-token, not assertion. Regex rules ignore `negation_aware`;
+    authors get raw control via lookbehinds.
+    """
     if use_regex:
         flags = 0 if case_sensitive else re.IGNORECASE
         return bool(re.search(term, haystack, flags=flags))
-    return t in h
+    if case_sensitive:
+        h, t = haystack, term
+    else:
+        h, t = haystack.lower(), term.lower()
+    if not t:
+        return False
+    if not negation_aware:
+        return t in h
+    idx = h.find(t)
+    while idx >= 0:
+        if not _is_negated(haystack, idx):
+            return True
+        idx = h.find(t, idx + 1)
+    return False
 
 
 def _apply_severity_override(rule: BomRuleModel, finding: Finding) -> Finding:
@@ -101,6 +161,19 @@ def _apply_severity_override(rule: BomRuleModel, finding: Finding) -> Finding:
 
 
 def _effective_cad_count(rule: BomRuleModel, item: Dict[str, Any]) -> Optional[int]:
+    """Resolve the expected CAD-side count for this rule.
+
+    Precedence (v0.7):
+      1. rule.expected_design_qty — design intent (NEW canonical CAD field).
+      2. rule.expected_cad_count — explicit per-rule override.
+      3. rule.pack_size × item.qty — derived from procurement pack size.
+      4. item.qty — fallback (BOM procurement qty). Note: this conflates
+         design count with order count; use expected_design_qty for explicit
+         control when the BOM intentionally orders extras (spares, packaging
+         multiples, etc.).
+    """
+    if rule.expected_design_qty is not None:
+        return rule.expected_design_qty
     if rule.expected_cad_count is not None:
         return rule.expected_cad_count
     if rule.pack_size is not None:
@@ -131,6 +204,10 @@ def run_bom_audit(
 
     matched_bom_ids: set = set()
     matched_labels: set = set()
+    # v0.7 / MED-5: aggregate cad.count_mismatch per labels-tuple. Multiple
+    # rules pointing at the same label get summed into one finding so the
+    # user sees the actual delta, not three individual mismatches.
+    label_aggregation: Dict[Tuple[str, ...], List[Dict[str, Any]]] = defaultdict(list)
     bom_rules = rules.bom_audit.rules
 
     for rule in bom_rules:
@@ -152,6 +229,40 @@ def run_bom_audit(
 
         matched_bom_ids.add(rule.id)
         public_item = to_public_dict(item)
+
+        # 4a-v07. Spare-qty consistency check (MED-6) — soft signal only.
+        # If the rule sets expected_qty (procurement) AND expected_design_qty
+        # (CAD intent) AND spare_qty, verify expected_qty == design + spare.
+        # Real-world procurement legitimately diverges (split shipments,
+        # mid-build replenishments) so this is WARN, not FAIL.
+        if (rule.expected_qty is not None
+                and rule.expected_design_qty is not None
+                and rule.spare_qty is not None):
+            implied = rule.expected_design_qty + rule.spare_qty
+            if rule.expected_qty != implied:
+                rule_findings.append(Finding(
+                    id="bom.spare_qty_inconsistent",
+                    category="bom_audit",
+                    severity=Severity.WARN,
+                    message=(
+                        f"BOM id={rule.id}: expected_qty ({rule.expected_qty}) "
+                        f"!= expected_design_qty ({rule.expected_design_qty}) "
+                        f"+ spare_qty ({rule.spare_qty}) = {implied}."
+                    ),
+                    suggested_fix=(
+                        "Reconcile the three values: typically "
+                        "expected_qty = expected_design_qty + spare_qty. "
+                        "If your procurement intentionally diverges "
+                        "(split shipments, replenishments) the warning is informational."
+                    ),
+                    evidence={
+                        "rule_id": rule.id,
+                        "expected_qty": rule.expected_qty,
+                        "expected_design_qty": rule.expected_design_qty,
+                        "spare_qty": rule.spare_qty,
+                        "implied_total": implied,
+                    },
+                ))
 
         # 4a. BOM-stated qty
         if rule.expected_qty is not None:
@@ -242,6 +353,7 @@ def run_bom_audit(
                 haystack, term,
                 case_sensitive=rule.case_sensitive,
                 use_regex=rule.use_regex,
+                negation_aware=True,
             ):
                 rule_findings.append(Finding(
                     id="bom.forbidden_term_present",
@@ -263,26 +375,25 @@ def run_bom_audit(
             for l in labels:
                 matched_labels.add(l)
             expected = _effective_cad_count(rule, item)
-            if expected is not None and cad_count != expected:
-                rule_findings.append(Finding(
-                    id="cad.count_mismatch",
-                    category="bom_audit",
-                    severity=Severity.FAIL,
-                    message=(
-                        f"CAD has {cad_count}× {labels[0] if len(labels)==1 else labels} "
-                        f"but BOM/rule expects {expected} (id={rule.id})."
-                    ),
-                    suggested_fix=(
-                        f"Either fix the CAD assembly so the count is {expected}, "
-                        f"or update BOM id={rule.id}."
-                    ),
-                    evidence={
-                        "rule_id": rule.id,
-                        "labels": labels,
-                        "cad_count": cad_count,
-                        "expected_cad_count": expected,
-                    },
-                ))
+            # v0.7 / MED-5: defer cad.count_mismatch emission so we can
+            # aggregate multiple rules pointing at the same label. Track
+            # this rule's contribution; the aggregated finding is emitted
+            # after the rule loop. Single-rule labels get the v0.6-style
+            # message verbatim there.
+            if expected is not None:
+                override_str = (
+                    rule.severity_overrides.get("cad.count_mismatch")
+                    or rule.severity_overrides.get("count_mismatch")
+                )
+                rule_severity = Severity.FAIL
+                if override_str and override_str.lower() in _SEV:
+                    rule_severity = _SEV[override_str.lower()]
+                label_aggregation[tuple(sorted(labels))].append({
+                    "rule_id": rule.id,
+                    "expected": expected,
+                    "severity": rule_severity,
+                    "labels": list(labels),
+                })
             if rule.min_cad_count is not None and cad_count < rule.min_cad_count:
                 rule_findings.append(Finding(
                     id="cad.count_below_min",
@@ -311,6 +422,70 @@ def run_bom_audit(
         for f in rule_findings:
             findings.append(_apply_severity_override(rule, f))
 
+    # 4f-aggregate. cad.count_mismatch — emit one finding per label-set,
+    # summing contributions from multiple rules. Single-rule labels keep
+    # the v0.6-style message; multi-rule labels get the aggregated form
+    # showing per-rule expected counts and overall delta.
+    for labels_tuple, contributions in sorted(label_aggregation.items()):
+        cad_count = sum(cad_inventory.get(l, 0) for l in labels_tuple)
+        expected_total = sum(c["expected"] for c in contributions)
+        if cad_count == expected_total:
+            continue
+        labels_list = list(labels_tuple)
+        labels_display = labels_list[0] if len(labels_list) == 1 else labels_list
+        rule_ids = [c["rule_id"] for c in contributions]
+        # Strictest severity wins (FAIL > WARN > PASS)
+        severity = max((c["severity"] for c in contributions), key=lambda s: s.rank())
+        if len(contributions) == 1:
+            c = contributions[0]
+            findings.append(Finding(
+                id="cad.count_mismatch",
+                category="bom_audit",
+                severity=severity,
+                message=(
+                    f"CAD has {cad_count}× {labels_display} "
+                    f"but BOM/rule expects {c['expected']} (id={c['rule_id']})."
+                ),
+                suggested_fix=(
+                    f"Either fix the CAD assembly so the count is "
+                    f"{c['expected']}, or update BOM id={c['rule_id']}."
+                ),
+                evidence={
+                    "rule_id": c["rule_id"],
+                    "labels": labels_list,
+                    "cad_count": cad_count,
+                    "expected_cad_count": c["expected"],
+                },
+            ))
+        else:
+            expected_each = [c["expected"] for c in contributions]
+            delta = cad_count - expected_total
+            ids_str = "+".join(str(r) for r in rule_ids)
+            expected_str = "+".join(str(e) for e in expected_each)
+            findings.append(Finding(
+                id="cad.count_mismatch",
+                category="bom_audit",
+                severity=severity,
+                message=(
+                    f"CAD has {cad_count}× {labels_display}, rules sum to "
+                    f"{expected_total} (ids {ids_str} expect {expected_str}). "
+                    f"Δ={delta:+d}."
+                ),
+                suggested_fix=(
+                    f"Either fix the CAD assembly so the count is "
+                    f"{expected_total}, or update one of the BOM rules "
+                    f"({rule_ids})."
+                ),
+                evidence={
+                    "labels": labels_list,
+                    "cad_count": cad_count,
+                    "rule_ids": rule_ids,
+                    "rule_expected": expected_each,
+                    "expected_total": expected_total,
+                    "delta": delta,
+                },
+            ))
+
     # 5. Unmapped CAD parts
     ignored_labels = set(rules.bom_audit.ignore_labels)
     for label, count in sorted(cad_inventory.items()):
@@ -333,10 +508,23 @@ def run_bom_audit(
         ))
 
     # 6. Unmapped BOM items (suppressing exempt items)
+    # v0.7 / LOW-6: two new orthogonal levers reduce noise on real BOMs:
+    #   - exempt_categories: items with `category` matching skip the loop
+    #   - warn_on_unmapped (default True): when False, suppress entirely
+    exempt_cats_lower = {c.lower() for c in rules.bom_audit.exempt_categories}
+    warn_on_unmapped = rules.bom_audit.warn_on_unmapped
     for iid, item in bom_by_id.items():
         if iid in matched_bom_ids:
             continue
         if is_exempt_from_cad(item):
+            continue
+        if exempt_cats_lower:
+            cat = item.get("category")
+            if isinstance(cat, str) and any(
+                e in cat.lower() for e in exempt_cats_lower
+            ):
+                continue
+        if not warn_on_unmapped:
             continue
         findings.append(Finding(
             id="bom.unmapped_item",

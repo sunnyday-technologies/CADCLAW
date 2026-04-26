@@ -35,7 +35,7 @@ class TestDoctorCommand(unittest.TestCase):
         self.assertIn(code, (0, 1, 2))
         body = buf.getvalue()
         d = json.loads(body)
-        self.assertEqual(d["schema_version"], "0.6")
+        self.assertEqual(d["schema_version"], "0.7")
         self.assertIn("findings", d)
 
 

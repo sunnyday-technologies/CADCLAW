@@ -15,7 +15,7 @@ from cadharness.rules import (
 
 
 GOOD_YAML = """
-schema_version: "0.6"
+schema_version: "0.7"
 meta:
   project: m3-crete
   step: examples/m3_crete/m3.step
@@ -56,7 +56,7 @@ class TestRuleLoader(unittest.TestCase):
         path = self._write_tmp(GOOD_YAML)
         try:
             rules = load_rules(path)
-            self.assertEqual(rules.schema_version, "0.6")
+            self.assertEqual(rules.schema_version, "0.7")
             self.assertEqual(rules.meta.project, "m3-crete")
             self.assertIn("cbeam", rules.labels)
             self.assertEqual(rules.expected_inventory["cbeam"], 17)
@@ -85,7 +85,7 @@ class TestRuleLoader(unittest.TestCase):
         text = GOOD_YAML + "\nlabels:\n  weird: [1000.0, 40.0, 80.0]\n"
         # actually we already define labels above; build a new file
         text2 = """
-schema_version: "0.6"
+schema_version: "0.7"
 labels:
   weird: [1000.0, 40.0, 80.0]
 """
@@ -105,9 +105,21 @@ labels:
         finally:
             os.unlink(path)
 
+    def test_v06_schema_version_rejected_with_migration_hint(self):
+        bad = 'schema_version: "0.6"\n'
+        path = self._write_tmp(bad)
+        try:
+            with self.assertRaises(ValidationError) as cm:
+                load_rules(path)
+            msg = str(cm.exception)
+            self.assertIn("Migration", msg)
+            self.assertIn("0.7", msg)
+        finally:
+            os.unlink(path)
+
     def test_extra_top_level_field_rejected(self):
         bad = """
-schema_version: "0.6"
+schema_version: "0.7"
 not_a_real_section: foo
 """
         path = self._write_tmp(bad)
@@ -119,7 +131,7 @@ not_a_real_section: foo
 
     def test_bad_label_signature_shape_rejected(self):
         bad = """
-schema_version: "0.6"
+schema_version: "0.7"
 labels:
   cbeam: [40.0, 80.0]
 """

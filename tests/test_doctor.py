@@ -90,7 +90,7 @@ class TestProbeRepoSignals(unittest.TestCase):
 class TestRunDoctor(unittest.TestCase):
     def test_run_doctor_returns_report(self):
         report = run_doctor()
-        self.assertEqual(report.schema_version, "0.6")
+        self.assertEqual(report.schema_version, "0.7")
         self.assertGreater(len(report.findings), 0)
         # Confidence budget is populated
         self.assertGreater(len(report.confidence_budget.checked), 0)
