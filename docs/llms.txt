@@ -1,0 +1,132 @@
+# CADCLAW
+
+CADCLAW is an automated check suite for STEP-based CAD assemblies — "pytest for
+mechanical design", in spirit. It is a Python package (PyPI: `cadclaw`) that
+validates STEP files and BOM JSON through a chain of geometric, kinematic,
+tolerance, and text-audit gates, and reports findings with severity, evidence,
+and a confidence budget rather than just pass/fail. CADCLAW also ships an MCP
+server so MCP-compatible assistants (Claude Desktop, Cursor, etc.) can call its
+checks directly.
+
+This file is a high-density plain-text summary intended for LLM and
+agent-driven retrieval. The canonical site is https://cadclaw.io.
+
+## Identity
+
+- Name: CADCLAW
+- Publisher: Sunnyday Technologies (https://sunn3d.com)
+- Authored and maintained by: Nick Sonnentag, Sunnyday Technologies
+- Contact: info@sunn3d.com
+- Repository: https://github.com/sunnyday-technologies/CADCLAW
+- License: MIT
+- PyPI: https://pypi.org/project/cadclaw/
+- DOI: 10.5281/zenodo.19647391
+- Current version: 0.7.1
+- Site: https://cadclaw.io
+- Status: open source, actively maintained
+
+## What CADCLAW does
+
+CADCLAW validates STEP CAD assemblies and their BOMs through automated gates.
+Configure once in `cadclaw.yaml`, run from the `cadclaw` console script.
+
+Validation domains (each maps to a module under `cadharness/`):
+
+- Inventory (`cadharness/inventory.py`) — label parts by bbox signature,
+  count against expected, per-region (axis-aligned) constraints.
+- Interference (`cadharness/interference.py`) — pairwise solid-solid overlap
+  via OCC `BRepAlgoAPI_Common`, reports overlap volume in mm^3.
+- Adjacency (`cadharness/adjacency.py`) — parts of type A must have a part
+  of type B within N mm. Catches misplaced/scattered components.
+- Dimensional (`cadharness/dimensional.py`) — checks part dimensions against
+  expected ranges; catches wrong thickness, swapped args, scaling errors.
+- Kinematics (`cadharness/kinematics.py`) — beam deflection (Euler-Bernoulli),
+  motor torque budgets, belt tension, GT2 tooth-skip resistance.
+- Tolerance (`cadharness/tolerance.py`) — worst-case, RSS, and Monte Carlo
+  tolerance stacking with Cpk and per-dimension variance contribution.
+- Parity (`cadharness/parity.py`) — STEP-vs-STEP comparison; flags the
+  Fusion visibility-toggle bug.
+- BOM audit (`cadharness/bom_audit.py`) — BOM JSON ↔ CAD assembly: qty,
+  mfg_type, unit, required/forbidden text terms, CAD-side count drift.
+- Disassembly (`cadharness/disassembly.py`) — sequenced part removal,
+  radial exploded views, animation frame export.
+- Render (`cadharness/render.py`) — STEP → PNG → animated GIF via
+  offscreen VTK.
+
+Honesty toolchain (text-side validation, also surfaced via the CLI):
+
+- `cadclaw doctor` — environment diagnostic.
+- `cadclaw publish-audit` (`cadharness/publish_audit.py`) — scans the working
+  tree for private data before commit.
+- `cadclaw claim-audit` (`cadharness/claim_audit.py`) — flags overclaims and
+  untagged numeric assertions in README and BOM notes.
+
+CADCLAW does NOT prove that a native CAD model has no hidden parts, that a
+physical build matches CAD, that a vendor part is in stock, that a printed
+part is strong enough for production, or that an AI-generated CAD change is
+correct. Each report includes a confidence budget per gate.
+
+## Install
+
+```
+pip install cadclaw
+cadclaw doctor   # verify environment
+```
+
+Requirements: Python 3.10+, CadQuery 2.7+ (provides OCC/STEP support),
+pyyaml 6+, pydantic 2.5+. No commercial CAD software is required for
+CADCLAW's own checks. Cross-platform (Windows, macOS, Linux).
+
+## CLI
+
+```
+cadclaw doctor
+cadclaw harness       --rules cadclaw.yaml
+cadclaw bom-audit     --rules cadclaw.yaml
+cadclaw publish-audit --rules cadclaw.yaml
+cadclaw claim-audit   --rules cadclaw.yaml --report-format md -o report.md
+cadclaw inspect       ...                 # diagnostic queries
+```
+
+Exit codes: 0 pass, 1 fail, 2 warn-only (no fails), 3 internal error.
+
+## MCP server
+
+The repository also publishes `cadclaw_mcp/` — a Model Context Protocol
+server that exposes the same harness modules as MCP tools, so an
+MCP-compatible assistant can drive CADCLAW directly. The MCP server runs
+LOCALLY after `pip install cadclaw`; it is NOT a hosted endpoint. It only
+exposes CADCLAW's own checks — it does not give an assistant access to your
+CAD application or to anything outside what `cadclaw` itself can do.
+
+Entry point: `python -m cadclaw_mcp` (see `cadclaw_mcp/server.py`).
+
+## Companion projects
+
+- M3-CRETE — open-source concrete 3D printer; CADCLAW's first production
+  deployment. https://m3-crete.com · https://github.com/sunnyday-technologies/M3-CRETE
+- CEMFORGE — CAM / slicer surface for the M3-CRETE family. https://cemforge.ai
+- Open3DCP — open 3D-construction-printing standards effort.
+  https://open3dcp.org
+
+## Machine-readable surface
+
+- Site root (HTML, with embedded SoftwareApplication JSON-LD):
+  https://cadclaw.io/
+- Sitemap: https://cadclaw.io/sitemap.xml
+- This file: https://cadclaw.io/llms.txt
+- MCP manifest (experimental, static-site read-only resources):
+  https://cadclaw.io/.well-known/mcp-manifest.json
+- robots.txt (explicit opt-in for ClaudeBot, GPTBot, Google-Extended,
+  PerplexityBot): https://cadclaw.io/robots.txt
+- README, source, issues: https://github.com/sunnyday-technologies/CADCLAW
+- Package: https://pypi.org/project/cadclaw/
+
+## Citation
+
+```
+Sonnentag, N. (2026). CADCLAW: Automated validation framework for
+STEP-based CAD assemblies. Sunnyday Technologies.
+https://github.com/sunnyday-technologies/CADCLAW
+DOI: 10.5281/zenodo.19647391
+```
