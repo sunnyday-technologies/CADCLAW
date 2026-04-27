@@ -13,11 +13,72 @@
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="icon" href="CADCLAW_logo.jpg" type="image/jpeg" />
   <link rel="stylesheet" href="styles.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://cadclaw.io/#software",
+        "name": "CADCLAW",
+        "alternateName": "cadclaw",
+        "description": "CADCLAW is an automated check suite for STEP-based CAD assemblies — pytest-style geometric, kinematic, tolerance, and BOM-vs-CAD validation, with an honesty toolchain (doctor, publish-audit, claim-audit) and an included MCP server.",
+        "applicationCategory": "DeveloperApplication",
+        "applicationSubCategory": "CAD validation / mechanical engineering QA",
+        "operatingSystem": "Cross-platform (Windows, macOS, Linux)",
+        "softwareVersion": "0.7.1",
+        "programmingLanguage": "Python",
+        "downloadUrl": "https://pypi.org/project/cadclaw/",
+        "installUrl": "https://pypi.org/project/cadclaw/",
+        "codeRepository": "https://github.com/sunnyday-technologies/CADCLAW",
+        "license": "https://opensource.org/licenses/MIT",
+        "url": "https://cadclaw.io/",
+        "image": "https://cadclaw.io/CADCLAW_logo.jpg",
+        "softwareRequirements": "Python 3.10+, CadQuery 2.7+",
+        "author": { "@id": "https://sunn3d.com/#org" },
+        "creator": { "@id": "https://sunn3d.com/#org" },
+        "publisher": { "@id": "https://sunn3d.com/#org" },
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock",
+          "url": "https://pypi.org/project/cadclaw/"
+        },
+        "sameAs": [
+          "https://github.com/sunnyday-technologies/CADCLAW",
+          "https://pypi.org/project/cadclaw/",
+          "https://doi.org/10.5281/zenodo.19647391"
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://sunn3d.com/#org",
+        "name": "Sunnyday Technologies",
+        "url": "https://sunn3d.com",
+        "email": "info@sunn3d.com",
+        "address": {
+          "@type": "PostalAddress",
+          "addressCountry": "US"
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cadclaw.io/#website",
+        "url": "https://cadclaw.io/",
+        "name": "CADCLAW",
+        "description": "An automated check suite for STEP-based CAD assemblies.",
+        "publisher": { "@id": "https://sunn3d.com/#org" },
+        "inLanguage": "en"
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
 
 <header class="nav">
-  <a class="brand" href="/">
+  <a class="brand" href="/" aria-label="CADCLAW home">
     <img src="CADCLAW_logo.jpg" alt="CADCLAW" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'" />
     <span class="brand-text" style="display:none">CADCLAW</span>
   </a>
@@ -27,7 +88,7 @@
     <a href="#how">How it works</a>
     <a href="#install">Install</a>
     <a href="#cite">Cite</a>
-    <a class="ghost" href="https://github.com/sunnyday-technologies/CADCLAW">GitHub →</a>
+    <a class="ghost" href="https://github.com/sunnyday-technologies/CADCLAW" aria-label="CADCLAW on GitHub">GitHub →</a>
   </nav>
 </header>
 
@@ -228,6 +289,7 @@ DOI: 10.5281/zenodo.19647391</pre>
     <div>
       <h4>Related</h4>
       <a href="https://m3-crete.com">M3-CRETE</a>
+      <a href="https://cemforge.ai">CEMFORGE</a>
       <a href="https://open3dcp.org">Open3DCP</a>
       <a href="https://sunn3d.com">Sunnyday Technologies</a>
     </div>
