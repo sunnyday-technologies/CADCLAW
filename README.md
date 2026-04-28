@@ -166,7 +166,7 @@ This works because mechanical parts have characteristic dimensions. A NEMA23 is 
 
 ## Author
 
-CADCLAW is authored and maintained by [Sunnyday Technologies](https://sunn3d.com). Development is AI-assisted (Claude, Anthropic); design decisions, engineering judgment, test fixtures, and direction are led by the Sunnyday Technologies team.
+CADCLAW is authored and maintained by [Sunnyday Technologies](https://sunn3d.com), led by Nicholas Sonnentag ([ORCID 0009-0002-1897-384X](https://orcid.org/0009-0002-1897-384X)). Development uses Sunnyday Technologies' LLM-assisted engineering practice; design decisions, engineering judgment, test fixtures, and direction are owned by the Sunnyday Technologies team.
 
 Contact: `info@sunn3d.com`
 
@@ -185,7 +185,7 @@ A [`CITATION.cff`](CITATION.cff) file is included for automated citation tooling
 
 ## Origin Story
 
-CADCLAW was developed alongside the [M3-CRETE](https://github.com/sunnyday-technologies/M3-CRETE) open-source concrete 3D printer project — built out of a practical need to properly position and validate components during assembly of a large, part-dense machine, through a human-AI collaboration with Claude (Anthropic). The harness:
+CADCLAW was developed alongside the [M3-CRETE](https://github.com/sunnyday-technologies/M3-CRETE) open-source concrete 3D printer project — built out of a practical need to properly position and validate components during assembly of a large, part-dense machine, using Sunnyday Technologies' LLM-assisted engineering practice. The harness:
 
 - Caught 53 solid-solid interferences in a single run
 - Reduced STEP file size from 70MB to 13MB by identifying geometry bloat
