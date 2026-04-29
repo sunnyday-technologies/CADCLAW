@@ -575,7 +575,31 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _force_utf8_stdio() -> None:
+    """Reconfigure stdout/stderr to UTF-8 on Windows.
+
+    v0.9 / P0: the v0.7.0 MED-5 aggregate-count finding text contains
+    `Δ` (U+0394). On Windows, default stdout encoding is cp1252 which
+    raises `UnicodeEncodeError` on Greek characters. Reports written to
+    file via `-o` were unaffected (file I/O explicitly opens UTF-8) but
+    plain `print(body)` to stdout crashed `cadclaw bom-audit`. Apply
+    only on win32 to avoid surprising users on Linux/Mac whose terminals
+    already default to UTF-8.
+    """
+    if sys.platform != "win32":
+        return
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                # Non-text stream or already configured — leave it.
+                pass
+
+
 def main(argv: Optional[List[str]] = None) -> int:
+    _force_utf8_stdio()
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
