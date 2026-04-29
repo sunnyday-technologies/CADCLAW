@@ -306,29 +306,44 @@ def _cmd_harness(args: argparse.Namespace) -> int:
             "publish_audit (no globs configured)"
         )
 
-    # v0.9 gate #1 — orientation. Runs only when at least one label has
-    # `expected_face` set. Reuses the same loaded parts as inventory.
+    # v0.9 gates need a shared label_fn + parts. Build once, reuse.
     label_specs = rules.label_specs()
     has_orientation = any(s.expected_face for s in label_specs.values())
+    has_floating = bool(rules.floating_check.structural_labels)
+    step_path = rules.meta.step
+
+    _v09_parts = None
+    _v09_label_fn = None
+
+    def _ensure_v09_loaded():
+        nonlocal _v09_parts, _v09_label_fn
+        if _v09_parts is not None:
+            return True
+        if not step_path:
+            return False
+        from cadclaw.inventory import load_and_dedup, sig as _sig
+        sig_to_label = rules.sig_to_label()
+        belt_heuristic = rules.belt_heuristic
+
+        def _label_fn(part):
+            d = _sig(part)
+            if d in sig_to_label:
+                return sig_to_label[d]
+            if belt_heuristic and len(d) >= 2 and d[0] == 1.5 and d[1] == 6.0:
+                return "belt"
+            return "other"
+
+        _v09_parts = load_and_dedup(step_path)
+        _v09_label_fn = _label_fn
+        return True
+
+    # v0.9 gate #1 — orientation. Runs only when at least one label has
+    # `expected_face` set.
     if _wants("orientation") and has_orientation:
         from cadclaw.orientation import OrientationCheck
         from cadclaw.harness import _orientation_findings
-        from cadclaw.inventory import load_and_dedup, sig as _sig
-        step_path = rules.meta.step
-        if step_path:
-            sig_to_label = rules.sig_to_label()
-            belt_heuristic = rules.belt_heuristic
-
-            def _label_fn(part):
-                d = _sig(part)
-                if d in sig_to_label:
-                    return sig_to_label[d]
-                if belt_heuristic and len(d) >= 2 and d[0] == 1.5 and d[1] == 6.0:
-                    return "belt"
-                return "other"
-
-            parts = load_and_dedup(step_path)
-            check = OrientationCheck(parts, _label_fn, label_specs)
+        if _ensure_v09_loaded():
+            check = OrientationCheck(_v09_parts, _v09_label_fn, label_specs)
             sub = check.run()
             aggregate.findings.extend(_orientation_findings(sub))
             aggregate.confidence_budget.checked.append("orientation")
@@ -339,6 +354,30 @@ def _cmd_harness(args: argparse.Namespace) -> int:
     elif _wants("orientation"):
         aggregate.confidence_budget.not_checked.append(
             "orientation (no labels carry expected_face)"
+        )
+
+    # v0.9 gate #3 — floating-part. Runs only when structural_labels is
+    # non-empty.
+    if _wants("floating") and has_floating:
+        from cadclaw.floating import FloatingCheck
+        from cadclaw.harness import _floating_findings
+        if _ensure_v09_loaded():
+            check = FloatingCheck(
+                _v09_parts, _v09_label_fn,
+                structural_labels=set(rules.floating_check.structural_labels),
+                max_gap_mm=rules.floating_check.max_gap_mm,
+                exempt_labels=set(rules.floating_check.exempt_labels),
+            )
+            sub = check.run()
+            aggregate.findings.extend(_floating_findings(sub))
+            aggregate.confidence_budget.checked.append("floating")
+        else:
+            aggregate.confidence_budget.not_checked.append(
+                "floating (no rules.meta.step set)"
+            )
+    elif _wants("floating"):
+        aggregate.confidence_budget.not_checked.append(
+            "floating (no structural_labels configured)"
         )
 
     aggregate.overall = aggregate.compute_overall()

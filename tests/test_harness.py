@@ -265,6 +265,105 @@ class TestInspectModule(unittest.TestCase):
             find_overlaps(self.parts, self._label_fn)
 
 
+class TestFloatingCheck(unittest.TestCase):
+    """v0.9 gate #3: flag parts whose bbox isn't adjacent to any structural part."""
+
+    def _mock_part(self, bbox):
+        """Build a mock with .BoundingBox() returning the given (xmin..zmax)."""
+        class _BB:
+            xmin, ymin, zmin, xmax, ymax, zmax = bbox
+        class _Part:
+            def BoundingBox(self):
+                return _BB()
+        return _Part()
+
+    def test_bbox_distance_zero_when_overlapping(self):
+        from cadclaw.floating import bbox_distance
+        a = (0.0, 0.0, 0.0, 10.0, 10.0, 10.0)
+        b = (5.0, 5.0, 5.0, 15.0, 15.0, 15.0)   # overlaps
+        self.assertEqual(bbox_distance(a, b), 0.0)
+
+    def test_bbox_distance_positive_when_separated(self):
+        from cadclaw.floating import bbox_distance
+        a = (0.0, 0.0, 0.0, 10.0, 10.0, 10.0)
+        b = (20.0, 0.0, 0.0, 30.0, 10.0, 10.0)  # 10mm gap on X
+        self.assertAlmostEqual(bbox_distance(a, b), 10.0, places=3)
+
+    def test_bbox_distance_3d_diagonal(self):
+        from cadclaw.floating import bbox_distance
+        a = (0.0, 0.0, 0.0, 1.0, 1.0, 1.0)
+        b = (4.0, 4.0, 4.0, 5.0, 5.0, 5.0)   # gap (3,3,3) → sqrt(27)
+        self.assertAlmostEqual(bbox_distance(a, b), 27.0 ** 0.5, places=3)
+
+    def test_check_passes_when_part_touches_structural(self):
+        from cadclaw.floating import FloatingCheck
+        # cbeam at origin, bracket touching it on X face — gap = 0, passes.
+        cbeam = self._mock_part((0.0, 0.0, 0.0, 1000.0, 40.0, 80.0))
+        bracket = self._mock_part((1000.0, 10.0, 20.0, 1005.0, 40.0, 50.0))
+        labels = {id(cbeam): "cbeam", id(bracket): "bracket"}
+        check = FloatingCheck(
+            [cbeam, bracket], lambda p: labels[id(p)],
+            structural_labels={"cbeam"}, max_gap_mm=5.0)
+        r = check.run()
+        self.assertTrue(r.passed)
+        self.assertEqual(r.floating, [])
+
+    def test_check_flags_floating_part(self):
+        from cadclaw.floating import FloatingCheck
+        cbeam = self._mock_part((0.0, 0.0, 0.0, 1000.0, 40.0, 80.0))
+        # idler 100mm away from anything — well outside max_gap_mm=5.
+        idler = self._mock_part((1500.0, 200.0, 200.0, 1510.0, 220.0, 220.0))
+        labels = {id(cbeam): "cbeam", id(idler): "idler"}
+        check = FloatingCheck(
+            [cbeam, idler], lambda p: labels[id(p)],
+            structural_labels={"cbeam"}, max_gap_mm=5.0)
+        r = check.run()
+        self.assertFalse(r.passed)
+        self.assertEqual(len(r.floating), 1)
+        f = r.floating[0]
+        self.assertEqual(f.label, "idler")
+        self.assertEqual(f.nearest_label, "cbeam")
+        self.assertGreater(f.nearest_distance_mm, 5.0)
+
+    def test_check_skipped_when_no_structural_labels(self):
+        from cadclaw.floating import FloatingCheck
+        idler = self._mock_part((0.0, 0.0, 0.0, 10.0, 10.0, 10.0))
+        check = FloatingCheck(
+            [idler], lambda p: "idler", structural_labels=set())
+        r = check.run()
+        self.assertTrue(r.passed)
+        self.assertEqual(r.checked, 0)
+
+    def test_exempt_label_skips_belt(self):
+        """A belt floating in space is by design — exempt label suppresses."""
+        from cadclaw.floating import FloatingCheck
+        cbeam = self._mock_part((0.0, 0.0, 0.0, 1000.0, 40.0, 80.0))
+        belt = self._mock_part((500.0, 500.0, 500.0, 510.0, 506.0, 510.0))
+        labels = {id(cbeam): "cbeam", id(belt): "belt"}
+        check = FloatingCheck(
+            [cbeam, belt], lambda p: labels[id(p)],
+            structural_labels={"cbeam"}, max_gap_mm=5.0,
+            exempt_labels={"belt"})
+        r = check.run()
+        self.assertTrue(r.passed)
+
+    def test_finding_carries_suggestion(self):
+        from cadclaw.floating import FloatingCheck
+        from cadclaw.harness import _floating_findings
+        cbeam = self._mock_part((0.0, 0.0, 0.0, 1000.0, 40.0, 80.0))
+        idler = self._mock_part((1500.0, 200.0, 200.0, 1510.0, 220.0, 220.0))
+        labels = {id(cbeam): "cbeam", id(idler): "idler"}
+        check = FloatingCheck(
+            [cbeam, idler], lambda p: labels[id(p)],
+            structural_labels={"cbeam"}, max_gap_mm=5.0)
+        findings = _floating_findings(check.run())
+        self.assertEqual(len(findings), 1)
+        f = findings[0]
+        self.assertEqual(f.id, "cad.floating_part")
+        self.assertEqual(f.evidence["nearest_label"], "cbeam")
+        self.assertIn("Move toward", f.suggested_fix)
+
+
 class TestOrientationCheck(unittest.TestCase):
     """v0.9 gate #1: orientation/face-mate gate.
 
