@@ -20,8 +20,8 @@ This module never invokes `git check-ignore`; it uses three batched git
 commands instead so it stays fast on large repos.
 
 Usage:
-    from cadharness.publish_audit import run_publish_audit
-    from cadharness.rules import load_rules
+    from cadclaw.publish_audit import run_publish_audit
+    from cadclaw.rules import load_rules
     rules = load_rules("cadclaw.yaml")
     report = run_publish_audit(rules, repo_root=".")
 """

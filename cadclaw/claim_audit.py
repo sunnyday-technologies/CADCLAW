@@ -30,8 +30,8 @@ domain-specific phrases ("ASTM-validated"). Projects that want to flag
 it can opt in via `forbidden_absolutes_extra: ["validated"]`.
 
 Usage:
-    from cadharness.claim_audit import run_claim_audit
-    from cadharness.rules import load_rules
+    from cadclaw.claim_audit import run_claim_audit
+    from cadclaw.rules import load_rules
     rules = load_rules("cadclaw.yaml")
     report = run_claim_audit(rules, repo_root=".")
 """

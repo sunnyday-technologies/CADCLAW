@@ -5,7 +5,7 @@ Catches scattered/misplaced components by checking that every part of
 type A has a part of type B within a specified distance.
 
 Usage:
-    from cadharness.adjacency import AdjacencyCheck, AdjacencyRule
+    from cadclaw.adjacency import AdjacencyCheck, AdjacencyRule
     rules = [AdjacencyRule('motor', 'bracket', max_distance=50)]
     check = AdjacencyCheck(parts, label_fn, rules)
     result = check.run()

@@ -1,4 +1,4 @@
-"""Tests for cadharness/publish_audit.py."""
+"""Tests for cadclaw/publish_audit.py."""
 import os
 import shutil
 import subprocess
@@ -6,9 +6,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from cadharness.publish_audit import run_publish_audit
-from cadharness.findings import Severity
-from cadharness.rules import RuleSet, PublishAuditModel
+from cadclaw.publish_audit import run_publish_audit
+from cadclaw.findings import Severity
+from cadclaw.rules import RuleSet, PublishAuditModel
 
 
 def _has_git() -> bool:

@@ -1,11 +1,11 @@
-"""Tests for cadharness/rules.py — pydantic schema, YAML round-trip."""
+"""Tests for cadclaw/rules.py — pydantic schema, YAML round-trip."""
 import os
 import tempfile
 import unittest
 
 from pydantic import ValidationError
 
-from cadharness.rules import (
+from cadclaw.rules import (
     BomRuleModel,
     InterferenceModel,
     RuleSet,

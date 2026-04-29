@@ -20,8 +20,8 @@ excludes. Required-term matching keeps dumb-substring semantics because
 required_terms asks about presence-of-token, not assertion strength.
 
 Usage:
-    from cadharness.bom_audit import run_bom_audit
-    from cadharness.rules import load_rules
+    from cadclaw.bom_audit import run_bom_audit
+    from cadclaw.rules import load_rules
     rules = load_rules("cadclaw.yaml")
     report = run_bom_audit(
         bom_path="bom/data.json",

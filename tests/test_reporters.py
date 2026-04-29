@@ -1,14 +1,14 @@
-"""Tests for cadharness/reporters — text / markdown / json."""
+"""Tests for cadclaw/reporters — text / markdown / json."""
 import json
 import unittest
 
-from cadharness.findings import (
+from cadclaw.findings import (
     ConfidenceBudget,
     Finding,
     Report,
     Severity,
 )
-from cadharness.reporters import render_json, render_markdown, render_text
+from cadclaw.reporters import render_json, render_markdown, render_text
 
 
 def _sample_report() -> Report:

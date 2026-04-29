@@ -1,4 +1,4 @@
-"""Acceptance tests for cadharness/bom_audit.py.
+"""Acceptance tests for cadclaw/bom_audit.py.
 
 Each test pins a specific code path the BOM audit must catch. The L3_good.step
 fixture provides the CAD inventory; the bom_*.json files are the BOM under
@@ -9,9 +9,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from cadharness.bom_audit import run_bom_audit
-from cadharness.findings import Severity
-from cadharness.rules import BomAuditModel, BomRuleModel, RuleSet, load_rules
+from cadclaw.bom_audit import run_bom_audit
+from cadclaw.findings import Severity
+from cadclaw.rules import BomAuditModel, BomRuleModel, RuleSet, load_rules
 
 
 FIXTURES = Path(__file__).parent / "fixtures"

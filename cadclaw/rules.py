@@ -11,7 +11,7 @@ signal; minor field additions stay at the current version and remain
 backwards compatible.
 
 Usage:
-    from cadharness.rules import load_rules
+    from cadclaw.rules import load_rules
     rules = load_rules("cadclaw.yaml")
     rules.labels                  # dict label -> [dx, dy, dz]
     rules.bom_audit.rules         # list[BomRuleModel]

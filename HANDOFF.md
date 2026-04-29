@@ -1,12 +1,52 @@
 # CADCLAW — Session Handoff
 
-Last updated: 2026-04-26
+Last updated: 2026-04-29
 
 Authoritative cross-machine carry-over for post-release work. Travels with `git pull`.
 
 ---
 
 ## Current version
+
+**v0.8.0** — module rename `cadharness` → `cadclaw` prepared on 2026-04-29.
+
+### What's in v0.8.0
+
+A breaking-but-shimmed import-name change. The PyPI package name is unchanged (`pip install cadclaw`); the Python module that PyPI installs is now `cadclaw`, matching the project name. Field-test feedback ("`cadclaw` sounds way cooler than `cadharness`") plus the ergonomic absurdity of `pip install cadclaw && import cadharness` made this a clean v0.8 milestone.
+
+**The rename:**
+
+- `cadharness/` → `cadclaw/` (every submodule preserved per-file via `git mv`).
+- `pyproject.toml` packages list now includes both `cadclaw*` and `cadharness*` so the wheel ships the new module **and** the compat shim.
+- `cadclaw_cli/` and `cadclaw_mcp/` (which were already correctly named) had every internal `from cadclaw.X import Y` swept.
+
+**The compat shim** ([cadharness/__init__.py](cadharness/__init__.py)):
+
+- Pure re-export — no duplicated state, no version drift. Aliases every `cadclaw.<sub>` submodule into `sys.modules` under `cadharness.<sub>` so `from cadharness.bom_audit import run_bom_audit` keeps resolving to the same function as `from cadclaw.bom_audit import run_bom_audit` (verified by `assertIs` in `tests/test_compat_shim.py`).
+- Emits one `DeprecationWarning` on first `import cadharness`, naming v0.8.0 as the rename point and v1.0 as the removal point.
+- Subpackage support — `from cadharness.reporters.text import render_text` works without per-file shim code; `__getattr__` falls through to `cadclaw.<name>` for anything not pre-aliased.
+- Tested with 6 new tests in `tests/test_compat_shim.py` covering: deprecation warning fires, version matches, function identity preserved, subpackage submodules work, attribute access falls through.
+
+**Migration from v0.7.1 to v0.8.0:**
+
+- Recommended: change `from cadharness.X import Y` → `from cadclaw.X import Y` at your convenience. The deprecation warning will tell you each entry point that needs updating.
+- No code changes are *required* — every v0.7.1 import path works in v0.8.0.
+- The `cadharness` module will be removed in v1.0.
+
+**Test count**: 234 → 240 passing (6 new compat-shim tests). Schema unchanged at 0.7.
+
+**Why this is the v0.8 milestone** (instead of the build-piece prototype that
+HANDOFF.md previously sketched): module-name confusion was the single biggest
+papercut in M3-CRETE field tests, and the rename is a fully-shimmed change
+that costs zero engineering for downstream users while clearing the import-
+name embarrassment for new ones. Builder primitives stay parked until M3-CRETE
+surfaces a real demand.
+
+**PyPI status:** PyPI is currently stuck at v0.5.0; v0.6, v0.7, v0.7.1 were never published. v0.8.0 is the clean re-publish point — `pip install --upgrade cadclaw` will jump users from 0.5.0 → 0.8.0 in one move with no broken imports.
+
+---
+
+## Previously: v0.7.1 (2026-04-26)
 
 **v0.7.1** — ergonomics polish prepared on 2026-04-26 (same day as v0.7.0).
 
@@ -19,7 +59,7 @@ X-rail clip detected against the X-carriage gantry plate, fixed by
 shifting the plate +1.35mm in Y — but exposed three ergonomics gaps:
 
 - **Ergo-1 — Auto-suggested fix vector for interference clips.**
-  ([cadharness/interference.py](cadharness/interference.py)) `Clip` now
+  ([cadclaw/interference.py](cadclaw/interference.py)) `Clip` now
   carries `bbox_a`, `bbox_b`, `overlap_dims`, `suggest_axis`,
   `suggest_shift_mm`, `clearance_mm`. The harness picks the axis with
   the smallest bbox overlap (cheapest fix) and computes a signed
@@ -31,7 +71,7 @@ shifting the plate +1.35mm in Y — but exposed three ergonomics gaps:
   `cadclaw.yaml` (`skip_labels`, `min_volume_mm3`, `min_clearance_mm`)
   — additive, no schema bump.
 - **Ergo-2 — `cadclaw inspect <step>` subcommand.**
-  ([cadharness/inspect.py](cadharness/inspect.py),
+  ([cadclaw/inspect.py](cadclaw/inspect.py),
   [cadclaw_cli/main.py](cadclaw_cli/main.py)) Three sub-subcommands
   replace the throwaway probe scripts users were writing:
   `cadclaw inspect sigs <step>` for a bbox-signature histogram,
@@ -51,15 +91,15 @@ shifting the plate +1.35mm in Y — but exposed three ergonomics gaps:
   sections so it loads cleanly out of the box (was: `labels:` with
   only commented entries parsed as `None` and tripped pydantic).
 - **LOW-7 — `publish.committed` finding text rephrased.**
-  ([cadharness/publish_audit.py](cadharness/publish_audit.py)) The
+  ([cadclaw/publish_audit.py](cadclaw/publish_audit.py)) The
   v0.7 message auto-suggested `git rm --cached` without considering
   that `ignore_globs` over-matching is also a possibility (e.g.
   `blog/**` accidentally covering live GitHub Pages content).
   Rephrased to present "(1) the FILE is wrong" vs "(2) the RULE is
   wrong" symmetrically with `Do NOT blindly run git rm --cached`.
 - **INFO-9 — UTF-8 mojibake detection in BOM strings.**
-  ([cadharness/bom_audit.py](cadharness/bom_audit.py),
-  [cadharness/rules.py](cadharness/rules.py)) New `bom.encoding_issue`
+  ([cadclaw/bom_audit.py](cadclaw/bom_audit.py),
+  [cadclaw/rules.py](cadclaw/rules.py)) New `bom.encoding_issue`
   WARN finding when BOM `name`/`description`/`notes` fields contain
   cp1252-misencoded UTF-8 sequences (`â€"`, `Ã©`, `Ã¼`, `Â°`, etc.).
   Opt-out via `bom_audit.warn_on_mojibake: false`. Detection is
@@ -101,7 +141,7 @@ Closes the remaining 6 items from the M3-CRETE 2026-04-26 field test
 citation/version-string patch). Verification target: M3-CRETE harness
 failures **16 → ≤2** and warns **59 → ≤8**.
 
-- **Schema bump 0.6 → 0.7** ([cadharness/rules.py](cadharness/rules.py)).
+- **Schema bump 0.6 → 0.7** ([cadclaw/rules.py](cadclaw/rules.py)).
   Hard-fail with a one-line migration hint when an old `cadclaw.yaml`
   with `schema_version: "0.6"` is loaded. New optional fields
   (`expected_design_qty`, `spare_qty`, `exempt_categories`,
@@ -109,7 +149,7 @@ failures **16 → ≤2** and warns **59 → ≤8**.
   observable behavior changed for users with multi-rule labels (MED-5
   aggregation) and changed CAD-count fallback semantics (MED-6).
 - **MED-2 — negation-aware `forbidden_terms`**
-  ([cadharness/bom_audit.py](cadharness/bom_audit.py)). Forbidden-term
+  ([cadclaw/bom_audit.py](cadclaw/bom_audit.py)). Forbidden-term
   matches preceded by a negation token within 30 chars (bounded by
   sentence punctuation) are suppressed. Tokens: `not`, `no`, `never`,
   `do not`, `don't`, `doesn't`, `replaces`, `instead of`, `rather than`,
@@ -119,7 +159,7 @@ failures **16 → ≤2** and warns **59 → ≤8**.
   `use_regex: true` rules bypass the lookback (authors get raw control
   via lookbehinds).
 - **MED-3 — license- and negation-aware `claim_audit`**
-  ([cadharness/claim_audit.py](cadharness/claim_audit.py)). License
+  ([cadclaw/claim_audit.py](cadclaw/claim_audit.py)). License
   attribution lines (`(CC BY`, `MIT License`, `Apache License`, `GPL`,
   `SPDX-License-Identifier:`, `Copyright (c)`, `Copyright ©`) and
   single-line HTML comments (`<!-- ... -->`) are blanked before
@@ -129,12 +169,12 @@ failures **16 → ≤2** and warns **59 → ≤8**.
   (license blocks citing deflection numbers should still warrant
   evidence tags). Same negation logic as MED-2.
 - **MED-4 — drop "validated" from default `forbidden_absolutes`**
-  ([cadharness/claim_audit.py](cadharness/claim_audit.py)). The word is
+  ([cadclaw/claim_audit.py](cadclaw/claim_audit.py)). The word is
   too overloaded across third-party-product mentions and ASTM-validated
   phrases to be a default. Projects that want it caught can opt in via
   `forbidden_absolutes_extra: ["validated"]`.
 - **MED-5 — aggregate `cad.count_mismatch` per label**
-  ([cadharness/bom_audit.py](cadharness/bom_audit.py)). When multiple
+  ([cadclaw/bom_audit.py](cadclaw/bom_audit.py)). When multiple
   BOM rules expect the same CAD label, the audit now emits ONE
   aggregated finding showing per-rule expected counts and total delta
   (`CAD has 6× motor_nema23, rules sum to 7 (ids 9+14+19 expect
@@ -142,8 +182,8 @@ failures **16 → ≤2** and warns **59 → ≤8**.
   keep the v0.6 message verbatim. Severity for the aggregated finding
   is the strictest of contributing rules' `severity_overrides`.
 - **MED-6 — `expected_design_qty` + `spare_qty`**
-  ([cadharness/rules.py](cadharness/rules.py),
-  [cadharness/bom_audit.py](cadharness/bom_audit.py)). Two new optional
+  ([cadclaw/rules.py](cadclaw/rules.py),
+  [cadclaw/bom_audit.py](cadclaw/bom_audit.py)). Two new optional
   `BomRuleModel` fields separate design count (CAD intent) from order
   count (BOM `qty`, procurement). `expected_design_qty` takes precedence
   in `_effective_cad_count` over the v0.6 fallback to BOM qty, fixing
@@ -153,8 +193,8 @@ failures **16 → ≤2** and warns **59 → ≤8**.
   WARN is emitted (real procurement legitimately diverges via split
   shipments / replenishments — don't enforce).
 - **LOW-6 — `bom.unmapped_item` noise reduction**
-  ([cadharness/rules.py](cadharness/rules.py),
-  [cadharness/bom_audit.py](cadharness/bom_audit.py)). Two orthogonal
+  ([cadclaw/rules.py](cadclaw/rules.py),
+  [cadclaw/bom_audit.py](cadclaw/bom_audit.py)). Two orthogonal
   levers added to `BomAuditModel`: `exempt_categories: List[str]`
   (case-insensitive substring match against the BOM item's `category`
   field) and `warn_on_unmapped: bool = True` (set False to suppress
@@ -198,21 +238,21 @@ LOW-6).
 ## Previously: v0.6.0 → v0.6.1 (2026-04-26)
 
 v0.6.1 was a citation/version-string patch (`CITATION.cff`,
-`pyproject.toml`, `cadharness/__init__.py`, `cadclaw_mcp/server.py`) —
+`pyproject.toml`, `cadclaw/__init__.py`, `cadclaw_mcp/server.py`) —
 no logic changes.
 
 ## Previously: v0.6.0 (2026-04-25, "honest core")
 
 ### What's in v0.6.0
 
-- **Findings / Severity / Report model** (`cadharness/findings.py`) — single shape every gate emits; `pass` / `warn` / `fail` rollup; JSON-safe `evidence`; locked `schema_version: "0.6"`.
-- **YAML rule loader** (`cadharness/rules.py`, pydantic v2) at `cadclaw.yaml`. Bbox sigs are 3-element lists, every section optional.
-- **BOM-vs-CAD audit** (`cadharness/bom_audit.py` + `bom_loader.py`) — headline gate. Catches qty / mfg_type / unit mismatches, required-or-forbidden text terms, and CAD-side count drift. Privacy enforced at the serializer (`vendors`, `sku`, `unit_cost`, `_*` always dropped).
-- **Doctor** (`cadharness/doctor.py`) — Python / venv / deps / MCP / repo signals. Catches the broken-pyvenv case where `pyvenv.cfg home =` points at a missing interpreter.
-- **Publish-audit** (`cadharness/publish_audit.py`) — three-state (untracked / staged / committed) file model + regex content scan with email allowlist. Never echoes matched secret values.
-- **Claim-audit** (`cadharness/claim_audit.py`) — forbidden absolutes, untagged numeric claims, user-supplied stale terms, plus two folded source-regex rules (protected output paths, silent fallback geometry) over `.py` files.
+- **Findings / Severity / Report model** (`cadclaw/findings.py`) — single shape every gate emits; `pass` / `warn` / `fail` rollup; JSON-safe `evidence`; locked `schema_version: "0.6"`.
+- **YAML rule loader** (`cadclaw/rules.py`, pydantic v2) at `cadclaw.yaml`. Bbox sigs are 3-element lists, every section optional.
+- **BOM-vs-CAD audit** (`cadclaw/bom_audit.py` + `bom_loader.py`) — headline gate. Catches qty / mfg_type / unit mismatches, required-or-forbidden text terms, and CAD-side count drift. Privacy enforced at the serializer (`vendors`, `sku`, `unit_cost`, `_*` always dropped).
+- **Doctor** (`cadclaw/doctor.py`) — Python / venv / deps / MCP / repo signals. Catches the broken-pyvenv case where `pyvenv.cfg home =` points at a missing interpreter.
+- **Publish-audit** (`cadclaw/publish_audit.py`) — three-state (untracked / staged / committed) file model + regex content scan with email allowlist. Never echoes matched secret values.
+- **Claim-audit** (`cadclaw/claim_audit.py`) — forbidden absolutes, untagged numeric claims, user-supplied stale terms, plus two folded source-regex rules (protected output paths, silent fallback geometry) over `.py` files.
 - **`cadclaw` console script** (`cadclaw_cli/`) — argparse stdlib. Subcommands: `doctor`, `bom-audit`, `parity`, `claim-audit`, `publish-audit`, `inventory`, `harness`. Exit codes 0/1/2/3.
-- **Three reporters** (`cadharness/reporters/`) — text (CLI, ANSI auto), markdown (PR-comment ready), json (versioned, MCP/CI).
+- **Three reporters** (`cadclaw/reporters/`) — text (CLI, ANSI auto), markdown (PR-comment ready), json (versioned, MCP/CI).
 - **6 new MCP tools** in `cadclaw_mcp/server.py`: `doctor`, `check_bom_against_cad`, `check_publish_boundary`, `check_claims`, `check_region_inventory`, `compare_step_parity`. Plus 11 v0.5 tools kept verbatim → 17 total.
 - **`examples/init_rules.py`** — one-shot scaffolder that emits a starter `cadclaw.yaml` from a STEP + BOM pair.
 - **README + `docs/index.html`** rewritten — softer hero, explicit "What CADCLAW Does Not Prove" section, honesty toolchain callout.
@@ -228,7 +268,7 @@ the real M3-CRETE project (101-component STEP, 64-part BOM with populated
 cited any always-private field. Three issues surfaced and were patched
 before v0.6.0 ships:
 
-- **HIGH-1 — BOM loader accepts `parts:` synonym** ([bom_loader.py](cadharness/bom_loader.py))
+- **HIGH-1 — BOM loader accepts `parts:` synonym** ([bom_loader.py](cadclaw/bom_loader.py))
   Hardware BOMs commonly use `{"version": "...", "parts": [...]}` (M3-CRETE
   does). The loader now accepts `items` and `parts` interchangeably; `items`
   wins on conflict. Other top-level keys (`version`, `generated`, `source`,
@@ -239,7 +279,7 @@ before v0.6.0 ships:
   `duration_ms=0.0` and never set it. Now wraps the runner in a
   `time.time()` and sets `aggregate.duration_ms` before emit.
 
-- **`publish_audit.blob_size_warn_bytes` default 5 MB → 20 MB** ([rules.py:102](cadharness/rules.py#L102))
+- **`publish_audit.blob_size_warn_bytes` default 5 MB → 20 MB** ([rules.py:102](cadclaw/rules.py#L102))
   5 MB triggered on M3-CRETE's 9.2 MB STEP and would on most real
   assemblies. Still configurable per-project; set `0` to disable.
 
@@ -365,7 +405,7 @@ listing every piece that's specced but not yet emitted.
 
 - Tolerance stacking (9 tests, hand-calculated answers)
 - Disassembly: `export_radial()` method, O(n²) lookup bug fixed in `export_exploded()`
-- `cadharness/render.py` module: STEP → PNG → animated GIF via offscreen VTK + Pillow
+- `cadclaw/render.py` module: STEP → PNG → animated GIF via offscreen VTK + Pillow
 - MCP server: `disassembly_sequence`, `export_exploded_view` tools; stdout-to-stderr fix
 - 52 passing tests (up from 17); VTK + GIF stitching integration tests included
 - `pyproject.toml` fixes, Pillow dep, `cadclaw-mcp` console script
@@ -378,7 +418,7 @@ listing every piece that's specced but not yet emitted.
 
 - **Abandoned `feat/cable-drag-chains`** (Y:/M3-CRETE) — reverted regression of authored brackets + removed out-of-scope kinematic simulation. Branch deleted locally (never pushed). Stash `stash@{0}` kept as safety net.
 - **Dropped `m3crete_radial_dragchains.gif`** from CADCLAW docs (was untracked; just `rm`'d).
-- **Added GIF output size gate** to `cadharness/render.py`:
+- **Added GIF output size gate** to `cadclaw/render.py`:
   - `GIF_SIZE_WARN_BYTES = 5_000_000` (matches Claude API vision cap directly)
   - `_warn_if_gif_too_large()` fires stderr warning at both save paths (`render_frames_to_gif`, `render_radial_explode_gif`)
   - Initial threshold was 4.5 MB; raised to 5.0 MB after empirical evidence showed 4.76 MB files worked in chat
@@ -387,7 +427,7 @@ listing every piece that's specced but not yet emitted.
 - **Re-rendered `docs/media/m3crete_radial_spin.gif`** from the 9.18 MB Fusion full-model export — 4.08 MB, 76 frames, 720×540, `gif_colors=48`, `dither=Image.NONE` (flat colors, no speckle).
 - **Dither fix in `render.py`** — switched `convert("P", ...)` to `dither=Image.NONE` at both save paths. This eliminates the "grey-with-green-speckles" quantization artifact on the Sunnyday-green printed parts. Default adaptive-palette dither was Floyd-Steinberg and mixed non-green pixels into flat-green regions.
 - **STEP color import (AP242) in `render.py`** — new `_extract_step_colors()` helper uses `STEPCAFControl_Reader` + `XCAFDoc_ColorTool` to pull per-shape RGB from the STEP's AP242 color metadata. `render_step_to_png` and `render_radial_explode_gif` now take `use_step_colors: bool = True` (default on). Priority: STEP color → label map → default. Verified against the M3-CRETE Fusion export: 85 colored shapes extracted cleanly (V-wheels and pulleys come through green as Fusion tagged them; motors black; plates dark).
-- **Dropped `cadharness/wheel_carriage.py`** — written, smoke-tested, then removed. User's insight reframed the problem: buried-wheel was passing validation because `skip_labels={'belt','vwheel'}` in the example config was suppressing the very check that should have caught it. Minimal fix was to drop `'vwheel'` from [examples/m3_crete/check.py:38](examples/m3_crete/check.py#L38). No new module.
+- **Dropped `cadclaw/wheel_carriage.py`** — written, smoke-tested, then removed. User's insight reframed the problem: buried-wheel was passing validation because `skip_labels={'belt','vwheel'}` in the example config was suppressing the very check that should have caught it. Minimal fix was to drop `'vwheel'` from [examples/m3_crete/check.py:38](examples/m3_crete/check.py#L38). No new module.
 
 ### Key findings
 
@@ -428,7 +468,7 @@ Logged as CADCLAW v0.6.0 candidates.
 ### Uncommitted state at snapshot
 
 **CADCLAW** (branch `feat/simultaneous-explode`):
-- `cadharness/render.py` (5 MB size gate + `dither=Image.NONE`)
+- `cadclaw/render.py` (5 MB size gate + `dither=Image.NONE`)
 - `docs/media/m3crete_radial_spin.gif` (4.08 MB clean re-render from Fusion full model)
 - `docs/media/m3crete_disassembly.gif` dropped — radial-spin replaces it
 - `examples/m3_crete/check.py` (dropped `vwheel` from interference skip list)
@@ -473,9 +513,9 @@ Two repos, both on GitHub under the `sunnyday-technologies` org:
 - M3-CRETE — active branch `main`
 
 ### Key CADCLAW files
-- `cadharness/render.py` — STEP→PNG→GIF pipeline, size gate at `GIF_SIZE_WARN_BYTES=5_000_000`
-- `cadharness/disassembly.py` — sequence generator
-- `cadharness/tolerance.py`, `inventory.py`, `interference.py` — validation modules
+- `cadclaw/render.py` — STEP→PNG→GIF pipeline, size gate at `GIF_SIZE_WARN_BYTES=5_000_000`
+- `cadclaw/disassembly.py` — sequence generator
+- `cadclaw/tolerance.py`, `inventory.py`, `interference.py` — validation modules
 - `cadclaw_mcp/` — MCP server
 - `examples/m3_crete/render_baseline.py` — render runner (points at authoritative M3-CRETE STEP)
 - `docs/media/m3crete_*.gif` — published demo GIFs

@@ -31,7 +31,7 @@ LABELS = {
 
 
 def render_radial_spin():
-    from cadharness.render import render_radial_explode_gif
+    from cadclaw.render import render_radial_explode_gif
     out = os.path.join(OUTDIR, "m3crete_radial_spin.gif")
     t0 = time.time()
     n = render_radial_explode_gif(

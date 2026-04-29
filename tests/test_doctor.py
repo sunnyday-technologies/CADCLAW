@@ -1,10 +1,10 @@
-"""Tests for cadharness/doctor.py."""
+"""Tests for cadclaw/doctor.py."""
 import os
 import tempfile
 import unittest
 from pathlib import Path
 
-from cadharness.doctor import (
+from cadclaw.doctor import (
     probe_dependencies,
     probe_mcp_inproc,
     probe_python,
@@ -12,7 +12,7 @@ from cadharness.doctor import (
     probe_venv,
     run_doctor,
 )
-from cadharness.findings import Severity
+from cadclaw.findings import Severity
 
 
 class TestProbePython(unittest.TestCase):

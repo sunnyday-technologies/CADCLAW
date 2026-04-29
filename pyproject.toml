@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cadclaw"
-version = "0.7.1"
+version = "0.8.0"
 description = "CADCLAW — Automated geometric validation for STEP assemblies, with BOM-vs-CAD audit and an honesty toolchain (doctor, publish-audit, claim-audit). Includes an MCP server."
 readme = "README.md"
 license = {text = "MIT"}
@@ -42,4 +42,4 @@ Issues = "https://github.com/sunnyday-technologies/CADCLAW/issues"
 Documentation = "https://cadclaw.io"
 
 [tool.setuptools.packages.find]
-include = ["cadharness*", "cadclaw_mcp*", "cadclaw_cli*"]
+include = ["cadclaw*", "cadclaw_mcp*", "cadclaw_cli*", "cadharness*"]

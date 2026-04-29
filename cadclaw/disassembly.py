@@ -6,7 +6,7 @@ where each step moves one part outward along its removal axis. Can
 export individual STEP frames for animation (GIF/video).
 
 Usage:
-    from cadharness.disassembly import DisassemblySequence
+    from cadclaw.disassembly import DisassemblySequence
     seq = DisassemblySequence("assembly.step", labels={...})
     seq.auto_sequence()  # or manually define order
     seq.export_frames("frames/", explode_distance=200)
