@@ -15,27 +15,42 @@ CADCLAW" — orientation issues, color mismatches, and a floating part that
 geometric checks missed.
 
 **Shipped on `main` toward v0.9** (not yet released as a tag/PyPI):
-- **P0 — cp1252 stdout fix** (commit `4eef772`). `_force_utf8_stdio()` in
-  `main()` reconfigures Windows stdout/stderr to UTF-8 so the v0.7.0 MED-5
-  `Δ` character no longer crashes `cadclaw bom-audit`.
+- **P0 — cp1252 stdout fix** (commit `4eef772`). `_force_utf8_stdio()`
+  in `main()` reconfigures Windows stdout/stderr to UTF-8 so the v0.7.0
+  MED-5 `Δ` character no longer crashes `cadclaw bom-audit`.
 - **Gate #7 — `cadclaw inspect cluster <step>`** (commit `01e21d3`).
-  Single-link agglomerative spatial clustering. Replaces the manual
-  10-minute "where are these unlabeled parts?" analysis that the V1.0
+  Single-link agglomerative spatial clustering replaces the manual
+  10-minute "where are these unlabeled parts?" analysis the V1.0
   session ran by eye.
-- **Gate #1 — orientation / face-mate gate** (this commit). New schema
-  `0.7 → 0.9` extends `labels:` to accept either a 3-tuple (legacy) or a
-  `LabelSpec` dict with `expected_face` / `expected_against` / `max_gap_mm`.
-  New `cadclaw/orientation.py` module computes each part's UNSORTED bbox
-  thinnest-axis and compares against the rule's expected face plane.
-  Closes 4 of 6 V1.0 manual fixes: misoriented idlers + connectors that
-  had correct bboxes but wrong rotation. Findings carry a structured
-  `suggested_fix` describing the rotation (e.g. `"rotate 90° about Z"`),
-  matching the v0.7.1 interference auto-fix-vector pattern.
+- **Gate #1 — orientation / face-mate gate + schema bump 0.7 → 0.9**
+  (commit `6685c01`). `labels:` accepts either a 3-tuple (legacy) or a
+  `LabelSpec` dict with `expected_face` / `expected_against` /
+  `max_gap_mm`. New `cadclaw/orientation.py` checks each part's
+  UNSORTED bbox thinnest-axis against the rule's expected face plane.
+  Closes 4 of 6 V1.0 manual fixes (misoriented idlers + connectors).
+  Findings carry rotation `suggested_fix` matching the v0.7.1
+  interference auto-fix-vector pattern.
+- **Gate #3 — floating-part detection + v0.9 sandbox kit** (commit
+  `a3179a2`). New `cadclaw/floating.py` flags any non-exempt part
+  whose minimum bbox-to-bbox distance to a structural part exceeds
+  `max_gap_mm`. New `floating_check:` yaml section. Findings carry
+  "move toward nearest <structural>" suggested_fix. Closes V1.0 fix #2
+  (the floating idler + block).
+  - Plus a synthetic CadQuery **v0.9 sandbox** at
+    `tests/fixtures/v09_sandbox/` (generator script committed; STEP
+    gitignored per project convention) exercised by 8 integration
+    tests in `tests/test_v09_sandbox.py`. Each v0.9 gate is asserted
+    to fire exactly the seeded findings against known-bad geometry.
+    Lets v0.9 gate work iterate without bouncing to M3-CRETE.
 
 **Remaining v0.9 work** before cutting a release tag:
-- Gate #2 — color/material attribute check (closes V1.0 fixes 1 + 6).
-- Gate #3 — floating-part detection (closes V1.0 fix 2).
-- Gates #4–9 may slip to v0.9.x if v0.9.0 ships with #1 + #2 + #3.
+- **Gate #2** — color/material attribute check (closes V1.0 fixes 1
+  + 6: motor mount and top brace authored black instead of green).
+  Per user direction 2026-04-29, simpler than originally specced —
+  per-channel RGB tolerance instead of CIELAB ΔE.
+
+Once gate #2 lands, cut v0.9.0. Gates #4, #5, #6, #8, #9 may slip
+to v0.9.x.
 
 **Schema migration** for users on v0.7 / v0.8.0 yamls: bump
 `schema_version: "0.9"`. Existing 3-tuple labels keep working unchanged.
