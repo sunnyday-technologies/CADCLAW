@@ -440,12 +440,15 @@ def render_step_to_png(step_path: str, output_path: str,
             prop.SetLineWidth(0.6)
         renderer.AddActor(actor)
 
-    # Single soft headlight — no studio rig. With ambient=0.85 this adds
-    # only a gentle directional cue; avoids the rotating shadow artifacts
-    # that produced temporal speckling during the 360 camera sweep.
+    # Single headlight at full intensity. Combined with the per-actor
+    # property (ambient = 1 - face_shading, diffuse = face_shading), the
+    # brightest face of any part renders at exactly its assigned color
+    # (1.0 contribution = ambient + diffuse * cos(0) * 1.0). Faces
+    # turned away dim by `face_shading` in absolute terms — visible
+    # surface cues without darkening the brand color on lit faces.
     head = vtk.vtkLight()
     head.SetLightTypeToHeadlight()
-    head.SetIntensity(0.35)
+    head.SetIntensity(1.0)
     renderer.AddLight(head)
 
     _aim_camera(renderer, shapes, view=view,
@@ -515,19 +518,25 @@ def render_frames_to_gif(frames_dir: str, output_gif: str,
                             tessellation_tol=tessellation_tol)
         png_paths.append(png_path)
 
-    # GIF encoding: optional downscale + adaptive palette quantization.
-    # Render width/height were used for the source PNGs; gif_width/height
-    # downsample for file size. gif_colors limits the palette.
+    # GIF encoding: optional downscale + ONE shared master palette across
+    # all frames. Per-frame ADAPTIVE palettes used to drift slightly
+    # between frames (the bright brand green pulsed pale → bright → pale)
+    # because each frame's quantization ran independently. Building the
+    # palette once from a mid-animation frame and reusing it for every
+    # frame keeps colors stable.
     gw = gif_width or width
     gh = gif_height or height
-    frames = []
+    rgb_frames = []
     for p in png_paths:
         img = Image.open(p).convert("RGB")
         if (gw, gh) != img.size:
             img = img.resize((gw, gh), Image.LANCZOS)
-        frames.append(img.convert("P", palette=Image.ADAPTIVE,
-                                    colors=max(2, min(256, gif_colors)),
-                                    dither=Image.NONE))
+        rgb_frames.append(img)
+    palette_colors = max(2, min(256, gif_colors))
+    master = rgb_frames[len(rgb_frames) // 2].convert(
+        "P", palette=Image.ADAPTIVE, colors=palette_colors,
+        dither=Image.NONE)
+    frames = [f.quantize(palette=master, dither=Image.NONE) for f in rgb_frames]
     duration_ms = max(1, int(1000 / max(fps, 1)))
     frames[0].save(output_gif, save_all=True, append_images=frames[1:],
                     duration=duration_ms, loop=0, optimize=optimize,
@@ -552,6 +561,8 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
                                 fps: int = 24,
                                 width: int = 960, height: int = 720,
                                 view: str = "iso",
+                                zoom: float = 0.95,
+                                face_shading: float = 0.0,
                                 labels: dict = None,
                                 color_map: dict = None,
                                 default_color: tuple = COLOR_PRINTED,
@@ -627,12 +638,16 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         prop = actor.GetProperty()
         prop.SetColor(*_color_for(shape, labels, color_map, default_color,
                                    step_colors=step_colors))
-        # Fully flat shading — colors render at their raw RGB value with no
-        # lighting darkening. Depth cue comes from part-edge outlines and
-        # the assembly silhouette, not from shading. Matches the CAD-
-        # illustration aesthetic and preserves brand-color fidelity.
-        prop.SetAmbient(1.0)
-        prop.SetDiffuse(0.0)
+        # Mostly-flat shading. `face_shading` (0..1) trades ambient for
+        # diffuse so faces oriented differently get visibly different
+        # shades — useful when surface details would otherwise be lost
+        # under fully-flat color blocks. 0.0 = fully flat (legacy CAD-
+        # illustration look). 0.15-0.25 = subtle face cues without
+        # specular sheen. Specular always 0 (no shiny highlights).
+        _amb = max(0.0, min(1.0, 1.0 - face_shading))
+        _dif = max(0.0, min(1.0, face_shading))
+        prop.SetAmbient(_amb)
+        prop.SetDiffuse(_dif)
         prop.SetSpecular(0.0)
         if edges:
             prop.EdgeVisibilityOn()
@@ -648,12 +663,15 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         renderer.AddActor(actor)
         part_entries.append((actor, offset))
 
-    # Single soft headlight — no studio rig. With ambient=0.85 this adds
-    # only a gentle directional cue; avoids the rotating shadow artifacts
-    # that produced temporal speckling during the 360 camera sweep.
+    # Single headlight at full intensity. Combined with the per-actor
+    # property (ambient = 1 - face_shading, diffuse = face_shading), the
+    # brightest face of any part renders at exactly its assigned color
+    # (1.0 contribution = ambient + diffuse * cos(0) * 1.0). Faces
+    # turned away dim by `face_shading` in absolute terms — visible
+    # surface cues without darkening the brand color on lit faces.
     head = vtk.vtkLight()
     head.SetLightTypeToHeadlight()
-    head.SetIntensity(0.35)
+    head.SetIntensity(1.0)
     renderer.AddLight(head)
 
     # Pre-compute the fully-exploded bounds so camera fits the expanded cloud.
@@ -676,7 +694,7 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
             def BoundingBox(self): return self._bb
         expanded_shapes.append(_FakeShape(_FakeBB(bb, ox, oy, oz)))
 
-    _aim_camera(renderer, expanded_shapes, view=view, zoom=0.95)
+    _aim_camera(renderer, expanded_shapes, view=view, zoom=zoom)
 
     window = vtk.vtkRenderWindow()
     window.SetOffScreenRendering(1)
@@ -729,17 +747,23 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
 
     window.Finalize()
 
-    # Assemble GIF
+    # Assemble GIF — shared master palette across all frames so colors
+    # don't drift between phases. See render_frames_to_gif for the
+    # rationale. Master derived from the mid-animation frame which has
+    # the richest mix of revealed colors after the explosion completes.
     gw = gif_width or width
     gh = gif_height or height
-    frames = []
+    rgb_frames = []
     for p in png_paths:
         img = Image.open(p).convert("RGB")
         if (gw, gh) != img.size:
             img = img.resize((gw, gh), Image.LANCZOS)
-        frames.append(img.convert("P", palette=Image.ADAPTIVE,
-                                    colors=max(2, min(256, gif_colors)),
-                                    dither=Image.NONE))
+        rgb_frames.append(img)
+    palette_colors = max(2, min(256, gif_colors))
+    master = rgb_frames[len(rgb_frames) // 2].convert(
+        "P", palette=Image.ADAPTIVE, colors=palette_colors,
+        dither=Image.NONE)
+    frames = [f.quantize(palette=master, dither=Image.NONE) for f in rgb_frames]
     duration_ms = max(1, int(1000 / max(fps, 1)))
     frames[0].save(output_gif, save_all=True, append_images=frames[1:],
                     duration=duration_ms, loop=0, optimize=optimize,
