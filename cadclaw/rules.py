@@ -67,6 +67,12 @@ class LabelSpec(_Strict):
     expected_face: Optional[str] = None
     expected_against: Optional[str] = None
     max_gap_mm: float = 0.5
+    # v0.9 gate #2 — color/material attribute check. expected_color is a
+    # hex string like "#969F00"; tolerance is per-channel in 0-255 space
+    # (user-friendly; converted to 0-1 floats for comparison against
+    # AP242-extracted RGB).
+    expected_color: Optional[str] = None
+    color_tolerance_rgb: int = 5
 
     @field_validator("sig")
     @classmethod
@@ -80,6 +86,19 @@ class LabelSpec(_Strict):
                 f"sig elements must be numbers, got {v!r}"
             )
         return [float(x) for x in v]
+
+    @field_validator("expected_color")
+    @classmethod
+    def _check_color(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        s = v.strip().lstrip("#")
+        if len(s) != 6 or not all(c in "0123456789abcdefABCDEF" for c in s):
+            raise ValueError(
+                f"expected_color must be a 6-digit hex string like '#969F00', "
+                f"got {v!r}"
+            )
+        return "#" + s.upper()
 
     @field_validator("expected_face")
     @classmethod

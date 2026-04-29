@@ -29,6 +29,7 @@ from .orientation import (
     _AXIS_NAMES,
 )
 from .floating import FloatingCheck, FloatingResult
+from .color_check import ColorCheck, ColorResult
 from .findings import Finding, Report, Severity
 
 
@@ -386,6 +387,54 @@ def _format_misorientation(m) -> str:
     if m.actual_axis is None:
         return head
     return f"{head} — {suggest_rotation(m.actual_axis, m.expected_axis)}"
+
+
+def _color_findings(r: ColorResult) -> List[Finding]:
+    out: List[Finding] = []
+    for v in r.violations:
+        out.append(Finding(
+            id="cad.color_mismatch",
+            category="color",
+            severity=Severity.FAIL,
+            message=(
+                f"{v.label}: expected color {v.expected_hex}, "
+                f"got {v.actual_hex} (Δ per channel {v.delta_per_channel}, "
+                f"tolerance ±{v.tolerance_rgb})"
+            ),
+            suggested_fix=(
+                f"Update the part's color attribute in the source CAD to "
+                f"{v.expected_hex} (current {v.actual_hex}). If the current "
+                f"color is intentional, raise color_tolerance_rgb on the "
+                f"label's rule or remove expected_color."
+            ),
+            evidence={
+                "label": v.label,
+                "expected_hex": v.expected_hex,
+                "actual_hex": v.actual_hex,
+                "delta_rgb": list(v.delta_per_channel),
+                "tolerance_rgb": v.tolerance_rgb,
+            },
+        ))
+    for m in r.missing:
+        out.append(Finding(
+            id="cad.color_missing",
+            category="color",
+            severity=Severity.WARN,
+            message=(
+                f"{m.label}: expected_color {m.expected_hex} set in rules, "
+                f"but the STEP carries no color attribute for this label"
+            ),
+            suggested_fix=(
+                "Either author the part with a color in your CAD package, "
+                "or remove expected_color from the label rule if uncolored "
+                "is intentional."
+            ),
+            evidence={
+                "label": m.label,
+                "expected_hex": m.expected_hex,
+            },
+        ))
+    return out
 
 
 def _format_floating(f) -> str:

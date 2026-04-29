@@ -84,6 +84,34 @@ class TestSandboxOrientationGate(unittest.TestCase):
         self.assertEqual(len(misoriented), 1)
 
 
+class TestSandboxColorGate(unittest.TestCase):
+    """Gate #2 must flag the one wrong-colored top_brace (black instead of green)."""
+
+    def setUp(self):
+        _skip_if_missing()
+
+    def test_exactly_one_color_mismatch_flagged(self):
+        d = _run_harness_json()
+        mismatches = [f for f in d["findings"]
+                      if f["id"] == "cad.color_mismatch"]
+        self.assertEqual(len(mismatches), 1,
+                         msg=f"Expected 1 color_mismatch finding, got "
+                             f"{len(mismatches)}: "
+                             f"{[f['message'] for f in mismatches]}")
+        f = mismatches[0]
+        self.assertEqual(f["evidence"]["label"], "top_brace")
+        self.assertEqual(f["evidence"]["expected_hex"], "#969F00")
+        self.assertEqual(f["evidence"]["actual_hex"], "#000000")
+
+    def test_correctly_colored_motor_mount_passes(self):
+        """motor_mount is GREEN — gate must NOT flag it."""
+        d = _run_harness_json()
+        mismatches = [f for f in d["findings"]
+                      if f["id"] == "cad.color_mismatch"
+                      and f["evidence"]["label"] == "motor_mount"]
+        self.assertEqual(mismatches, [])
+
+
 class TestSandboxFloatingGate(unittest.TestCase):
     """Gate #3 must flag the one floating idler."""
 
@@ -149,22 +177,27 @@ class TestSandboxOverall(unittest.TestCase):
         checked = d["confidence_budget"]["checked"]
         self.assertIn("orientation", checked)
         self.assertIn("floating", checked)
+        self.assertIn("color", checked)
 
     def test_overall_is_fail(self):
-        """Both seeded issues are FAIL findings, so overall must be fail."""
+        """All seeded issues are FAIL findings, so overall must be fail."""
         d = _run_harness_json()
         self.assertEqual(d["overall"], "fail")
 
     def test_total_failure_count_matches_seeded(self):
-        """Exactly 2 seeded FAIL findings (1 orientation + 1 floating).
+        """Exactly 3 seeded FAIL findings (1 orient + 1 color + 1 floating).
 
         Other gates (inventory) might add their own findings; this
         assertion is just on the v0.9 gates.
         """
         d = _run_harness_json()
         v09_fails = [f for f in d["findings"]
-                     if f["id"] in ("cad.misoriented", "cad.floating_part")]
-        self.assertEqual(len(v09_fails), 2)
+                     if f["id"] in (
+                         "cad.misoriented",
+                         "cad.color_mismatch",
+                         "cad.floating_part",
+                     )]
+        self.assertEqual(len(v09_fails), 3)
 
 
 if __name__ == "__main__":

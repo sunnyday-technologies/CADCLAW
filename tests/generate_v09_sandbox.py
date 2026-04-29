@@ -1,6 +1,7 @@
 """
 Generate the v0.9 gate sandbox — a synthetic STEP that exercises
-orientation, floating-part, and cluster gates with known seeded issues.
+orientation, color, floating-part, and cluster gates with known seeded
+issues.
 
 Run: python tests/generate_v09_sandbox.py
 
@@ -8,16 +9,19 @@ Output:
   tests/fixtures/v09_sandbox/v09_assembly.step
   tests/fixtures/v09_sandbox/cadclaw.yaml
 
-The assembly is intentionally small (~12 parts) but contains:
+The assembly is intentionally small (~14 parts) but contains:
 
-- **Two correctly-oriented brackets** (5 × 30 × 30) on a cbeam — orientation
-  gate sees `expected_face: YZ` and these pass.
-- **One MISORIENTED bracket** (rotated 90° about Z) — orientation gate
-  flags as `cad.misoriented` with a `rotate 90° about Z` suggested fix.
+- **Two correctly-oriented brackets** (5 × 30 × 30) on a cbeam, GREEN —
+  orientation + color gates both pass.
+- **One MISORIENTED bracket** (rotated 90° about Z), still GREEN — only
+  orientation gate flags it.
+- **One correctly-colored motor_mount** (green) — color gate passes.
+- **One WRONG-COLOR motor_mount** (black instead of green) — color gate
+  flags as `cad.color_mismatch`. Bbox is identical to the correct one,
+  so inventory/orientation/floating all pass.
 - **Two correctly-attached idlers** sitting on brackets — floating gate
   sees them within 5mm of structural and passes.
-- **One FLOATING idler** placed 200mm from anything — floating gate flags
-  as `cad.floating_part` with a "move toward nearest cbeam" suggestion.
+- **One FLOATING idler** placed far from anything — floating gate flags.
 - **A spatially-distinct hardware cluster** at one end — cluster gate
   groups it as a single region.
 
@@ -63,10 +67,26 @@ def build_v09_assembly():
 
     # ---- One MISORIENTED idler_bracket ------------------------------------
     # Same sorted sig (5, 30, 30) but rotated so 5mm axis is along Y.
-    # Orientation gate must flag this.
+    # Color matches the correct ones (green) so ONLY orientation flags it.
     bracket_misorient = cq.Workplane("XY").box(30.0, 5.0, 30.0)
-    assy.add(bracket_misorient, name="bracket_BAD", color=Color(0.6, 0, 0),
+    assy.add(bracket_misorient, name="bracket_BAD", color=Color(0, 0.6, 0),
              loc=Location((600.0, 0.0, 100.0)))  # touches cbeam top face
+
+    # ---- Color gate parts — different sigs so they don't collide on the
+    #      dim-sig→color dict (which is last-write-wins).
+    # Sunnyday green per the M3-CRETE V1.0 handoff: #969F00.
+    # The motor_mount is GREEN (correct) → color gate passes.
+    # The top_brace is BLACK (wrong, expected green) → color gate fails.
+    GREEN = Color(150 / 255, 159 / 255, 0 / 255)
+    BLACK = Color(0, 0, 0)
+
+    motor_mount = cq.Workplane("XY").box(4.0, 80.0, 97.0)
+    assy.add(motor_mount, name="motor_mount_OK", color=GREEN,
+             loc=Location((100.0, 100.0, 50.0)))
+
+    top_brace_wrong = cq.Workplane("XY").box(6.0, 80.0, 110.0)
+    assy.add(top_brace_wrong, name="top_brace_BLACK", color=BLACK,
+             loc=Location((100.0, -100.0, 55.0)))
 
     # ---- Two CORRECTLY-ATTACHED idlers ------------------------------------
     # Sit on top of the brackets, well within max_gap_mm of the cbeam.
@@ -105,8 +125,13 @@ meta:
   project: v09_sandbox
   step: tests/fixtures/v09_sandbox/v09_assembly.step
 
-# Two structural labels (legacy 3-tuple form), one orientation-aware
-# label (v0.9 LabelSpec form), two attached/floating candidates.
+# Mix of legacy 3-tuple labels and v0.9 LabelSpec dict form. Each gate
+# has its own seeded test case:
+#   - idler_bracket   → orientation gate (one rotated wrong)
+#   - motor_mount     → color gate (correctly green; passes)
+#   - top_brace       → color gate (authored black; FAILS)
+#   - idler           → floating gate (one placed in space; FAILS)
+#   - nut             → cluster diagnostic (4 grouped in one region)
 labels:
   cbeam:
     sig: [40.0, 80.0, 1000.0]
@@ -117,6 +142,14 @@ labels:
     expected_face: YZ          # largest face in YZ → thinnest axis must be X
     expected_against: cbeam
     max_gap_mm: 5.0
+  motor_mount:
+    sig: [4.0, 80.0, 97.0]
+    expected_color: "#969F00"  # Sunnyday green
+    color_tolerance_rgb: 5
+  top_brace:
+    sig: [6.0, 80.0, 110.0]
+    expected_color: "#969F00"  # also Sunnyday green
+    color_tolerance_rgb: 5
   idler:
     sig: [12.7, 22.0, 22.0]
   nut:
@@ -128,16 +161,20 @@ expected_inventory:
   cbeam: 1
   plate_anchor: 1
   idler_bracket: 3
+  motor_mount: 1
+  top_brace: 1
   idler: 3
   nut: 4
 
 # v0.9 gate #3: cbeam, plate, and idler_bracket are anchors. The two
 # correctly-attached idlers sit on top of the brackets (within max_gap),
 # so they pass; the floating idler at (1500, 500, 500) is far from
-# everything → flagged.
+# everything → flagged. motor_mount + top_brace are also exempt because
+# they're isolated stand-ins for the color gate, not part of the floating
+# scenario.
 floating_check:
   structural_labels: [cbeam, plate_anchor, idler_bracket]
-  exempt_labels: [belt]
+  exempt_labels: [belt, motor_mount, top_brace]
   max_gap_mm: 5.0
 """
 
@@ -155,8 +192,9 @@ def main() -> int:
     print()
     print("Sandbox assembly seeded with these issues for the v0.9 gates:")
     print("  - 1 misoriented idler_bracket (orientation gate must flag)")
-    print("  - 1 floating idler (floating gate must flag)")
-    print("  - 1 cluster of 4 nuts (cluster gate must group)")
+    print("  - 1 wrong-color top_brace      (color gate must flag)")
+    print("  - 1 floating idler             (floating gate must flag)")
+    print("  - 1 cluster of 4 nuts          (cluster gate must group)")
     return 0
 
 
