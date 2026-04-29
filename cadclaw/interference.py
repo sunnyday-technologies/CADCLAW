@@ -14,7 +14,7 @@ push part A. Output looks like:
       shift +Y by 1.35mm to clear with 1mm clearance
 
 Usage:
-    from cadharness.interference import InterferenceCheck
+    from cadclaw.interference import InterferenceCheck
     check = InterferenceCheck(parts, label_fn,
                               skip_labels={'belt'},
                               min_clearance_mm=1.0)

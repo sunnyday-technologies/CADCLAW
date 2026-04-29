@@ -7,7 +7,7 @@ shape from an authoritative STEP** than to re-author a parametric
 approximation that silently loses detail on every regen.
 
 Pattern:
-    from cadharness.geometry_import import shapes_by_dim_sig
+    from cadclaw.geometry_import import shapes_by_dim_sig
 
     authored_gussets = shapes_by_dim_sig(
         "M3-2_Assembly.step",
@@ -53,7 +53,7 @@ def shapes_by_dim_sig(
     Args:
         step_path: Path to the reference STEP.
         dim_sig: Sorted 3-tuple of rounded bbox extents (mm, 1-dp).
-            Matches `cadharness.inventory.sig`.
+            Matches `cadclaw.inventory.sig`.
         dedup_by_center: Drop duplicates sharing the same centroid.
 
     Returns:

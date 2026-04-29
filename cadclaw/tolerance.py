@@ -13,7 +13,7 @@ accumulated tolerance exceeds the functional requirement, the design
 fails — before you build it.
 
 Usage:
-    from cadharness.tolerance import ToleranceChain, StackResult
+    from cadclaw.tolerance import ToleranceChain, StackResult
 
     chain = ToleranceChain("motor_alignment")
     chain.add("beam_length", nominal=1000.0, plus=0.5, minus=0.5)

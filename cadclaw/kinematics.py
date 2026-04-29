@@ -5,7 +5,7 @@ Provides beam deflection, motor torque budget, belt tension, and
 racking analysis for belt-driven gantry systems.
 
 Usage:
-    from cadharness.kinematics import BeamDeflection, MotorBudget
+    from cadclaw.kinematics import BeamDeflection, MotorBudget
     defl = BeamDeflection(span=2.0, load_kg=3.8, I_cm4=18.0, beam_kg_per_m=2.45)
     print(f"Center sag: {defl.sag_mm:.2f} mm")
 """

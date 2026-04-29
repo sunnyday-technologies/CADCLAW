@@ -1,10 +1,10 @@
-"""Tests for cadharness/bom_loader.py — top-level shape acceptance."""
+"""Tests for cadclaw/bom_loader.py — top-level shape acceptance."""
 import json
 import os
 import tempfile
 import unittest
 
-from cadharness.bom_loader import (
+from cadclaw.bom_loader import (
     ALWAYS_PRIVATE,
     BomLoadError,
     PUBLIC_ALLOWLIST,

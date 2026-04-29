@@ -5,9 +5,9 @@ Run:  python examples/m3_crete/check.py path/to/M3-2_Assembly.step
 """
 import sys
 sys.path.insert(0, '.')
-from cadharness.harness import Harness
-from cadharness.adjacency import AdjacencyRule
-from cadharness.dimensional import DimRule
+from cadclaw.harness import Harness
+from cadclaw.adjacency import AdjacencyRule
+from cadclaw.dimensional import DimRule
 
 STEP = sys.argv[1] if len(sys.argv) > 1 else "M3-2_Assembly.step"
 

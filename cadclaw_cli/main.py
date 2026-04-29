@@ -23,8 +23,8 @@ import argparse
 import sys
 from typing import List, Optional
 
-from cadharness.findings import Report, Severity
-from cadharness.reporters import render_json, render_markdown, render_text
+from cadclaw.findings import Report, Severity
+from cadclaw.reporters import render_json, render_markdown, render_text
 
 
 def _exit_code_for(report: Report) -> int:
@@ -59,15 +59,15 @@ def _add_format_args(p: argparse.ArgumentParser) -> None:
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
-    from cadharness.doctor import run_doctor
+    from cadclaw.doctor import run_doctor
     report = run_doctor()
     _emit_report(report, args.report_format, args.out)
     return _exit_code_for(report)
 
 
 def _cmd_parity(args: argparse.Namespace) -> int:
-    from cadharness.parity import compare_steps
-    from cadharness.findings import Finding
+    from cadclaw.parity import compare_steps
+    from cadclaw.findings import Finding
     parity = compare_steps(args.step_a, args.step_b)
     findings: List[Finding] = []
     for sig, count in parity.only_in_a:
@@ -104,9 +104,9 @@ def _cmd_parity(args: argparse.Namespace) -> int:
 
 
 def _cmd_inventory(args: argparse.Namespace) -> int:
-    from cadharness.rules import load_rules
-    from cadharness.inventory import InventoryCheck, Region
-    from cadharness.findings import Finding
+    from cadclaw.rules import load_rules
+    from cadclaw.inventory import InventoryCheck, Region
+    from cadclaw.findings import Finding
 
     rules = load_rules(args.rules)
     if not rules.expected_inventory:
@@ -163,7 +163,7 @@ def _cmd_inventory(args: argparse.Namespace) -> int:
 
 
 def _cmd_bom_audit(args: argparse.Namespace) -> int:
-    from cadharness.rules import load_rules
+    from cadclaw.rules import load_rules
     rules = load_rules(args.rules)
     bom_path = args.bom or rules.bom_audit.bom_path
     if not bom_path:
@@ -173,25 +173,25 @@ def _cmd_bom_audit(args: argparse.Namespace) -> int:
     if not step_path:
         print("error: --step or rules.meta.step required", file=sys.stderr)
         return 3
-    from cadharness.bom_audit import run_bom_audit
+    from cadclaw.bom_audit import run_bom_audit
     report = run_bom_audit(bom_path=bom_path, step_path=step_path, rules=rules)
     _emit_report(report, args.report_format, args.out)
     return _exit_code_for(report)
 
 
 def _cmd_claim_audit(args: argparse.Namespace) -> int:
-    from cadharness.rules import load_rules
+    from cadclaw.rules import load_rules
     rules = load_rules(args.rules)
-    from cadharness.claim_audit import run_claim_audit
+    from cadclaw.claim_audit import run_claim_audit
     report = run_claim_audit(rules, repo_root=args.repo)
     _emit_report(report, args.report_format, args.out)
     return _exit_code_for(report)
 
 
 def _cmd_publish_audit(args: argparse.Namespace) -> int:
-    from cadharness.rules import load_rules
+    from cadclaw.rules import load_rules
     rules = load_rules(args.rules)
-    from cadharness.publish_audit import run_publish_audit
+    from cadclaw.publish_audit import run_publish_audit
     report = run_publish_audit(rules, repo_root=args.repo)
     _emit_report(report, args.report_format, args.out)
     return _exit_code_for(report)
@@ -200,8 +200,8 @@ def _cmd_publish_audit(args: argparse.Namespace) -> int:
 def _cmd_harness(args: argparse.Namespace) -> int:
     """Union runner — runs every gate that the rule file declares."""
     import time
-    from cadharness.findings import Finding, ConfidenceBudget
-    from cadharness.rules import load_rules
+    from cadclaw.findings import Finding, ConfidenceBudget
+    from cadclaw.rules import load_rules
 
     t0 = time.time()
     rules = load_rules(args.rules)
@@ -229,7 +229,7 @@ def _cmd_harness(args: argparse.Namespace) -> int:
                                        report_format="json", out=None)
         # Reuse the inventory subcommand's logic by importing it inline.
         # We just need the findings, so call into the same path:
-        from cadharness.inventory import InventoryCheck, Region
+        from cadclaw.inventory import InventoryCheck, Region
         sig_to_label = rules.sig_to_label()
         label_dict = {sig: name for sig, name in sig_to_label.items()}
         regions = [
@@ -269,7 +269,7 @@ def _cmd_harness(args: argparse.Namespace) -> int:
         )
 
     if _wants("bom_audit") and rules.bom_audit.rules:
-        from cadharness.bom_audit import run_bom_audit
+        from cadclaw.bom_audit import run_bom_audit
         bom_path = rules.bom_audit.bom_path
         step_path = rules.meta.step
         if bom_path and step_path:
@@ -286,7 +286,7 @@ def _cmd_harness(args: argparse.Namespace) -> int:
         )
 
     if _wants("claim_audit") and rules.claim_audit.scan_paths:
-        from cadharness.claim_audit import run_claim_audit
+        from cadclaw.claim_audit import run_claim_audit
         sub = run_claim_audit(rules, repo_root=args.repo)
         aggregate.findings.extend(sub.findings)
         aggregate.confidence_budget.checked.append("claim_audit")
@@ -297,7 +297,7 @@ def _cmd_harness(args: argparse.Namespace) -> int:
 
     if _wants("publish_audit") and (rules.publish_audit.ignore_globs
                                     or rules.publish_audit.scan_globs):
-        from cadharness.publish_audit import run_publish_audit
+        from cadclaw.publish_audit import run_publish_audit
         sub = run_publish_audit(rules, repo_root=args.repo)
         aggregate.findings.extend(sub.findings)
         aggregate.confidence_budget.checked.append("publish_audit")
@@ -327,12 +327,12 @@ def _parse_xyz(text: str, flag: str) -> tuple:
 
 def _resolve_label_fn(rules_path: str | None):
     """Build a label_fn from cadclaw.yaml labels, or fall back to bbox-only."""
-    from cadharness.inventory import sig
+    from cadclaw.inventory import sig
 
     if not rules_path:
         return lambda part: ""
 
-    from cadharness.rules import load_rules
+    from cadclaw.rules import load_rules
     rules = load_rules(rules_path)
     sig_to_label = rules.sig_to_label()
 
@@ -350,7 +350,7 @@ def _resolve_label_fn(rules_path: str | None):
 
 
 def _cmd_inspect_sigs(args: argparse.Namespace) -> int:
-    from cadharness.inspect import histogram_signatures, load_parts
+    from cadclaw.inspect import histogram_signatures, load_parts
 
     parts = load_parts(args.step)
     label_fn = _resolve_label_fn(args.rules) if args.rules else None
@@ -372,7 +372,7 @@ def _cmd_inspect_sigs(args: argparse.Namespace) -> int:
 
 
 def _cmd_inspect_part(args: argparse.Namespace) -> int:
-    from cadharness.inspect import describe_parts, load_parts
+    from cadclaw.inspect import describe_parts, load_parts
 
     parts = load_parts(args.step)
     label_fn = _resolve_label_fn(args.rules) if args.rules else None
@@ -406,8 +406,8 @@ def _cmd_inspect_part(args: argparse.Namespace) -> int:
 
 
 def _cmd_inspect_overlaps(args: argparse.Namespace) -> int:
-    from cadharness.inspect import find_overlaps, load_parts
-    from cadharness.harness import _format_clip_detail
+    from cadclaw.inspect import find_overlaps, load_parts
+    from cadclaw.harness import _format_clip_detail
 
     if not args.label and not args.at:
         print("error: provide --label or --at to identify the target",

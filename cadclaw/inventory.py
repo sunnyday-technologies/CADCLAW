@@ -12,7 +12,7 @@ bounds; open bounds (None) are wildcards. Regions can overlap — a part
 falling in two regions counts toward both.
 
 Usage:
-    from cadharness.inventory import InventoryCheck, Region
+    from cadclaw.inventory import InventoryCheck, Region
     regions = [
         Region("x_carriage", z_range=(100.0, 250.0),
                expected={'wheel': 8, 'plate': 2}),

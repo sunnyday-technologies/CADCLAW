@@ -6,7 +6,7 @@ to turn it into a GIF you have to rasterize each frame to a PNG, then
 stitch the PNGs. This module does both.
 
 Usage:
-    from cadharness.render import render_step_to_png, render_frames_to_gif, make_disassembly_gif
+    from cadclaw.render import render_step_to_png, render_frames_to_gif, make_disassembly_gif
 
     # One-shot: STEP -> disassembly frames -> PNGs -> animated GIF
     make_disassembly_gif("assembly.step", "out.gif",
@@ -129,7 +129,7 @@ def _extract_step_colors(step_path: str) -> dict:
 
     Returns a dict {dim_signature: (r, g, b)} where dim_signature is
     the sorted 3-tuple of rounded extents `(round(dx,1), round(dy,1),
-    round(dz,1))` — the same signature used by `cadharness.inventory.sig`.
+    round(dz,1))` — the same signature used by `cadclaw.inventory.sig`.
     Keying by dim-sig (not bbox extents) is translation + orientation-
     invariant: `STEPCAFControl_Reader` returns leaf shapes at their
     original coordinates (at/near origin), while `cq.importers.importStep`
@@ -187,7 +187,7 @@ def _extract_step_colors(step_path: str) -> dict:
 
     def _dim_sig(shape):
         """Sorted 3-tuple of rounded extents — transform-invariant key
-        matching `cadharness.inventory.sig`."""
+        matching `cadclaw.inventory.sig`."""
         bb = Bnd_Box()
         try:
             BRepBndLib.Add_s(shape, bb)

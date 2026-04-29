@@ -32,25 +32,25 @@ import os
 import json
 import traceback
 
-# Add parent to path so cadharness imports work
+# Add parent to path so cadclaw imports work
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from cadharness.inventory import load_and_dedup, sig, InventoryCheck, Region
-from cadharness.interference import InterferenceCheck
-from cadharness.adjacency import AdjacencyCheck, AdjacencyRule
-from cadharness.dimensional import DimensionalCheck, DimRule
-from cadharness.kinematics import beam_deflection, motor_torque_budget, belt_tension
-from cadharness.tolerance import ToleranceChain
-from cadharness.disassembly import DisassemblySequence
+from cadclaw.inventory import load_and_dedup, sig, InventoryCheck, Region
+from cadclaw.interference import InterferenceCheck
+from cadclaw.adjacency import AdjacencyCheck, AdjacencyRule
+from cadclaw.dimensional import DimensionalCheck, DimRule
+from cadclaw.kinematics import beam_deflection, motor_torque_budget, belt_tension
+from cadclaw.tolerance import ToleranceChain
+from cadclaw.disassembly import DisassemblySequence
 
 # v0.6 additions — gates that take a rule file and return a structured Report.
-from cadharness.findings import Severity
-from cadharness.doctor import run_doctor
-from cadharness.rules import load_rules
-from cadharness.bom_audit import run_bom_audit
-from cadharness.publish_audit import run_publish_audit
-from cadharness.claim_audit import run_claim_audit
-from cadharness.parity import compare_steps
+from cadclaw.findings import Severity
+from cadclaw.doctor import run_doctor
+from cadclaw.rules import load_rules
+from cadclaw.bom_audit import run_bom_audit
+from cadclaw.publish_audit import run_publish_audit
+from cadclaw.claim_audit import run_claim_audit
+from cadclaw.parity import compare_steps
 
 # ============================================================
 # MCP Protocol Implementation (stdio transport)
@@ -796,7 +796,7 @@ def handle_request(request: dict) -> dict:
                 "capabilities": {"tools": {}},
                 "serverInfo": {
                     "name": "CADCLAW",
-                    "version": "0.7.1",
+                    "version": "0.8.0",
                 },
             },
         }
@@ -823,7 +823,7 @@ def handle_request(request: dict) -> dict:
             }
 
         try:
-            # Tool handlers may call cadharness code that uses print() for
+            # Tool handlers may call cadclaw code that uses print() for
             # user-facing status. Stdout is reserved for the JSON-RPC stream,
             # so redirect any tool prints to stderr.
             with contextlib.redirect_stdout(sys.stderr):

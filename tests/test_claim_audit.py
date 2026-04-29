@@ -1,13 +1,13 @@
-"""Tests for cadharness/claim_audit.py."""
+"""Tests for cadclaw/claim_audit.py."""
 import unittest
 from pathlib import Path
 
-from cadharness.claim_audit import (
+from cadclaw.claim_audit import (
     DEFAULT_FORBIDDEN_ABSOLUTES,
     run_claim_audit,
 )
-from cadharness.findings import Severity
-from cadharness.rules import ClaimAuditModel, RuleSet, SourceRegexRuleModel
+from cadclaw.findings import Severity
+from cadclaw.rules import ClaimAuditModel, RuleSet, SourceRegexRuleModel
 
 
 FIXTURES = Path(__file__).parent / "fixtures" / "claim_audit"

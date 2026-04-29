@@ -35,7 +35,7 @@ from typing import Dict, List, Optional, Tuple
 # Add repo root to path so this script runs without install
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from cadharness.inventory import load_and_dedup, sig
+from cadclaw.inventory import load_and_dedup, sig
 
 
 def _score_bom_item(sig_tuple: Tuple[float, ...], count: int, item: dict) -> int:

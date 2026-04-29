@@ -308,7 +308,7 @@ This prevents CADCLAW from becoming another tool that sounds more certain than i
 Python:
 
 ```python
-from cadharness.bom_audit import BomCadAudit, BomRule
+from cadclaw.bom_audit import BomCadAudit, BomRule
 
 audit = BomCadAudit(
     bom_path="bom/data.json",
