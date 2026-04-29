@@ -7,7 +7,7 @@
 # Sections are optional. Missing sections skip their gate and get listed
 # under confidence_budget.not_checked automatically.
 
-schema_version: "0.7"
+schema_version: "0.9"
 
 meta:
   project: my-project
@@ -23,10 +23,22 @@ meta:
 # A signature is the SORTED (dx, dy, dz) tuple rounded to 0.1 mm.
 # Run examples/init_rules.py to scaffold this section from a STEP file.
 labels: {}
-  # Example entries — replace with your own:
+  # Example entries — replace with your own. Two forms are accepted:
+  #
+  # (a) Legacy 3-tuple — bbox signature only:
   # cbeam_4080_1m:    [40.0, 80.0, 1000.0]
   # nema23:           [56.4, 56.4, 76.6]
   # vwheel:           [10.2, 23.9, 23.9]
+  #
+  # (b) v0.9 dict form — adds optional orientation / face-mate hints
+  #     for the orientation gate (cad.misoriented findings):
+  # idler_bracket:
+  #   sig: [5.0, 30.0, 30.0]
+  #   expected_face: YZ          # the largest face must lie in the YZ plane
+  #                              # (i.e. the part's thinnest axis is X).
+  #                              # Accepts: XY | XZ | YZ.
+  #   expected_against: cbeam    # reserved — face-mate adjacency check
+  #   max_gap_mm: 0.5            # face-mate tolerance, default 0.5mm
 
 belt_heuristic: true     # auto-label parts with 1.5x6 cross-section as 'belt'
 

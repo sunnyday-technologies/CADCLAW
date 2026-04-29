@@ -6,14 +6,21 @@ labels, expected inventory, regions, BOM rules, claim-audit rules,
 publish-audit globs, and the confidence budget. Every section is optional;
 missing sections skip their gate and append to `confidence_budget.not_checked`.
 
-Schema version is locked at "0.7". Bumping it is a deliberate breaking-change
+Schema version is locked at "0.9". Bumping is a deliberate breaking-change
 signal; minor field additions stay at the current version and remain
 backwards compatible.
+
+v0.9 schema additions (over v0.7):
+- `labels:` accepts EITHER a 3-tuple `[dx, dy, dz]` (legacy form, still
+  supported) OR a `LabelSpec` dict with `sig` plus optional orientation
+  / face-mate fields (`expected_face`, `expected_against`, `max_gap_mm`).
+  See `LabelSpec` for the field set.
 
 Usage:
     from cadclaw.rules import load_rules
     rules = load_rules("cadclaw.yaml")
-    rules.labels                  # dict label -> [dx, dy, dz]
+    rules.labels                  # dict label -> LabelSpec (normalized)
+    rules.label_to_sig()          # dict label -> (dx, dy, dz)  (legacy shape)
     rules.bom_audit.rules         # list[BomRuleModel]
 """
 from __future__ import annotations
@@ -25,11 +32,79 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-SCHEMA_VERSION = "0.7"
+SCHEMA_VERSION = "0.9"
+_VALID_FACE_PLANES = ("XY", "XZ", "YZ", "YX", "ZX", "ZY")
 
 
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class LabelSpec(_Strict):
+    """A label entry — bbox signature plus optional orientation/face-mate hints.
+
+    `sig` is the canonical sorted-tuple signature (rounded to 0.1mm) the
+    inventory check matches against.
+
+    `expected_face` declares which axis-aligned plane the part's largest
+    bbox face must lie in. For a part with bbox `(5, 30, 30)`, the largest
+    face is the 30×30 face perpendicular to the smallest dimension; its
+    normal is along the axis of the smallest dim. So `expected_face: YZ`
+    says "the largest face's normal is along the X axis" — equivalently,
+    the part's THINNEST axis must be X. v0.9 gate #1 (orientation) reads
+    this field. Accepted values: "XY", "XZ", "YZ" (and reverse aliases).
+    Case-insensitive.
+
+    `expected_against` is reserved for the face-mate adjacency variant —
+    not yet wired through the harness as of v0.9 P1. Field validation
+    accepts it; check execution is gated on the upstream label appearing
+    in inventory.
+
+    `max_gap_mm` tolerates floating-point STEP-import jitter when checking
+    face-mate proximity. Default 0.5mm; tighten per-label if needed.
+    """
+    sig: List[float]
+    expected_face: Optional[str] = None
+    expected_against: Optional[str] = None
+    max_gap_mm: float = 0.5
+
+    @field_validator("sig")
+    @classmethod
+    def _check_sig(cls, v: List[float]) -> List[float]:
+        if not isinstance(v, list) or len(v) != 3:
+            raise ValueError(
+                f"sig must be a 3-element list [dx, dy, dz], got {v!r}"
+            )
+        if not all(isinstance(x, (int, float)) for x in v):
+            raise ValueError(
+                f"sig elements must be numbers, got {v!r}"
+            )
+        return [float(x) for x in v]
+
+    @field_validator("expected_face")
+    @classmethod
+    def _check_face(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip().upper()
+        if v not in _VALID_FACE_PLANES:
+            raise ValueError(
+                f"expected_face must be one of {sorted(set(_VALID_FACE_PLANES))}, "
+                f"got {v!r}"
+            )
+        # Canonicalize reverse aliases.
+        return {"YX": "XY", "ZX": "XZ", "ZY": "YZ"}.get(v, v)
+
+    def thinnest_axis_index(self) -> Optional[int]:
+        """Return 0/1/2 for X/Y/Z axis the largest face normal is along, or
+        None if expected_face is unset.
+
+        For `expected_face: YZ`, the largest face lies in the Y-Z plane,
+        which means its normal is along the X axis → return 0.
+        """
+        if self.expected_face is None:
+            return None
+        return {"YZ": 0, "XZ": 1, "XY": 2}[self.expected_face]
 
 
 class MetaModel(_Strict):
@@ -131,7 +206,10 @@ class RuleSet(_Strict):
     schema_version: str = SCHEMA_VERSION
     meta: MetaModel = Field(default_factory=MetaModel)
 
-    labels: Dict[str, List[float]] = Field(default_factory=dict)
+    # `labels` accepts either a 3-tuple list (legacy) or a LabelSpec dict.
+    # The `_normalize_labels` validator converts both shapes to LabelSpec
+    # so downstream code always sees the rich form.
+    labels: Dict[str, LabelSpec] = Field(default_factory=dict)
     belt_heuristic: bool = True
 
     expected_inventory: Dict[str, int] = Field(default_factory=dict)
@@ -150,40 +228,52 @@ class RuleSet(_Strict):
             raise ValueError(
                 f"unsupported schema_version {v!r}; this CADCLAW expects "
                 f"{SCHEMA_VERSION!r}. Migration: change schema_version to "
-                f"{SCHEMA_VERSION!r}; new optional fields are "
-                "expected_design_qty, spare_qty, exempt_categories, "
-                "warn_on_unmapped — no field renames required."
+                f"{SCHEMA_VERSION!r}. v0.7 / v0.8.0 rule files mostly load "
+                f"unchanged — only addition is the optional dict-form "
+                "LabelSpec under `labels:` (legacy 3-tuple lists still work). "
+                "New v0.9 LabelSpec fields: expected_face, expected_against, "
+                "max_gap_mm — all optional."
             )
         return v
 
-    @field_validator("labels")
+    @field_validator("labels", mode="before")
     @classmethod
-    def _check_labels(cls, v: Dict[str, List[float]]) -> Dict[str, List[float]]:
-        for name, sig in v.items():
-            if name == "belt_heuristic":
-                continue
-            if not isinstance(sig, list) or len(sig) != 3:
-                raise ValueError(
-                    f"label {name!r}: signature must be a 3-element list [dx,dy,dz], got {sig!r}"
-                )
-            if not all(isinstance(x, (int, float)) for x in sig):
-                raise ValueError(
-                    f"label {name!r}: signature elements must be numbers, got {sig!r}"
-                )
-        return v
+    def _normalize_labels(cls, v: Any) -> Any:
+        """Accept either a 3-tuple or a LabelSpec dict per label.
+
+        Bare lists are wrapped as `{sig: <list>}` so the field type
+        `Dict[str, LabelSpec]` always sees a dict. Other types pass
+        through and let pydantic raise the canonical validation error.
+        """
+        if not isinstance(v, dict):
+            return v
+        out: Dict[str, Any] = {}
+        for name, spec in v.items():
+            if isinstance(spec, list):
+                out[name] = {"sig": spec}
+            else:
+                out[name] = spec
+        return out
 
     def label_to_sig(self) -> Dict[str, Tuple[float, float, float]]:
         """Resolve labels to sorted-tuple signatures matching `inventory.sig`."""
         out: Dict[str, Tuple[float, float, float]] = {}
-        for name, sig in self.labels.items():
+        for name, spec in self.labels.items():
             if name == "belt_heuristic":
                 continue
-            out[name] = tuple(sorted(round(float(x), 1) for x in sig))
+            sorted_sig = tuple(sorted(round(float(x), 1) for x in spec.sig))
+            out[name] = sorted_sig
         return out
 
     def sig_to_label(self) -> Dict[Tuple[float, float, float], str]:
         """Reverse map: bbox sig -> label, matching the legacy dict shape."""
         return {sig: name for name, sig in self.label_to_sig().items()}
+
+    def label_specs(self) -> Dict[str, LabelSpec]:
+        """Return `LabelSpec` per label — the v0.9 rich form callers can
+        read for orientation / face-mate / color / etc. fields."""
+        return {name: spec for name, spec in self.labels.items()
+                if name != "belt_heuristic"}
 
 
 def load_rules(path: Union[str, Path]) -> RuleSet:

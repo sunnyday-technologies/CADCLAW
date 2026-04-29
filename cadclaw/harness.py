@@ -24,6 +24,10 @@ from .inventory import InventoryCheck, InventoryResult, load_and_dedup, sig
 from .interference import InterferenceCheck, InterferenceResult
 from .adjacency import AdjacencyCheck, AdjacencyResult, AdjacencyRule
 from .dimensional import DimensionalCheck, DimensionalResult, DimRule
+from .orientation import (
+    OrientationCheck, OrientationResult, suggest_rotation,
+    _AXIS_NAMES,
+)
 from .findings import Finding, Report, Severity
 
 
@@ -120,6 +124,18 @@ class Harness:
         """Add a dimensional gate."""
         self._gates.append(('dimensional', rules))
 
+    def add_orientation(self, label_specs, tol_mm: float = 0.1):
+        """Add an orientation / face-mate gate (v0.9 gate #1).
+
+        `label_specs` is `Dict[label, LabelSpec]` (typically from
+        `RuleSet.label_specs()`). Only labels with a non-None
+        `expected_face` are checked.
+        """
+        self._gates.append(('orientation', {
+            'label_specs': label_specs,
+            'tol_mm': tol_mm,
+        }))
+
     def run(self) -> HarnessReport:
         t0 = time.time()
 
@@ -169,6 +185,16 @@ class Harness:
                 passed = r.passed
                 details = '\n'.join(v.message for v in r.violations) if r.violations else ''
                 findings = _dimensional_findings(r)
+
+            elif name == 'orientation':
+                check = OrientationCheck(
+                    parts, label_fn,
+                    label_specs=config['label_specs'],
+                    tol_mm=config.get('tol_mm', 0.1))
+                r = check.run()
+                passed = r.passed
+                details = '\n'.join(_format_misorientation(m) for m in r.violations) if r.violations else ''
+                findings = _orientation_findings(r)
 
             else:
                 continue
@@ -320,5 +346,60 @@ def _dimensional_findings(r: DimensionalResult) -> List[Finding]:
             severity=Severity.FAIL,
             message=v.message,
             evidence={"label": v.label},
+        ))
+    return out
+
+
+def _format_misorientation(m) -> str:
+    """Compact CLI line: 'idler at (1496, 530, 421) thinnest=Y, expected=X (face YZ) — rotate 90° about Z'."""
+    cx, cy, cz = m.center
+    actual = _AXIS_NAMES[m.actual_axis] if m.actual_axis is not None else "ambiguous"
+    expected = _AXIS_NAMES[m.expected_axis]
+    head = (f"{m.label} at ({cx:.0f}, {cy:.0f}, {cz:.0f}) "
+            f"thinnest={actual}, expected={expected} (face {m.expected_face})")
+    if m.actual_axis is None:
+        return head
+    return f"{head} — {suggest_rotation(m.actual_axis, m.expected_axis)}"
+
+
+def _orientation_findings(r: OrientationResult) -> List[Finding]:
+    out: List[Finding] = []
+    for m in r.violations:
+        rotation = suggest_rotation(m.actual_axis, m.expected_axis)
+        actual_name = _AXIS_NAMES[m.actual_axis]
+        expected_name = _AXIS_NAMES[m.expected_axis]
+        out.append(Finding(
+            id="cad.misoriented",
+            category="orientation",
+            severity=Severity.FAIL,
+            message=(
+                f"{m.label}: thinnest axis is {actual_name}, expected "
+                f"{expected_name} (face {m.expected_face}) — {rotation}"
+            ),
+            suggested_fix=rotation,
+            evidence={
+                "label": m.label,
+                "center": list(m.center),
+                "actual_dims_mm": [round(x, 3) for x in m.actual_dims],
+                "actual_axis": m.actual_axis,
+                "expected_face": m.expected_face,
+                "expected_axis": m.expected_axis,
+            },
+        ))
+    for m in r.ambiguous:
+        out.append(Finding(
+            id="cad.orientation_ambiguous",
+            category="orientation",
+            severity=Severity.WARN,
+            message=(
+                f"{m.label}: cannot verify orientation — two bbox dims "
+                f"tied for thinnest ({m.actual_dims})"
+            ),
+            evidence={
+                "label": m.label,
+                "center": list(m.center),
+                "actual_dims_mm": [round(x, 3) for x in m.actual_dims],
+                "expected_face": m.expected_face,
+            },
         ))
     return out
