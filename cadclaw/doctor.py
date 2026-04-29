@@ -14,7 +14,7 @@ Each probe returns a List[Finding]. `run_doctor()` runs them all and returns a
 unified `Report`.
 
 Usage:
-    from cadharness.doctor import run_doctor
+    from cadclaw.doctor import run_doctor
     report = run_doctor()
     sys.exit(0 if report.passed else 1)
 """
@@ -152,14 +152,14 @@ def probe_cadclaw() -> List[Finding]:
         version = "unknown"
 
     try:
-        import cadharness
-        path = getattr(cadharness, "__file__", "?")
+        import cadclaw
+        path = getattr(cadclaw, "__file__", "?")
     except ImportError as e:
         out.append(Finding(
-            id="doctor.cadharness_import_failed",
+            id="doctor.cadclaw_import_failed",
             category="doctor",
             severity=Severity.FAIL,
-            message=f"cadharness package failed to import: {e}",
+            message=f"cadclaw package failed to import: {e}",
             suggested_fix="Reinstall cadclaw: pip install -e .",
         ))
         return out

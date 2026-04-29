@@ -211,8 +211,8 @@ bom_audit:
     <p>Catches BOM <code>qty</code> / <code>mfg_type</code> / <code>unit</code> mismatches, required-term-missing or forbidden-term-present in the description, CAD-side count drift, and BOM items with no CAD geometry (suppressed for <code>mfg_type: consumable</code> / <code>electronic</code> / <code>fastener</code>). Private BOM fields (<code>vendors</code>, <code>sku</code>, <code>unit_cost</code>) are dropped at the serializer and never appear in any report.</p>
 
     <h3>Programmatic API</h3>
-<pre class="code"><span class="k">from</span> cadharness.harness <span class="k">import</span> Harness
-<span class="k">from</span> cadharness.adjacency <span class="k">import</span> AdjacencyRule
+<pre class="code"><span class="k">from</span> cadclaw.harness <span class="k">import</span> Harness
+<span class="k">from</span> cadclaw.adjacency <span class="k">import</span> AdjacencyRule
 
 h = Harness(<span class="o">"my_assembly.step"</span>)
 

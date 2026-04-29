@@ -30,35 +30,35 @@ agent-driven retrieval. The canonical site is https://cadclaw.io.
 CADCLAW validates STEP CAD assemblies and their BOMs through automated gates.
 Configure once in `cadclaw.yaml`, run from the `cadclaw` console script.
 
-Validation domains (each maps to a module under `cadharness/`):
+Validation domains (each maps to a module under `cadclaw/`):
 
-- Inventory (`cadharness/inventory.py`) — label parts by bbox signature,
+- Inventory (`cadclaw/inventory.py`) — label parts by bbox signature,
   count against expected, per-region (axis-aligned) constraints.
-- Interference (`cadharness/interference.py`) — pairwise solid-solid overlap
+- Interference (`cadclaw/interference.py`) — pairwise solid-solid overlap
   via OCC `BRepAlgoAPI_Common`, reports overlap volume in mm^3.
-- Adjacency (`cadharness/adjacency.py`) — parts of type A must have a part
+- Adjacency (`cadclaw/adjacency.py`) — parts of type A must have a part
   of type B within N mm. Catches misplaced/scattered components.
-- Dimensional (`cadharness/dimensional.py`) — checks part dimensions against
+- Dimensional (`cadclaw/dimensional.py`) — checks part dimensions against
   expected ranges; catches wrong thickness, swapped args, scaling errors.
-- Kinematics (`cadharness/kinematics.py`) — beam deflection (Euler-Bernoulli),
+- Kinematics (`cadclaw/kinematics.py`) — beam deflection (Euler-Bernoulli),
   motor torque budgets, belt tension, GT2 tooth-skip resistance.
-- Tolerance (`cadharness/tolerance.py`) — worst-case, RSS, and Monte Carlo
+- Tolerance (`cadclaw/tolerance.py`) — worst-case, RSS, and Monte Carlo
   tolerance stacking with Cpk and per-dimension variance contribution.
-- Parity (`cadharness/parity.py`) — STEP-vs-STEP comparison; flags the
+- Parity (`cadclaw/parity.py`) — STEP-vs-STEP comparison; flags the
   Fusion visibility-toggle bug.
-- BOM audit (`cadharness/bom_audit.py`) — BOM JSON ↔ CAD assembly: qty,
+- BOM audit (`cadclaw/bom_audit.py`) — BOM JSON ↔ CAD assembly: qty,
   mfg_type, unit, required/forbidden text terms, CAD-side count drift.
-- Disassembly (`cadharness/disassembly.py`) — sequenced part removal,
+- Disassembly (`cadclaw/disassembly.py`) — sequenced part removal,
   radial exploded views, animation frame export.
-- Render (`cadharness/render.py`) — STEP → PNG → animated GIF via
+- Render (`cadclaw/render.py`) — STEP → PNG → animated GIF via
   offscreen VTK.
 
 Honesty toolchain (text-side validation, also surfaced via the CLI):
 
 - `cadclaw doctor` — environment diagnostic.
-- `cadclaw publish-audit` (`cadharness/publish_audit.py`) — scans the working
+- `cadclaw publish-audit` (`cadclaw/publish_audit.py`) — scans the working
   tree for private data before commit.
-- `cadclaw claim-audit` (`cadharness/claim_audit.py`) — flags overclaims and
+- `cadclaw claim-audit` (`cadclaw/claim_audit.py`) — flags overclaims and
   untagged numeric assertions in README and BOM notes.
 
 CADCLAW does NOT prove that a native CAD model has no hidden parts, that a

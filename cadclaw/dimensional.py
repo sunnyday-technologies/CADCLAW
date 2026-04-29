@@ -5,7 +5,7 @@ Catches geometry errors like wrong thickness, swapped box() args, or
 parts that are impossibly large/small.
 
 Usage:
-    from cadharness.dimensional import DimensionalCheck, DimRule
+    from cadclaw.dimensional import DimensionalCheck, DimRule
     rules = [DimRule('plate', thin_axis=5.0, tolerance=0.5)]
     check = DimensionalCheck(parts, label_fn, rules)
     result = check.run()

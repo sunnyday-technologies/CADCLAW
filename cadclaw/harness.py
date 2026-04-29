@@ -2,7 +2,7 @@
 Harness — the main runner that chains all gates together.
 
 Usage:
-    from cadharness import Harness
+    from cadclaw import Harness
     h = Harness("assembly.step", config="harness.yaml")
     report = h.run()
     print(report)

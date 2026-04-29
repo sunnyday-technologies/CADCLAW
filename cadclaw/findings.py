@@ -4,10 +4,10 @@ v0.6 gate emits.
 
 This is intentionally stdlib-only (no pydantic) so existing v0.5 callers can
 import `Finding` without paying for the rule-file dependency. Pydantic models
-in `cadharness/rules.py` validate config; this module is what gates produce.
+in `cadclaw/rules.py` validate config; this module is what gates produce.
 
 Usage:
-    from cadharness.findings import Finding, Severity, Report, ConfidenceBudget
+    from cadclaw.findings import Finding, Severity, Report, ConfidenceBudget
 
     findings = [
         Finding(

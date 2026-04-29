@@ -77,8 +77,8 @@ cadclaw doctor                          # verify your environment first
 ### Programmatic API
 
 ```python
-from cadharness.harness import Harness
-from cadharness.adjacency import AdjacencyRule
+from cadclaw.harness import Harness
+from cadclaw.adjacency import AdjacencyRule
 
 h = Harness("my_assembly.step")
 
@@ -196,31 +196,31 @@ See [examples/m3_crete/](examples/m3_crete/) for the reference implementation.
 
 ## Modules
 
-### `cadharness.inventory`
+### `cadclaw.inventory`
 Label parts by bbox signature, count them, compare to expected inventory.
 
-### `cadharness.interference`
+### `cadclaw.interference`
 Pairwise solid-solid overlap using OCC `BRepAlgoAPI_Common`. Bbox pre-filter for performance. Reports overlap volume in mm^3.
 
-### `cadharness.adjacency`
+### `cadclaw.adjacency`
 Validate that parts of type A have a part of type B within N mm. Catches misplaced/scattered components.
 
-### `cadharness.dimensional`
+### `cadclaw.dimensional`
 Check part dimensions against expected ranges. Catches wrong thickness, swapped args, scaling errors.
 
-### `cadharness.kinematics`
+### `cadclaw.kinematics`
 Structural analysis from assembly parameters. Beam deflection (Euler-Bernoulli), motor torque budgets, belt tension, GT2 tooth skip resistance.
 
-### `cadharness.tolerance`
+### `cadclaw.tolerance`
 Tolerance stack analysis: define dimension chains, compute worst-case / RSS / Monte Carlo accumulation, report Cpk process capability and per-dimension variance contribution. Identifies which dimension dominates the stack.
 
-### `cadharness.disassembly`
+### `cadclaw.disassembly`
 Disassembly sequence generation: auto-orders parts by type priority and distance from centroid, computes radial explosion vectors, exports individual STEP frames for animation or a single exploded-view STEP.
 
-### `cadharness.render`
+### `cadclaw.render`
 Offscreen VTK rendering of STEP files to PNG, plus GIF stitching. `make_disassembly_gif(step, gif)` is one call — generates the disassembly frames, rasterizes them, and writes an animated GIF.
 
-### `cadharness.harness`
+### `cadclaw.harness`
 The runner. Chains gates, loads parts once, reports pass/fail with timing.
 
 ### `cadclaw_mcp/`

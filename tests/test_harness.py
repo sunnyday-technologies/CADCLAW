@@ -14,26 +14,26 @@ import shutil
 import subprocess
 import tempfile
 import unittest
-from cadharness.inventory import (
+from cadclaw.inventory import (
     InventoryCheck, Region, RegionResult, load_and_dedup, sig,
 )
-from cadharness.interference import InterferenceCheck
-from cadharness.adjacency import AdjacencyCheck, AdjacencyRule
-from cadharness.dimensional import DimensionalCheck, DimRule
-from cadharness.kinematics import beam_deflection, motor_torque_budget, belt_tension
-from cadharness.tolerance import ToleranceChain, auto_stack_from_assembly
-from cadharness.disassembly import DisassemblySequence, DisassemblyStep
-from cadharness.render import (
+from cadclaw.interference import InterferenceCheck
+from cadclaw.adjacency import AdjacencyCheck, AdjacencyRule
+from cadclaw.dimensional import DimensionalCheck, DimRule
+from cadclaw.kinematics import beam_deflection, motor_torque_budget, belt_tension
+from cadclaw.tolerance import ToleranceChain, auto_stack_from_assembly
+from cadclaw.disassembly import DisassemblySequence, DisassemblyStep
+from cadclaw.render import (
     render_step_to_png, render_frames_to_gif, make_disassembly_gif,
     render_radial_explode_gif,
 )
-from cadharness.parity import (
+from cadclaw.parity import (
     compare_steps, visibility_toggle_warning, ParityReport,
 )
-from cadharness.geometry_import import (
+from cadclaw.geometry_import import (
     shapes_by_dim_sig, first_shape_by_dim_sig,
 )
-from cadharness.harness import Harness
+from cadclaw.harness import Harness
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 
@@ -93,7 +93,7 @@ class TestInterferenceFixVector(unittest.TestCase):
     """v0.7.1 Ergo-1: clips carry an auto-suggested fix-vector."""
 
     def test_suggest_clear_shift_picks_smallest_overlap_axis(self):
-        from cadharness.interference import _suggest_clear_shift
+        from cadclaw.interference import _suggest_clear_shift
         # bbox A nudged into B mostly along Y; X and Z overlaps are larger.
         # A: X=[1451,1539] Y=[538.16,541.16] Z=[302,429]
         # B: X=[1040,2040] Y=[498.51,538.51] Z=[331,411]
@@ -110,7 +110,7 @@ class TestInterferenceFixVector(unittest.TestCase):
         self.assertGreater(shift, 0.0, "Should push A in +Y away from B's center")
 
     def test_suggest_clear_shift_honors_custom_clearance(self):
-        from cadharness.interference import _suggest_clear_shift
+        from cadclaw.interference import _suggest_clear_shift
         bb_a = (0.0, 0.0, 0.0, 10.0, 10.0, 10.0)
         bb_b = (5.0, 0.0, 0.0, 20.0, 10.0, 10.0)  # X-only overlap = 5
         axis, shift, _ = _suggest_clear_shift(bb_a, bb_b, clearance_mm=2.5)
@@ -119,7 +119,7 @@ class TestInterferenceFixVector(unittest.TestCase):
         self.assertAlmostEqual(shift, -7.5, places=3)
 
     def test_suggest_clear_shift_sign_matches_center_offset(self):
-        from cadharness.interference import _suggest_clear_shift
+        from cadclaw.interference import _suggest_clear_shift
         # B is to the LEFT of A on X → push A in +X. X is the cheapest
         # axis (overlap 2 < Y/Z overlap 10 each).
         bb_a = (8.0, 0.0, 0.0, 12.0, 10.0, 10.0)
@@ -130,8 +130,8 @@ class TestInterferenceFixVector(unittest.TestCase):
         self.assertGreater(shift, 0.0)
 
     def test_format_shift_suggestion_canonical_string(self):
-        from cadharness.interference import Clip
-        from cadharness.harness import _format_shift_suggestion
+        from cadclaw.interference import Clip
+        from cadclaw.harness import _format_shift_suggestion
         c = Clip(
             label_a="plate", label_b="cbeam",
             center_a=(1495.0, 540.0, 366.0),
@@ -148,8 +148,8 @@ class TestInterferenceFixVector(unittest.TestCase):
         self.assertEqual(msg, "shift +Y by 1.35mm to clear with 1mm clearance")
 
     def test_interference_finding_evidence_has_suggest_shift(self):
-        from cadharness.interference import Clip, InterferenceResult
-        from cadharness.harness import _interference_findings
+        from cadclaw.interference import Clip, InterferenceResult
+        from cadclaw.harness import _interference_findings
         c = Clip(
             label_a="plate", label_b="cbeam",
             center_a=(1495.0, 540.0, 366.0),
@@ -202,7 +202,7 @@ class TestInterferenceFixVector(unittest.TestCase):
 
 
 class TestInspectModule(unittest.TestCase):
-    """v0.7.1 Ergo-2: pure-function diagnostics in cadharness.inspect."""
+    """v0.7.1 Ergo-2: pure-function diagnostics in cadclaw.inspect."""
 
     @classmethod
     def setUpClass(cls):
@@ -212,7 +212,7 @@ class TestInspectModule(unittest.TestCase):
         return L1_LABELS.get(sig(part), "other")
 
     def test_histogram_signatures_counts_and_orders(self):
-        from cadharness.inspect import histogram_signatures
+        from cadclaw.inspect import histogram_signatures
         buckets = histogram_signatures(self.parts, label_fn=self._label_fn)
         # L1_bad has 5 parts across at most 3 sigs.
         self.assertGreater(len(buckets), 0)
@@ -225,24 +225,24 @@ class TestInspectModule(unittest.TestCase):
         self.assertTrue(any(b.label for b in buckets))
 
     def test_describe_parts_label_filter(self):
-        from cadharness.inspect import describe_parts
+        from cadclaw.inspect import describe_parts
         plates = describe_parts(self.parts, label="plate", label_fn=self._label_fn)
         self.assertEqual(len(plates), 2)
         for p in plates:
             self.assertEqual(p.label, "plate")
 
     def test_describe_parts_at_filter_far_away_returns_empty(self):
-        from cadharness.inspect import describe_parts
+        from cadclaw.inspect import describe_parts
         matches = describe_parts(self.parts, at=(1e6, 1e6, 1e6))
         self.assertEqual(matches, [])
 
     def test_describe_parts_no_filters_returns_all(self):
-        from cadharness.inspect import describe_parts
+        from cadclaw.inspect import describe_parts
         matches = describe_parts(self.parts)
         self.assertEqual(len(matches), len(self.parts))
 
     def test_find_overlaps_target_label(self):
-        from cadharness.inspect import find_overlaps
+        from cadclaw.inspect import find_overlaps
         clips, target_count = find_overlaps(
             self.parts, self._label_fn, target_label="plate")
         self.assertGreater(target_count, 0)
@@ -253,14 +253,14 @@ class TestInspectModule(unittest.TestCase):
             self.assertNotEqual(c.suggest_shift_mm, 0.0)
 
     def test_find_overlaps_unknown_label_returns_zero_target(self):
-        from cadharness.inspect import find_overlaps
+        from cadclaw.inspect import find_overlaps
         clips, target_count = find_overlaps(
             self.parts, self._label_fn, target_label="not_a_real_label")
         self.assertEqual(target_count, 0)
         self.assertEqual(clips, [])
 
     def test_find_overlaps_requires_target(self):
-        from cadharness.inspect import find_overlaps
+        from cadclaw.inspect import find_overlaps
         with self.assertRaises(ValueError):
             find_overlaps(self.parts, self._label_fn)
 
@@ -985,7 +985,7 @@ class TestStepColorExtraction(unittest.TestCase):
     (which carry assembly transforms) missed every part placed away from
     the origin. Fix: key by dim-signature (sorted 3-tuple of rounded
     extents) so keys are translation-invariant and match
-    `cadharness.inventory.sig`.
+    `cadclaw.inventory.sig`.
 
     The checked-in L1/L2/L3 fixtures were produced by CADQuery without
     AP242 color assignments, so we cannot assert that color extraction
@@ -999,7 +999,7 @@ class TestStepColorExtraction(unittest.TestCase):
     FIXTURE = os.path.join(FIXTURES, "L3_good.step")
 
     def test_extract_returns_dict_without_error(self):
-        from cadharness.render import _extract_step_colors
+        from cadclaw.render import _extract_step_colors
         colors = _extract_step_colors(self.FIXTURE)
         self.assertIsInstance(colors, dict)
         # Any extracted color key must be the sorted 3-tuple dim-sig,
@@ -1017,8 +1017,8 @@ class TestStepColorExtraction(unittest.TestCase):
         dim-sig must resolve via `_color_for` even when the shape is
         placed away from origin. Pre-fix, the bbox-keyed lookup missed
         every non-origin part."""
-        from cadharness.render import _color_for
-        from cadharness.inventory import sig as _sig
+        from cadclaw.render import _color_for
+        from cadclaw.inventory import sig as _sig
         parts = load_and_dedup(self.FIXTURE)
         self.assertGreater(len(parts), 0)
         # L3_good has the gantry parts at Z >= 1000 — pick one to make
@@ -1077,7 +1077,7 @@ class TestParity(unittest.TestCase):
     def test_report_fields_sum_correctly(self):
         """For the self-compare case, a_parts should equal b_parts and
         equal the total shape count from _load_shapes."""
-        from cadharness.render import _load_shapes
+        from cadclaw.render import _load_shapes
         r = compare_steps(self.GOOD, self.GOOD)
         self.assertEqual(r.a_parts, len(_load_shapes(self.GOOD)))
 

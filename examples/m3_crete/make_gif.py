@@ -9,7 +9,7 @@ import sys
 import time
 sys.path.insert(0, '.')
 
-from cadharness.render import make_disassembly_gif
+from cadclaw.render import make_disassembly_gif
 
 LABELS = {
     (40.0, 80.0, 1000.0): 'cbeam',

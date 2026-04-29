@@ -12,7 +12,7 @@ file but more unique signatures, i.e. a shape inventory that wandered
 in an unexpected direction).
 
 Usage:
-    from cadharness.parity import compare_steps, visibility_toggle_warning
+    from cadclaw.parity import compare_steps, visibility_toggle_warning
 
     report = compare_steps("fusion_export.step", "cadquery_regen.step")
     if not report.passed:

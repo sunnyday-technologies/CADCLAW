@@ -1,8 +1,8 @@
-"""Tests for cadharness/findings.py — Severity rollup, Finding round-trip."""
+"""Tests for cadclaw/findings.py — Severity rollup, Finding round-trip."""
 import json
 import unittest
 
-from cadharness.findings import (
+from cadclaw.findings import (
     ConfidenceBudget,
     Finding,
     Report,
