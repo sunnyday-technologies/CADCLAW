@@ -315,6 +315,10 @@ def _aim_camera(renderer, shapes, view: str = "iso", azimuth: float = 0.0,
       - "iso_left":    front-left-above
       - "iso_below":   front-right-BELOW — looks up into an open base
       - "iso_below_left": front-left-below
+      - "hero":        front-right at near-eye-level, faint upward tilt.
+                       Matches the M3-CRETE website hero render — the
+                       full assembly silhouette reads cleanly with the
+                       open base subtly visible.
       - "front":       looking along -Y (printer front face)
       - "back":        looking along +Y
       - "side":        looking along +X (right side)
@@ -333,6 +337,7 @@ def _aim_camera(renderer, shapes, view: str = "iso", azimuth: float = 0.0,
         "iso_left":         (-1.0, -1.0, 0.7),
         "iso_below":        (1.0, -1.0, -0.7),
         "iso_below_left":   (-1.0, -1.0, -0.7),
+        "hero":             (1.2, -1.6, -0.05),  # M3-CRETE web hero: near eye-level
         "front":            (0.0, -1.0, 0.0),
         "back":             (0.0, 1.0, 0.0),
         "side":             (1.0, 0.0, 0.0),
