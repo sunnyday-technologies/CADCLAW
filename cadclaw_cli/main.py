@@ -380,6 +380,26 @@ def _cmd_harness(args: argparse.Namespace) -> int:
             "floating (no structural_labels configured)"
         )
 
+    # v0.9 gate #2 — color/material attribute check. Runs only when at
+    # least one label has expected_color set.
+    has_color = any(s.expected_color for s in label_specs.values())
+    if _wants("color") and has_color:
+        from cadclaw.color_check import ColorCheck
+        from cadclaw.harness import _color_findings
+        if step_path:
+            check = ColorCheck(step_path, label_specs)
+            sub = check.run()
+            aggregate.findings.extend(_color_findings(sub))
+            aggregate.confidence_budget.checked.append("color")
+        else:
+            aggregate.confidence_budget.not_checked.append(
+                "color (no rules.meta.step set)"
+            )
+    elif _wants("color"):
+        aggregate.confidence_budget.not_checked.append(
+            "color (no labels carry expected_color)"
+        )
+
     aggregate.overall = aggregate.compute_overall()
     aggregate.duration_ms = (time.time() - t0) * 1000
     _emit_report(aggregate, args.report_format, args.out)

@@ -265,6 +265,54 @@ class TestInspectModule(unittest.TestCase):
             find_overlaps(self.parts, self._label_fn)
 
 
+class TestColorCheck(unittest.TestCase):
+    """v0.9 gate #2: per-channel RGB color check (no CIELAB)."""
+
+    def test_hex_to_rgb255(self):
+        from cadclaw.color_check import hex_to_rgb255
+        self.assertEqual(hex_to_rgb255("#969F00"), (150, 159, 0))
+        self.assertEqual(hex_to_rgb255("969f00"), (150, 159, 0))
+        self.assertEqual(hex_to_rgb255("#000000"), (0, 0, 0))
+        self.assertEqual(hex_to_rgb255("#FFFFFF"), (255, 255, 255))
+
+    def test_rgb01_to_rgb255_clamps(self):
+        from cadclaw.color_check import rgb01_to_rgb255
+        # In-range
+        self.assertEqual(rgb01_to_rgb255((0.5, 0.5, 0.5)), (128, 128, 128))
+        # AP242 sometimes returns sRGB-linearized values slightly out of [0,1]
+        # — clamping prevents downstream wraparound.
+        self.assertEqual(rgb01_to_rgb255((-0.1, 1.1, 0.5)), (0, 255, 128))
+
+    def test_rgb255_to_hex(self):
+        from cadclaw.color_check import rgb255_to_hex
+        self.assertEqual(rgb255_to_hex((150, 159, 0)), "#969F00")
+        self.assertEqual(rgb255_to_hex((0, 0, 0)), "#000000")
+
+    def test_color_matches_within_tolerance(self):
+        from cadclaw.color_check import color_matches
+        # Exact match.
+        self.assertTrue(color_matches((150, 159, 0), (150, 159, 0), tol=5))
+        # Within tolerance on each channel.
+        self.assertTrue(color_matches((153, 156, 4), (150, 159, 0), tol=5))
+        # One channel just outside tolerance — fails.
+        self.assertFalse(color_matches((156, 159, 0), (150, 159, 0), tol=5))
+        # Black vs Sunnyday green — clearly fails.
+        self.assertFalse(color_matches((0, 0, 0), (150, 159, 0), tol=5))
+
+    def test_invalid_hex_rejected_by_label_spec(self):
+        from cadclaw.rules import LabelSpec
+        from pydantic import ValidationError
+        with self.assertRaises(ValidationError):
+            LabelSpec(sig=[1.0, 2.0, 3.0], expected_color="not-a-hex")
+        with self.assertRaises(ValidationError):
+            LabelSpec(sig=[1.0, 2.0, 3.0], expected_color="#GGG")
+        # Valid forms accepted, normalized to upper-case with leading #.
+        s = LabelSpec(sig=[1.0, 2.0, 3.0], expected_color="969f00")
+        self.assertEqual(s.expected_color, "#969F00")
+        s = LabelSpec(sig=[1.0, 2.0, 3.0], expected_color="#969f00")
+        self.assertEqual(s.expected_color, "#969F00")
+
+
 class TestFloatingCheck(unittest.TestCase):
     """v0.9 gate #3: flag parts whose bbox isn't adjacent to any structural part."""
 
