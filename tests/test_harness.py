@@ -265,6 +265,182 @@ class TestInspectModule(unittest.TestCase):
             find_overlaps(self.parts, self._label_fn)
 
 
+class TestOrientationCheck(unittest.TestCase):
+    """v0.9 gate #1: orientation/face-mate gate.
+
+    Tests are split between pure-math (no OCC needed) and integration
+    against the L-fixtures. Pure-math covers the `thinnest_axis`,
+    `suggest_rotation`, and finding-shape logic.
+    """
+
+    def test_thinnest_axis_distinct_dims(self):
+        from cadclaw.orientation import thinnest_axis
+        # Thinnest along X (0).
+        self.assertEqual(thinnest_axis((5.0, 30.0, 30.0)), 0)
+        # Thinnest along Y (1).
+        self.assertEqual(thinnest_axis((30.0, 5.0, 30.0)), 1)
+        # Thinnest along Z (2).
+        self.assertEqual(thinnest_axis((30.0, 30.0, 5.0)), 2)
+
+    def test_thinnest_axis_ambiguous_when_tied(self):
+        from cadclaw.orientation import thinnest_axis
+        # Two axes at 5mm, third at 30mm → ambiguous.
+        self.assertIsNone(thinnest_axis((5.0, 5.0, 30.0)))
+        self.assertIsNone(thinnest_axis((5.0, 30.0, 5.0)))
+        # Sub-tolerance jitter still classifies as ambiguous.
+        self.assertIsNone(thinnest_axis((5.0, 5.05, 30.0), tol_mm=0.1))
+        # Above tolerance: distinct again.
+        self.assertEqual(thinnest_axis((5.0, 5.5, 30.0), tol_mm=0.1), 0)
+
+    def test_suggest_rotation_axis_choice(self):
+        from cadclaw.orientation import suggest_rotation
+        # actual=Y, expected=X → rotate about Z.
+        self.assertIn("about Z", suggest_rotation(1, 0))
+        # actual=X, expected=Z → rotate about Y.
+        self.assertIn("about Y", suggest_rotation(0, 2))
+        # actual=Z, expected=Y → rotate about X.
+        self.assertIn("about X", suggest_rotation(2, 1))
+        # Same axis → empty string (no rotation needed).
+        self.assertEqual(suggest_rotation(0, 0), "")
+
+    def test_check_passes_when_orientation_correct(self):
+        from cadclaw.orientation import OrientationCheck, OrientationResult
+        from cadclaw.rules import LabelSpec
+
+        # Mock part with controlled BoundingBox.
+        class _MockBB:
+            def __init__(self, dims):
+                self.xmin, self.ymin, self.zmin = 0.0, 0.0, 0.0
+                self.xmax, self.ymax, self.zmax = dims
+
+        class _MockPart:
+            def __init__(self, dims):
+                self._dims = dims
+            def BoundingBox(self):
+                return _MockBB(self._dims)
+
+        # Bracket with thinnest along X (5mm), labeled idler_bracket
+        # whose spec says expected_face=YZ (thinnest=X) → match → pass.
+        part = _MockPart((5.0, 30.0, 30.0))
+        specs = {
+            "idler_bracket": LabelSpec(
+                sig=[5.0, 30.0, 30.0], expected_face="YZ"),
+        }
+        check = OrientationCheck([part], lambda p: "idler_bracket", specs)
+        r = check.run()
+        self.assertTrue(r.passed)
+        self.assertEqual(r.checked, 1)
+        self.assertEqual(r.violations, [])
+
+    def test_check_flags_misorientation(self):
+        from cadclaw.orientation import OrientationCheck
+        from cadclaw.rules import LabelSpec
+
+        class _MockBB:
+            def __init__(self, dims):
+                self.xmin, self.ymin, self.zmin = 0.0, 0.0, 0.0
+                self.xmax, self.ymax, self.zmax = dims
+
+        class _MockPart:
+            def __init__(self, dims):
+                self._dims = dims
+            def BoundingBox(self):
+                return _MockBB(self._dims)
+
+        # Bracket rotated 90°: thinnest is now Y (axis 1) instead of X.
+        part = _MockPart((30.0, 5.0, 30.0))
+        specs = {
+            "idler_bracket": LabelSpec(
+                sig=[5.0, 30.0, 30.0], expected_face="YZ"),
+        }
+        check = OrientationCheck([part], lambda p: "idler_bracket", specs)
+        r = check.run()
+        self.assertFalse(r.passed)
+        self.assertEqual(len(r.violations), 1)
+        v = r.violations[0]
+        self.assertEqual(v.actual_axis, 1)
+        self.assertEqual(v.expected_axis, 0)
+        self.assertEqual(v.expected_face, "YZ")
+
+    def test_check_warns_on_ambiguous_dims(self):
+        from cadclaw.orientation import OrientationCheck
+        from cadclaw.rules import LabelSpec
+
+        class _MockBB:
+            def __init__(self, dims):
+                self.xmin, self.ymin, self.zmin = 0.0, 0.0, 0.0
+                self.xmax, self.ymax, self.zmax = dims
+
+        class _MockPart:
+            def __init__(self, dims):
+                self._dims = dims
+            def BoundingBox(self):
+                return _MockBB(self._dims)
+
+        # Two dims tied for thinnest — orientation is ambiguous.
+        part = _MockPart((5.0, 5.0, 30.0))
+        specs = {
+            "tie_part": LabelSpec(
+                sig=[5.0, 5.0, 30.0], expected_face="YZ"),
+        }
+        check = OrientationCheck([part], lambda p: "tie_part", specs)
+        r = check.run()
+        # Ambiguous parts are NOT failures — they're warnings.
+        self.assertTrue(r.passed)
+        self.assertEqual(len(r.violations), 0)
+        self.assertEqual(len(r.ambiguous), 1)
+
+    def test_unlabeled_parts_skipped(self):
+        from cadclaw.orientation import OrientationCheck
+        from cadclaw.rules import LabelSpec
+
+        class _MockBB:
+            xmin = ymin = zmin = 0.0
+            xmax = ymax = zmax = 10.0
+
+        class _MockPart:
+            def BoundingBox(self):
+                return _MockBB()
+
+        # No spec for "other" → skipped entirely.
+        specs = {"foo": LabelSpec(sig=[1.0, 2.0, 3.0], expected_face="YZ")}
+        check = OrientationCheck([_MockPart()], lambda p: "other", specs)
+        r = check.run()
+        self.assertEqual(r.checked, 0)
+        self.assertTrue(r.passed)
+
+    def test_finding_evidence_shape(self):
+        from cadclaw.orientation import OrientationCheck
+        from cadclaw.harness import _orientation_findings
+        from cadclaw.rules import LabelSpec
+
+        class _MockBB:
+            def __init__(self, dims):
+                self.xmin, self.ymin, self.zmin = 100.0, 200.0, 300.0
+                self.xmax = self.xmin + dims[0]
+                self.ymax = self.ymin + dims[1]
+                self.zmax = self.zmin + dims[2]
+
+        class _MockPart:
+            def __init__(self, dims):
+                self._dims = dims
+            def BoundingBox(self):
+                return _MockBB(self._dims)
+
+        part = _MockPart((30.0, 5.0, 30.0))   # rotated wrong
+        specs = {"idler_bracket": LabelSpec(
+            sig=[5.0, 30.0, 30.0], expected_face="YZ")}
+        check = OrientationCheck([part], lambda p: "idler_bracket", specs)
+        findings = _orientation_findings(check.run())
+        self.assertEqual(len(findings), 1)
+        f = findings[0]
+        self.assertEqual(f.id, "cad.misoriented")
+        self.assertIn("about Z", f.suggested_fix)  # rotate about Z
+        self.assertEqual(f.evidence["expected_face"], "YZ")
+        self.assertEqual(f.evidence["actual_axis"], 1)
+        self.assertEqual(f.evidence["expected_axis"], 0)
+
+
 class TestClusterParts(unittest.TestCase):
     """v0.9 gate #7: spatial clustering of unlabeled parts."""
 

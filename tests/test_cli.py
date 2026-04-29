@@ -168,7 +168,7 @@ class TestInspectCommands(unittest.TestCase):
 
     def test_inspect_sigs_with_rules_resolves_labels(self):
         rules_yaml = (
-            'schema_version: "0.7"\n'
+            'schema_version: "0.9"\n'
             'labels:\n'
             '  beam:    [40.0, 80.0, 1000.0]\n'
             '  motor:   [56.4, 56.4, 76.6]\n'
