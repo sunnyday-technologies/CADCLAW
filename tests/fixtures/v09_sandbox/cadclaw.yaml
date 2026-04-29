@@ -1,0 +1,42 @@
+# v0.9 sandbox rule file. Drives integration tests in
+# tests/test_v09_sandbox.py against tests/fixtures/v09_sandbox/v09_assembly.step.
+schema_version: "0.9"
+
+meta:
+  project: v09_sandbox
+  step: tests/fixtures/v09_sandbox/v09_assembly.step
+
+# Two structural labels (legacy 3-tuple form), one orientation-aware
+# label (v0.9 LabelSpec form), two attached/floating candidates.
+labels:
+  cbeam:
+    sig: [40.0, 80.0, 1000.0]
+  plate_anchor:
+    sig: [4.0, 40.0, 80.0]
+  idler_bracket:
+    sig: [5.0, 30.0, 30.0]
+    expected_face: YZ          # largest face in YZ → thinnest axis must be X
+    expected_against: cbeam
+    max_gap_mm: 5.0
+  idler:
+    sig: [12.7, 22.0, 22.0]
+  nut:
+    sig: [5.0, 8.0, 8.0]
+
+belt_heuristic: false
+
+expected_inventory:
+  cbeam: 1
+  plate_anchor: 1
+  idler_bracket: 3
+  idler: 3
+  nut: 4
+
+# v0.9 gate #3: cbeam, plate, and idler_bracket are anchors. The two
+# correctly-attached idlers sit on top of the brackets (within max_gap),
+# so they pass; the floating idler at (1500, 500, 500) is far from
+# everything → flagged.
+floating_check:
+  structural_labels: [cbeam, plate_anchor, idler_bracket]
+  exempt_labels: [belt]
+  max_gap_mm: 5.0

@@ -28,6 +28,7 @@ from .orientation import (
     OrientationCheck, OrientationResult, suggest_rotation,
     _AXIS_NAMES,
 )
+from .floating import FloatingCheck, FloatingResult
 from .findings import Finding, Report, Severity
 
 
@@ -136,6 +137,20 @@ class Harness:
             'tol_mm': tol_mm,
         }))
 
+    def add_floating_check(self, structural_labels, max_gap_mm: float = 5.0,
+                           exempt_labels=None):
+        """Add a floating-part gate (v0.9 gate #3).
+
+        Flag any non-exempt part whose minimum bbox distance to any
+        structural part exceeds `max_gap_mm`. `structural_labels` must
+        be non-empty for the gate to run.
+        """
+        self._gates.append(('floating', {
+            'structural_labels': set(structural_labels),
+            'max_gap_mm': max_gap_mm,
+            'exempt_labels': set(exempt_labels) if exempt_labels else {"belt"},
+        }))
+
     def run(self) -> HarnessReport:
         t0 = time.time()
 
@@ -195,6 +210,17 @@ class Harness:
                 passed = r.passed
                 details = '\n'.join(_format_misorientation(m) for m in r.violations) if r.violations else ''
                 findings = _orientation_findings(r)
+
+            elif name == 'floating':
+                check = FloatingCheck(
+                    parts, label_fn,
+                    structural_labels=config['structural_labels'],
+                    max_gap_mm=config.get('max_gap_mm', 5.0),
+                    exempt_labels=config.get('exempt_labels'))
+                r = check.run()
+                passed = r.passed
+                details = '\n'.join(_format_floating(f) for f in r.floating) if r.floating else ''
+                findings = _floating_findings(r)
 
             else:
                 continue
@@ -360,6 +386,52 @@ def _format_misorientation(m) -> str:
     if m.actual_axis is None:
         return head
     return f"{head} — {suggest_rotation(m.actual_axis, m.expected_axis)}"
+
+
+def _format_floating(f) -> str:
+    """Compact CLI line: 'idler at (x,y,z) is 12mm from nearest cbeam'."""
+    cx, cy, cz = f.center
+    head = f"{f.label} at ({cx:.0f}, {cy:.0f}, {cz:.0f})"
+    if f.nearest_label is None:
+        return f"{head} — no structural part within reach"
+    return (f"{head} is {f.nearest_distance_mm:.1f}mm from nearest "
+            f"{f.nearest_label} (max gap allowed)")
+
+
+def _floating_findings(r: FloatingResult) -> List[Finding]:
+    out: List[Finding] = []
+    for f in r.floating:
+        if f.nearest_label is None:
+            suggestion = ("Verify this part is intentionally placed; if so, "
+                          "add its label to floating_check.exempt_labels. "
+                          "Otherwise its host part is missing from the assembly.")
+        else:
+            suggestion = (
+                f"Move toward nearest structural part ({f.nearest_label} at "
+                f"{tuple(round(x, 1) for x in (f.nearest_center or (0,0,0)))}) "
+                f"by {f.nearest_distance_mm:.1f}mm to anchor it; if this is "
+                f"intentional, add to floating_check.exempt_labels."
+            )
+        out.append(Finding(
+            id="cad.floating_part",
+            category="floating",
+            severity=Severity.FAIL,
+            message=(
+                f"{f.label} at ({f.center[0]:.0f}, {f.center[1]:.0f}, "
+                f"{f.center[2]:.0f}) is {f.nearest_distance_mm:.1f}mm from "
+                f"nearest structural part"
+                + (f" ({f.nearest_label})" if f.nearest_label else "")
+            ),
+            suggested_fix=suggestion,
+            evidence={
+                "label": f.label,
+                "center": list(f.center),
+                "bbox": list(f.bbox),
+                "nearest_label": f.nearest_label,
+                "nearest_distance_mm": round(f.nearest_distance_mm, 3),
+            },
+        ))
+    return out
 
 
 def _orientation_findings(r: OrientationResult) -> List[Finding]:
