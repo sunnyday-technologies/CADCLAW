@@ -196,6 +196,27 @@ class InterferenceModel(_Strict):
     min_clearance_mm: float = 1.0
 
 
+class FloatingCheckModel(_Strict):
+    """v0.9 gate #3 — flag parts that aren't adjacent to any structural part.
+
+    The gate compares each candidate part's axis-aligned bbox against
+    every part with a label in `structural_labels`. If the candidate's
+    minimum bbox-to-bbox distance to any structural part exceeds
+    `max_gap_mm`, the candidate is unmoored — flag as `cad.floating_part`.
+
+    Structural-labels is intentionally project-specific: in the M3-CRETE
+    field test it's `[cbeam, plate, idler_brk]`; in another project it
+    could be `[frame_rail, baseplate]`. The gate runs only when the list
+    is non-empty (default empty = opt-in).
+
+    `exempt_labels` skips parts that genuinely float (belts hang between
+    pulleys; that's by design). Default exempts `belt`.
+    """
+    structural_labels: List[str] = Field(default_factory=list)
+    exempt_labels: List[str] = Field(default_factory=lambda: ["belt"])
+    max_gap_mm: float = 5.0
+
+
 class ConfidenceBudgetModel(_Strict):
     checked: List[str] = Field(default_factory=list)
     not_checked: List[str] = Field(default_factory=list)
@@ -219,6 +240,7 @@ class RuleSet(_Strict):
     claim_audit: ClaimAuditModel = Field(default_factory=ClaimAuditModel)
     publish_audit: PublishAuditModel = Field(default_factory=PublishAuditModel)
     interference: InterferenceModel = Field(default_factory=InterferenceModel)
+    floating_check: FloatingCheckModel = Field(default_factory=FloatingCheckModel)
     confidence_budget: ConfidenceBudgetModel = Field(default_factory=ConfidenceBudgetModel)
 
     @field_validator("schema_version")
