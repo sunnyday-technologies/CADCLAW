@@ -311,12 +311,15 @@ def _aim_camera(renderer, shapes, view: str = "iso", azimuth: float = 0.0,
     adjusted by `zoom` (>1 zooms in, <1 zooms out).
 
     `view` picks the starting octant:
-      - "iso":  front-right-above (default, Fusion-like)
-      - "iso_left": front-left-above
-      - "front": looking along -Y (printer front face)
-      - "back":  looking along +Y
-      - "side":  looking along +X (right side)
-      - "top":   looking down +Z
+      - "iso":         front-right-above (default, Fusion-like)
+      - "iso_left":    front-left-above
+      - "iso_below":   front-right-BELOW — looks up into an open base
+      - "iso_below_left": front-left-below
+      - "front":       looking along -Y (printer front face)
+      - "back":        looking along +Y
+      - "side":        looking along +X (right side)
+      - "top":         looking down +Z
+      - "bottom":      looking up +Z (camera below)
     """
     xmin, xmax, ymin, ymax, zmin, zmax = _scene_bounds(shapes)
     cx = (xmin + xmax) / 2
@@ -326,12 +329,15 @@ def _aim_camera(renderer, shapes, view: str = "iso", azimuth: float = 0.0,
     # Direction unit vectors (from focal point toward camera).
     view = view.lower()
     directions = {
-        "iso":      (1.0, -1.0, 0.7),
-        "iso_left": (-1.0, -1.0, 0.7),
-        "front":    (0.0, -1.0, 0.0),
-        "back":     (0.0, 1.0, 0.0),
-        "side":     (1.0, 0.0, 0.0),
-        "top":      (0.0, 0.0, 1.0),
+        "iso":              (1.0, -1.0, 0.7),
+        "iso_left":         (-1.0, -1.0, 0.7),
+        "iso_below":        (1.0, -1.0, -0.7),
+        "iso_below_left":   (-1.0, -1.0, -0.7),
+        "front":            (0.0, -1.0, 0.0),
+        "back":             (0.0, 1.0, 0.0),
+        "side":             (1.0, 0.0, 0.0),
+        "top":              (0.0, 0.0, 1.0),
+        "bottom":           (0.0, 0.0, -1.0),
     }
     if view not in directions:
         raise ValueError(f"Unknown view preset: {view!r}")
