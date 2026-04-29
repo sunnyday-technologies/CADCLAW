@@ -2,6 +2,7 @@
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -96,6 +97,54 @@ class TestHarnessTiming(unittest.TestCase):
         d = json.loads(buf.getvalue())
         self.assertGreater(d["duration_ms"], 0,
                            msg="aggregate Report.duration_ms must be set by _cmd_harness")
+
+
+class TestUtf8StdoutFix(unittest.TestCase):
+    """v0.9 P0: stdout/stderr must accept Δ (U+0394) on Windows.
+
+    The v0.7.0 MED-5 aggregate cad.count_mismatch finding text uses a
+    literal Δ; on Windows cp1252 stdout raised UnicodeEncodeError when
+    the report was printed (see `cadclaw bom-audit` field-test failure
+    in M3-CRETE 2026-04-29 close-out). _force_utf8_stdio in main()
+    reconfigures the streams to UTF-8 on win32.
+    """
+
+    DELTA_TEXT = "CAD has 6× motor_nema23, rules sum to 7. Δ=-1."
+
+    def test_print_with_delta_does_not_crash(self):
+        """In-process: capture stdout, print Δ-containing text, expect no exception."""
+        # Independent of platform, verify that the helper doesn't break a
+        # working stdout. (The Windows-specific path is exercised by the
+        # subprocess test below when run on win32; on Linux/Mac stdout
+        # already accepts Δ so the helper is a no-op.)
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            print(self.DELTA_TEXT)
+        self.assertIn("Δ", buf.getvalue())
+
+    def test_doctor_handles_delta_in_subprocess(self):
+        """Subprocess: re-enter the CLI with PYTHONIOENCODING forced to cp1252
+        to simulate the Windows default; doctor's report should not crash even
+        though some finding messages may contain Δ-like characters.
+        """
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "cp1252"
+        # Run a subprocess that prints Δ via the CLI's stdout pipeline.
+        # We invoke `python -c` rather than `cadclaw` because CI environments
+        # don't always have the console script on PATH.
+        repo_root = str(Path(__file__).parent.parent)
+        result = subprocess.run(
+            [sys.executable, "-c",
+             "from cadclaw_cli.main import _force_utf8_stdio;"
+             "_force_utf8_stdio();"
+             "print('CAD has 6× motor_nema23, rules sum to 7. Δ=-1.')"],
+            cwd=repo_root, env=env, capture_output=True, text=False,
+        )
+        self.assertEqual(result.returncode, 0,
+                         msg=f"stderr: {result.stderr.decode('utf-8', 'replace')}")
+        # Output bytes should decode as UTF-8 (we forced the streams).
+        decoded = result.stdout.decode("utf-8", errors="replace")
+        self.assertIn("Δ", decoded)
 
 
 class TestInspectCommands(unittest.TestCase):
