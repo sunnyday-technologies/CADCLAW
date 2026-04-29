@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from cadclaw.rules import (
     BomRuleModel,
     InterferenceModel,
+    LabelSpec,
     RuleSet,
     SCHEMA_VERSION,
     dump_rules,
@@ -16,7 +17,7 @@ from cadclaw.rules import (
 
 
 GOOD_YAML = """
-schema_version: "0.7"
+schema_version: "0.9"
 meta:
   project: m3-crete
   step: examples/m3_crete/m3.step
@@ -57,7 +58,7 @@ class TestRuleLoader(unittest.TestCase):
         path = self._write_tmp(GOOD_YAML)
         try:
             rules = load_rules(path)
-            self.assertEqual(rules.schema_version, "0.7")
+            self.assertEqual(rules.schema_version, "0.9")
             self.assertEqual(rules.meta.project, "m3-crete")
             self.assertIn("cbeam", rules.labels)
             self.assertEqual(rules.expected_inventory["cbeam"], 17)
@@ -86,7 +87,7 @@ class TestRuleLoader(unittest.TestCase):
         text = GOOD_YAML + "\nlabels:\n  weird: [1000.0, 40.0, 80.0]\n"
         # actually we already define labels above; build a new file
         text2 = """
-schema_version: "0.7"
+schema_version: "0.9"
 labels:
   weird: [1000.0, 40.0, 80.0]
 """
@@ -114,13 +115,26 @@ labels:
                 load_rules(path)
             msg = str(cm.exception)
             self.assertIn("Migration", msg)
-            self.assertIn("0.7", msg)
+            self.assertIn("0.9", msg)
+        finally:
+            os.unlink(path)
+
+    def test_v07_schema_version_rejected_with_migration_hint(self):
+        """v0.9 schema bump: v0.7 yamls must carry a clear migration message."""
+        bad = 'schema_version: "0.7"\n'
+        path = self._write_tmp(bad)
+        try:
+            with self.assertRaises(ValidationError) as cm:
+                load_rules(path)
+            msg = str(cm.exception)
+            self.assertIn("0.9", msg)
+            self.assertIn("expected_face", msg)
         finally:
             os.unlink(path)
 
     def test_extra_top_level_field_rejected(self):
         bad = """
-schema_version: "0.7"
+schema_version: "0.9"
 not_a_real_section: foo
 """
         path = self._write_tmp(bad)
@@ -132,7 +146,7 @@ not_a_real_section: foo
 
     def test_bad_label_signature_shape_rejected(self):
         bad = """
-schema_version: "0.7"
+schema_version: "0.9"
 labels:
   cbeam: [40.0, 80.0]
 """
@@ -185,6 +199,101 @@ class TestBomRuleModel(unittest.TestCase):
             BomRuleModel(id=5, not_a_field="x")
 
 
+class TestLabelSpec(unittest.TestCase):
+    """v0.9 gate #1 schema: `labels:` accepts both 3-tuple and dict forms."""
+
+    def _write_tmp(self, text: str) -> str:
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+            f.write(text)
+            return f.name
+
+    def test_legacy_3tuple_form_still_works(self):
+        text = (
+            'schema_version: "0.9"\n'
+            'labels:\n'
+            '  cbeam: [40.0, 80.0, 1000.0]\n'
+        )
+        path = self._write_tmp(text)
+        try:
+            rules = load_rules(path)
+            self.assertEqual(rules.labels["cbeam"].sig, [40.0, 80.0, 1000.0])
+            self.assertIsNone(rules.labels["cbeam"].expected_face)
+        finally:
+            os.unlink(path)
+
+    def test_dict_form_with_expected_face(self):
+        text = (
+            'schema_version: "0.9"\n'
+            'labels:\n'
+            '  idler_bracket:\n'
+            '    sig: [5.0, 30.0, 30.0]\n'
+            '    expected_face: YZ\n'
+            '    expected_against: cbeam\n'
+            '    max_gap_mm: 0.5\n'
+        )
+        path = self._write_tmp(text)
+        try:
+            rules = load_rules(path)
+            spec = rules.labels["idler_bracket"]
+            self.assertEqual(spec.sig, [5.0, 30.0, 30.0])
+            self.assertEqual(spec.expected_face, "YZ")
+            self.assertEqual(spec.expected_against, "cbeam")
+            self.assertEqual(spec.max_gap_mm, 0.5)
+            # YZ → largest face normal along X (axis index 0).
+            self.assertEqual(spec.thinnest_axis_index(), 0)
+        finally:
+            os.unlink(path)
+
+    def test_face_aliases_canonicalized(self):
+        # YX should canonicalize to XY, ZY → YZ, ZX → XZ.
+        s = LabelSpec(sig=[1.0, 2.0, 3.0], expected_face="zy")
+        self.assertEqual(s.expected_face, "YZ")
+        s = LabelSpec(sig=[1.0, 2.0, 3.0], expected_face="yx")
+        self.assertEqual(s.expected_face, "XY")
+
+    def test_invalid_face_rejected(self):
+        from pydantic import ValidationError
+        with self.assertRaises(ValidationError):
+            LabelSpec(sig=[1.0, 2.0, 3.0], expected_face="ABC")
+
+    def test_label_to_sig_handles_both_forms(self):
+        text = (
+            'schema_version: "0.9"\n'
+            'labels:\n'
+            '  cbeam: [40.0, 80.0, 1000.0]\n'
+            '  bracket:\n'
+            '    sig: [5.0, 30.0, 30.0]\n'
+            '    expected_face: YZ\n'
+        )
+        path = self._write_tmp(text)
+        try:
+            rules = load_rules(path)
+            l2s = rules.label_to_sig()
+            self.assertEqual(l2s["cbeam"], (40.0, 80.0, 1000.0))
+            self.assertEqual(l2s["bracket"], (5.0, 30.0, 30.0))
+            s2l = rules.sig_to_label()
+            self.assertEqual(s2l[(40.0, 80.0, 1000.0)], "cbeam")
+            self.assertEqual(s2l[(5.0, 30.0, 30.0)], "bracket")
+        finally:
+            os.unlink(path)
+
+    def test_label_specs_excludes_belt_heuristic(self):
+        text = (
+            'schema_version: "0.9"\n'
+            'labels:\n'
+            '  cbeam: [40.0, 80.0, 1000.0]\n'
+            'belt_heuristic: true\n'
+        )
+        path = self._write_tmp(text)
+        try:
+            rules = load_rules(path)
+            specs = rules.label_specs()
+            self.assertIn("cbeam", specs)
+            self.assertNotIn("belt_heuristic", specs)
+        finally:
+            os.unlink(path)
+
+
 class TestInterferenceModel(unittest.TestCase):
     """v0.7.1 Ergo-1: optional `interference:` section in cadclaw.yaml."""
 
@@ -194,7 +303,7 @@ class TestInterferenceModel(unittest.TestCase):
             return f.name
 
     def test_defaults_when_section_omitted(self):
-        path = self._write_tmp('schema_version: "0.7"\n')
+        path = self._write_tmp('schema_version: "0.9"\n')
         try:
             rules = load_rules(path)
             self.assertEqual(rules.interference.skip_labels, [])
@@ -205,7 +314,7 @@ class TestInterferenceModel(unittest.TestCase):
 
     def test_yaml_overrides_clearance_and_skips(self):
         text = (
-            'schema_version: "0.7"\n'
+            'schema_version: "0.9"\n'
             'interference:\n'
             '  skip_labels: [belt, vwheel]\n'
             '  min_clearance_mm: 0.5\n'

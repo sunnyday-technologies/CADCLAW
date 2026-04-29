@@ -6,6 +6,44 @@ Authoritative cross-machine carry-over for post-release work. Travels with `git 
 
 ---
 
+## In progress — v0.9 (active development line)
+
+Driven by the M3-CRETE 2026-04-29 V1.0 close-out field test
+(`D:/SunnydayTech/M3-CRETE/docs/session_logs/2026-04-29-cadclaw-close-out-handoff.md`).
+The user's V1.0 freeze surfaced 6 manual fixes that "should have been done by
+CADCLAW" — orientation issues, color mismatches, and a floating part that
+geometric checks missed.
+
+**Shipped on `main` toward v0.9** (not yet released as a tag/PyPI):
+- **P0 — cp1252 stdout fix** (commit `4eef772`). `_force_utf8_stdio()` in
+  `main()` reconfigures Windows stdout/stderr to UTF-8 so the v0.7.0 MED-5
+  `Δ` character no longer crashes `cadclaw bom-audit`.
+- **Gate #7 — `cadclaw inspect cluster <step>`** (commit `01e21d3`).
+  Single-link agglomerative spatial clustering. Replaces the manual
+  10-minute "where are these unlabeled parts?" analysis that the V1.0
+  session ran by eye.
+- **Gate #1 — orientation / face-mate gate** (this commit). New schema
+  `0.7 → 0.9` extends `labels:` to accept either a 3-tuple (legacy) or a
+  `LabelSpec` dict with `expected_face` / `expected_against` / `max_gap_mm`.
+  New `cadclaw/orientation.py` module computes each part's UNSORTED bbox
+  thinnest-axis and compares against the rule's expected face plane.
+  Closes 4 of 6 V1.0 manual fixes: misoriented idlers + connectors that
+  had correct bboxes but wrong rotation. Findings carry a structured
+  `suggested_fix` describing the rotation (e.g. `"rotate 90° about Z"`),
+  matching the v0.7.1 interference auto-fix-vector pattern.
+
+**Remaining v0.9 work** before cutting a release tag:
+- Gate #2 — color/material attribute check (closes V1.0 fixes 1 + 6).
+- Gate #3 — floating-part detection (closes V1.0 fix 2).
+- Gates #4–9 may slip to v0.9.x if v0.9.0 ships with #1 + #2 + #3.
+
+**Schema migration** for users on v0.7 / v0.8.0 yamls: bump
+`schema_version: "0.9"`. Existing 3-tuple labels keep working unchanged.
+v0.6 / v0.7 → v0.9 migration error message in `rules.py:_check_version`
+spells this out.
+
+---
+
 ## Current version
 
 **v0.8.0** — module rename `cadharness` → `cadclaw` prepared on 2026-04-29.
