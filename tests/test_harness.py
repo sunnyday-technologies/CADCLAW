@@ -265,6 +265,73 @@ class TestInspectModule(unittest.TestCase):
             find_overlaps(self.parts, self._label_fn)
 
 
+class TestClusterParts(unittest.TestCase):
+    """v0.9 gate #7: spatial clustering of unlabeled parts."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.parts = load_and_dedup(os.path.join(FIXTURES, "L3_good.step"))
+
+    def _label_fn(self, part):
+        return L3_LABELS.get(sig(part), "other")
+
+    def test_returns_empty_when_no_matches(self):
+        from cadclaw.inspect import cluster_parts
+        clusters = cluster_parts(self.parts, label_fn=self._label_fn,
+                                 target_label="not_a_real_label")
+        self.assertEqual(clusters, [])
+
+    def test_clusters_have_sane_structure(self):
+        from cadclaw.inspect import cluster_parts
+        clusters = cluster_parts(self.parts, label_fn=self._label_fn,
+                                 target_label=None, radius_mm=200.0)
+        self.assertGreater(len(clusters), 0)
+        # Sorted by member count desc.
+        for i in range(len(clusters) - 1):
+            self.assertGreaterEqual(
+                len(clusters[i].members), len(clusters[i + 1].members))
+        # Names are sequential.
+        for i, c in enumerate(clusters, start=1):
+            self.assertEqual(c.name, f"cluster_{i}")
+        # Total members == total candidate parts.
+        total = sum(len(c.members) for c in clusters)
+        self.assertEqual(total, len(self.parts))
+
+    def test_radius_is_respected(self):
+        """A tiny radius must not merge spatially separated parts."""
+        from cadclaw.inspect import cluster_parts
+        big_radius = cluster_parts(self.parts, label_fn=self._label_fn,
+                                    target_label=None, radius_mm=10000.0)
+        tiny_radius = cluster_parts(self.parts, label_fn=self._label_fn,
+                                     target_label=None, radius_mm=1.0)
+        # Big radius should agglomerate everything into 1 cluster (or nearly).
+        # Tiny radius should leave most parts as singletons.
+        self.assertEqual(len(big_radius), 1)
+        self.assertGreater(len(tiny_radius), 1)
+
+    def test_centroid_inside_bbox(self):
+        from cadclaw.inspect import cluster_parts
+        clusters = cluster_parts(self.parts, label_fn=self._label_fn,
+                                 target_label=None, radius_mm=500.0)
+        for c in clusters:
+            cx, cy, cz = c.centroid
+            xmin, ymin, zmin, xmax, ymax, zmax = c.bbox
+            self.assertGreaterEqual(cx, xmin)
+            self.assertLessEqual(cx, xmax)
+            self.assertGreaterEqual(cy, ymin)
+            self.assertLessEqual(cy, ymax)
+            self.assertGreaterEqual(cz, zmin)
+            self.assertLessEqual(cz, zmax)
+
+    def test_sig_histogram_sums_to_member_count(self):
+        from cadclaw.inspect import cluster_parts
+        clusters = cluster_parts(self.parts, label_fn=self._label_fn,
+                                 target_label=None, radius_mm=500.0)
+        for c in clusters:
+            hist_total = sum(b.count for b in c.sig_histogram)
+            self.assertEqual(hist_total, len(c.members))
+
+
 # ============================================================
 # LEVEL 2 TESTS: Motor mount assembly
 # ============================================================

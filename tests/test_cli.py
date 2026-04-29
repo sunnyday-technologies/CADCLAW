@@ -233,6 +233,27 @@ class TestInspectCommands(unittest.TestCase):
         self.assertEqual(code, 3)
         self.assertIn("--rules", err.getvalue())
 
+    def test_inspect_cluster_with_default_radius_outputs(self):
+        """v0.9 gate #7: `cadclaw inspect cluster <step>` produces region buckets."""
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            code = main(["inspect", "cluster", str(self.L3_GOOD),
+                         "--radius", "200"])
+        self.assertEqual(code, 0)
+        body = buf.getvalue()
+        self.assertIn("cluster_1", body)
+        self.assertIn("centroid", body)
+        self.assertIn("bbox", body)
+
+    def test_inspect_cluster_label_without_rules_fails(self):
+        buf = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(buf), _redirect_stderr(err):
+            code = main(["inspect", "cluster", str(self.L3_GOOD),
+                         "--label", "wheel"])
+        self.assertEqual(code, 3)
+        self.assertIn("--rules", err.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
