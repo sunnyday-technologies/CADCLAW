@@ -6,8 +6,13 @@ meta:
   project: v09_sandbox
   step: tests/fixtures/v09_sandbox/v09_assembly.step
 
-# Two structural labels (legacy 3-tuple form), one orientation-aware
-# label (v0.9 LabelSpec form), two attached/floating candidates.
+# Mix of legacy 3-tuple labels and v0.9 LabelSpec dict form. Each gate
+# has its own seeded test case:
+#   - idler_bracket   → orientation gate (one rotated wrong)
+#   - motor_mount     → color gate (correctly green; passes)
+#   - top_brace       → color gate (authored black; FAILS)
+#   - idler           → floating gate (one placed in space; FAILS)
+#   - nut             → cluster diagnostic (4 grouped in one region)
 labels:
   cbeam:
     sig: [40.0, 80.0, 1000.0]
@@ -18,6 +23,14 @@ labels:
     expected_face: YZ          # largest face in YZ → thinnest axis must be X
     expected_against: cbeam
     max_gap_mm: 5.0
+  motor_mount:
+    sig: [4.0, 80.0, 97.0]
+    expected_color: "#969F00"  # Sunnyday green
+    color_tolerance_rgb: 5
+  top_brace:
+    sig: [6.0, 80.0, 110.0]
+    expected_color: "#969F00"  # also Sunnyday green
+    color_tolerance_rgb: 5
   idler:
     sig: [12.7, 22.0, 22.0]
   nut:
@@ -29,14 +42,18 @@ expected_inventory:
   cbeam: 1
   plate_anchor: 1
   idler_bracket: 3
+  motor_mount: 1
+  top_brace: 1
   idler: 3
   nut: 4
 
 # v0.9 gate #3: cbeam, plate, and idler_bracket are anchors. The two
 # correctly-attached idlers sit on top of the brackets (within max_gap),
 # so they pass; the floating idler at (1500, 500, 500) is far from
-# everything → flagged.
+# everything → flagged. motor_mount + top_brace are also exempt because
+# they're isolated stand-ins for the color gate, not part of the floating
+# scenario.
 floating_check:
   structural_labels: [cbeam, plate_anchor, idler_bracket]
-  exempt_labels: [belt]
+  exempt_labels: [belt, motor_mount, top_brace]
   max_gap_mm: 5.0
