@@ -1,7 +1,7 @@
 """
 Inspect — diagnostic queries against a STEP assembly.
 
-Three pure functions, each replacing a class of throwaway probe script
+Four pure functions, each replacing a class of throwaway probe script
 that field users (humans + AI agents) keep rewriting:
 
 - `histogram_signatures`  — bbox-signature counts. ("what's in this STEP?")
@@ -9,9 +9,11 @@ that field users (humans + AI agents) keep rewriting:
                             ("what is this part?")
 - `find_overlaps`         — interference clips touching a target part.
                             ("what overlaps this plate?")
+- `cluster_parts`         — group parts by spatial proximity. ("which
+                            X-carriage region are these 32 'other' parts in?")
 
-The CLI exposes these as `cadclaw inspect sigs|part|overlaps`. Findings
-output is intentionally plain — these are diagnostics, not gates.
+The CLI exposes these as `cadclaw inspect sigs|part|overlaps|cluster`.
+Findings output is intentionally plain — these are diagnostics, not gates.
 """
 from __future__ import annotations
 
@@ -191,6 +193,122 @@ def find_overlaps(parts: list,
 
     relevant = [c for c in result.clips if _matches(c)]
     return relevant, len(matching_idx)
+
+
+@dataclass
+class PartCluster:
+    """A spatial cluster of parts produced by `cluster_parts`."""
+    name: str                       # 'cluster_1', 'cluster_2', ...
+    members: List[PartInfo]         # parts in this cluster
+    centroid: Point3                # arithmetic mean of member centers
+    bbox: BBox6                     # axis-aligned hull of all member bboxes
+    sig_histogram: List[SigBucket]  # signature counts within the cluster
+
+
+def _bbox_hull(bboxes: List[BBox6]) -> BBox6:
+    xmin = min(b[0] for b in bboxes)
+    ymin = min(b[1] for b in bboxes)
+    zmin = min(b[2] for b in bboxes)
+    xmax = max(b[3] for b in bboxes)
+    ymax = max(b[4] for b in bboxes)
+    zmax = max(b[5] for b in bboxes)
+    return (xmin, ymin, zmin, xmax, ymax, zmax)
+
+
+def _euclid(a: Point3, b: Point3) -> float:
+    return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2) ** 0.5
+
+
+def cluster_parts(parts: list,
+                  label_fn: Optional[Callable] = None,
+                  target_label: Optional[str] = None,
+                  radius_mm: float = 100.0) -> List[PartCluster]:
+    """Group parts by spatial proximity (single-link agglomerative).
+
+    Two parts join the same cluster if their bbox centers are within
+    `radius_mm`. Single-link semantics extend transitively, so a chain
+    of close-together parts ends up in one cluster even if its endpoints
+    are farther apart than `radius_mm`. This matches the CAD use case:
+    "find the X-carriage region" rather than "find tight ball-shaped
+    clusters."
+
+    `target_label` filters the input to one label before clustering;
+    pass `None` to cluster every part. `target_label="other"` is the
+    canonical use case (group the unlabeled remainder by spatial region).
+
+    Clusters are returned sorted by member count descending. Each cluster
+    carries a centroid, bbox hull, and per-signature histogram so the
+    CLI / agent can quickly see "what's in this region."
+    """
+    candidates: List[PartInfo] = []
+    for p in parts:
+        s_raw = sig(p)
+        if len(s_raw) != 3:
+            continue
+        s: Sig3 = (s_raw[0], s_raw[1], s_raw[2])
+        lbl = label_fn(p) if label_fn else ""
+        if target_label is not None and lbl != target_label:
+            continue
+        candidates.append(PartInfo(
+            label=lbl or "",
+            sig=s,
+            center=center(p),
+            bbox=_bbox_tuple(p),
+        ))
+
+    n = len(candidates)
+    if n == 0:
+        return []
+
+    # Single-link agglomerative — Union-Find over pairwise center distance.
+    parent = list(range(n))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def union(i: int, j: int) -> None:
+        ri, rj = find(i), find(j)
+        if ri != rj:
+            parent[ri] = rj
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            if _euclid(candidates[i].center, candidates[j].center) <= radius_mm:
+                union(i, j)
+
+    groups: Dict[int, List[int]] = {}
+    for i in range(n):
+        groups.setdefault(find(i), []).append(i)
+
+    clusters: List[PartCluster] = []
+    for member_idxs in groups.values():
+        members = [candidates[i] for i in member_idxs]
+        cx = sum(m.center[0] for m in members) / len(members)
+        cy = sum(m.center[1] for m in members) / len(members)
+        cz = sum(m.center[2] for m in members) / len(members)
+        hull = _bbox_hull([m.bbox for m in members])
+        sig_counts: Dict[Sig3, int] = {}
+        for m in members:
+            sig_counts[m.sig] = sig_counts.get(m.sig, 0) + 1
+        sig_buckets = [
+            SigBucket(sig=s, count=c, label=None)
+            for s, c in sorted(sig_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        ]
+        clusters.append(PartCluster(
+            name="",  # assigned after sorting
+            members=members,
+            centroid=(cx, cy, cz),
+            bbox=hull,
+            sig_histogram=sig_buckets,
+        ))
+
+    clusters.sort(key=lambda c: (-len(c.members), c.centroid))
+    for i, c in enumerate(clusters, start=1):
+        c.name = f"cluster_{i}"
+    return clusters
 
 
 def load_parts(step_path: str) -> list:

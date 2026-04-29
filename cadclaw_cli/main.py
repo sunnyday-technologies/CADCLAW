@@ -9,7 +9,7 @@ Subcommands:
   cadclaw publish-audit  --rules cadclaw.yaml    # private-data boundary scan
   cadclaw inventory      --rules cadclaw.yaml    # part counts + regions
   cadclaw harness        --rules cadclaw.yaml    # union runner
-  cadclaw inspect sigs|part|overlaps <step>      # diagnostic queries
+  cadclaw inspect sigs|part|overlaps|cluster <step>  # diagnostic queries
 
 Exit codes:
   0  — pass
@@ -452,6 +452,48 @@ def _cmd_inspect_overlaps(args: argparse.Namespace) -> int:
     return 1 if clips else 0
 
 
+def _cmd_inspect_cluster(args: argparse.Namespace) -> int:
+    from cadclaw.inspect import cluster_parts, load_parts
+
+    parts = load_parts(args.step)
+    label_fn = _resolve_label_fn(args.rules) if args.rules else None
+
+    if args.label and label_fn is None:
+        print("error: --label requires --rules to resolve labels",
+              file=sys.stderr)
+        return 3
+
+    clusters = cluster_parts(
+        parts, label_fn=label_fn,
+        target_label=args.label, radius_mm=args.radius,
+    )
+
+    if not clusters:
+        print("no parts matched the cluster target.")
+        return 0
+
+    target_desc = f"label={args.label!r}" if args.label else "all parts"
+    print(f"{len(clusters)} cluster(s) of {target_desc} (radius {args.radius:g}mm):")
+    print()
+    for c in clusters:
+        cx, cy, cz = c.centroid
+        xmin, ymin, zmin, xmax, ymax, zmax = c.bbox
+        print(f"  {c.name}: {len(c.members)} parts at "
+              f"centroid ({cx:.0f}, {cy:.0f}, {cz:.0f})")
+        print(f"    bbox  X=[{xmin:.0f},{xmax:.0f}] "
+              f"Y=[{ymin:.0f},{ymax:.0f}] "
+              f"Z=[{zmin:.0f},{zmax:.0f}]")
+        if c.sig_histogram:
+            sig_summary = ", ".join(
+                f"{b.count}× ({','.join(f'{x:g}' for x in b.sig)})"
+                for b in c.sig_histogram[:5]
+            )
+            more = "" if len(c.sig_histogram) <= 5 else f" + {len(c.sig_histogram) - 5} more"
+            print(f"    sigs  {sig_summary}{more}")
+        print()
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="cadclaw",
@@ -571,6 +613,25 @@ def build_parser() -> argparse.ArgumentParser:
     p_ov.add_argument("--rules", default=None,
                      help="cadclaw.yaml — required when using --label.")
     p_ov.set_defaults(func=_cmd_inspect_overlaps)
+
+    p_cluster = insp_sub.add_parser(
+        "cluster",
+        help="Group parts by spatial proximity (single-link agglomerative).",
+        description=(
+            "Cluster parts into spatial regions. Useful for finding 'where "
+            "are these unlabeled parts in the assembly?' — single-link "
+            "groups any two parts whose bbox centers are within --radius."
+        ),
+    )
+    p_cluster.add_argument("step")
+    p_cluster.add_argument("--label", default=None,
+                           help="Cluster only parts of this label (requires --rules); "
+                                "default clusters every part.")
+    p_cluster.add_argument("--radius", type=float, default=100.0,
+                           help="Single-link radius in mm. Default 100.0.")
+    p_cluster.add_argument("--rules", default=None,
+                           help="Optional cadclaw.yaml for label resolution.")
+    p_cluster.set_defaults(func=_cmd_inspect_cluster)
 
     return p
 
