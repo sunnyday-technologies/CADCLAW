@@ -4,7 +4,8 @@
   "creators": [
     {
       "name": "Sonnentag, Nicholas",
-      "affiliation": "Sunnyday Technologies"
+      "affiliation": "Sunnyday Technologies",
+      "orcid": "0009-0002-1897-384X"
     }
   ],
   "description": "Automated validation, interference detection, and structural analysis for STEP assemblies. Provides inventory/adjacency/dimensional gates, tolerance stacking (worst-case / RSS / Monte Carlo), disassembly-sequence rendering, and an MCP server exposing all capabilities to AI coding assistants.",
