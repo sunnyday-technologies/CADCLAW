@@ -488,3 +488,89 @@ footer {
 .not-prove-list li strong {
   color: var(--ink);
 }
+
+/* 2026-05-07: Sunnyday open-source family refresh.
+   Same brand system as Sunn3D/CEMFORGE, with a looser project-hub tone. */
+:root {
+  --navy-deep: #f7f8f5;
+  --navy: #013a73;
+  --navy-2: #ffffff;
+  --navy-3: #d9dfdf;
+  --green: #97d700;
+  --green-hi: #a8ee00;
+  --green-dim: #6b7b2f;
+  --ink: #071421;
+  --ink-dim: #4b5560;
+  --ink-faint: #5c6670;
+  --rule: #d9dfdf;
+  --rule-soft: #e6e9e7;
+  --code-bg: #e6e9e7;
+}
+
+html,
+body {
+  background: #f7f8f5;
+  color: #071421;
+}
+
+.nav {
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom-color: #d9dfdf;
+}
+
+.hero,
+.strip,
+.section,
+footer {
+  border-color: #d9dfdf;
+}
+
+.gate,
+.callout,
+.audience-card,
+.output-media,
+pre.code {
+  background: #ffffff;
+  border-color: #d9dfdf;
+}
+
+.section.dark {
+  background: #e6e9e7;
+}
+
+.hero h1,
+.section h2,
+.gate h3,
+.audience-card h3,
+.foot-grid h4 {
+  color: #013a73;
+}
+
+.tag,
+.lede,
+.gate p,
+.audience-card p,
+.not-prove-list li,
+.foot-grid p,
+.foot-grid a,
+.muted-strip {
+  color: #4b5560;
+}
+
+a,
+.nav nav a.ghost,
+.hero h1::before {
+  color: #013a73;
+}
+
+a:hover,
+.nav nav a:hover {
+  color: #071421;
+}
+
+.cta.primary,
+.nav nav a.ghost:hover {
+  background: #97d700;
+  color: #071421;
+  border-color: #97d700;
+}
