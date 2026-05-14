@@ -1,12 +1,12 @@
 # CADCLAW — Session Handoff
 
-Last updated: 2026-04-29
+Last updated: 2026-05-14
 
 Authoritative cross-machine carry-over for post-release work. Travels with `git pull`.
 
 ---
 
-## In progress — v0.9 (active development line)
+## Current version — v0.9.0
 
 Driven by the M3-CRETE 2026-04-29 V1.0 close-out field test
 (`D:/SunnydayTech/M3-CRETE/docs/session_logs/2026-04-29-cadclaw-close-out-handoff.md`).
@@ -14,7 +14,7 @@ The user's V1.0 freeze surfaced 6 manual fixes that "should have been done by
 CADCLAW" — orientation issues, color mismatches, and a floating part that
 geometric checks missed.
 
-**Shipped on `main` toward v0.9** (not yet released as a tag/PyPI):
+**Shipped in v0.9.0:**
 - **P0 — cp1252 stdout fix** (commit `4eef772`). `_force_utf8_stdio()`
   in `main()` reconfigures Windows stdout/stderr to UTF-8 so the v0.7.0
   MED-5 `Δ` character no longer crashes `cadclaw bom-audit`.
@@ -43,14 +43,21 @@ geometric checks missed.
     to fire exactly the seeded findings against known-bad geometry.
     Lets v0.9 gate work iterate without bouncing to M3-CRETE.
 
-**Remaining v0.9 work** before cutting a release tag:
-- **Gate #2** — color/material attribute check (closes V1.0 fixes 1
-  + 6: motor mount and top brace authored black instead of green).
-  Per user direction 2026-04-29, simpler than originally specced —
-  per-channel RGB tolerance instead of CIELAB ΔE.
+**Release-close work completed 2026-05-14:**
+- **Gate #2 — color/material attribute check.** `cadclaw/color_check.py`
+  verifies AP242 STEP color metadata against `LabelSpec.expected_color`
+  with per-channel RGB tolerance. The YAML harness runs this gate when
+  any label has `expected_color` set, and the v0.9 sandbox asserts the
+  seeded wrong-color part while letting the correctly colored part pass.
+- **Local release runtime.** Created `D:/SunnydayTech/CADCLAW/.venv`
+  from UV-managed CPython 3.11.15 and installed CADCLAW editable with
+  CadQuery 2.7.0, OCP 7.8.1.1, VTK 9.3.1, PyYAML 6.0.3, and Pydantic
+  2.13.4.
+- **Verification.** `cadclaw doctor --report-format json` passes and
+  reports 17 MCP tools. `python -m unittest discover tests` passes:
+  287 tests in ~82 s.
 
-Once gate #2 lands, cut v0.9.0. Gates #4, #5, #6, #8, #9 may slip
-to v0.9.x.
+Gates #4, #5, #6, #8, and #9 remain future v0.9.x/v1.0 candidates.
 
 **Schema migration** for users on v0.7 / v0.8.0 yamls: bump
 `schema_version: "0.9"`. Existing 3-tuple labels keep working unchanged.
@@ -59,7 +66,7 @@ spells this out.
 
 ---
 
-## Current version
+## Previously: v0.8.0
 
 **v0.8.0** — module rename `cadharness` → `cadclaw` prepared on 2026-04-29.
 
@@ -95,7 +102,9 @@ that costs zero engineering for downstream users while clearing the import-
 name embarrassment for new ones. Builder primitives stay parked until M3-CRETE
 surfaces a real demand.
 
-**PyPI status:** PyPI is currently stuck at v0.5.0; v0.6, v0.7, v0.7.1 were never published. v0.8.0 is the clean re-publish point — `pip install --upgrade cadclaw` will jump users from 0.5.0 → 0.8.0 in one move with no broken imports.
+**PyPI status at v0.8.0 prep time:** PyPI was still at v0.5.0; v0.6,
+v0.7, and v0.7.1 were not published. v0.9.0 is now the intended
+catch-up release point once the package is built and uploaded.
 
 ---
 

@@ -4,9 +4,10 @@ title: "CADCLAW: Automated validation framework for STEP-based CAD assemblies"
 abstract: >-
   CADCLAW is an automated validation and analysis framework for STEP
   assemblies, providing interference detection, inventory checks,
-  adjacency rules, dimensional gates, kinematics, tolerance stacking
-  (worst-case / RSS / Monte Carlo), and disassembly-sequence rendering.
-  Includes an MCP server exposing all gates to AI coding assistants.
+  adjacency rules, dimensional, orientation, floating-part, and color/material
+  gates, kinematics, tolerance stacking (worst-case / RSS / Monte Carlo), and
+  disassembly-sequence rendering. Includes an MCP server exposing core
+  CADCLAW checks to AI coding assistants.
 type: software
 authors:
   - family-names: Sonnentag
@@ -32,5 +33,5 @@ keywords:
   - tolerance-analysis
   - interference-detection
   - mcp
-version: "0.8.0"
-date-released: "2026-04-26"
+version: "0.9.0"
+date-released: "2026-05-14"

@@ -1,9 +1,10 @@
 """
 CADCLAW MCP Server — Model Context Protocol interface for CAD validation.
 
-Exposes CADCLAW's 5 validation gates as tools that Claude (or any MCP client)
-can call directly. No code generation needed — the user describes what they
-want checked, Claude calls the appropriate tools.
+Exposes CADCLAW's core validation, analysis, and audit checks as tools that an
+MCP-compatible client can call directly. No CAD authoring access is granted:
+the user describes what they want checked, and the client calls the appropriate
+CADCLAW tool.
 
 Tools:
   - load_assembly: Load a STEP file and return part inventory summary
@@ -17,6 +18,12 @@ Tools:
   - tolerance_stack: Worst-case / RSS / Monte Carlo tolerance analysis
   - disassembly_sequence: Ordered part-removal plan
   - export_exploded_view: Radial or axial exploded STEP export
+  - doctor: Environment diagnostics
+  - check_bom_against_cad: BOM JSON vs STEP audit
+  - check_publish_boundary: privacy / publish-boundary audit
+  - check_claims: public-claim audit
+  - check_region_inventory: inventory with region constraints
+  - compare_step_parity: STEP-vs-STEP dim-signature comparison
 
 Usage:
   python -m cadclaw_mcp.server
@@ -51,6 +58,7 @@ from cadclaw.bom_audit import run_bom_audit
 from cadclaw.publish_audit import run_publish_audit
 from cadclaw.claim_audit import run_claim_audit
 from cadclaw.parity import compare_steps
+from cadclaw import __version__ as CADCLAW_VERSION
 
 # ============================================================
 # MCP Protocol Implementation (stdio transport)
@@ -351,7 +359,7 @@ def tool_disassembly_sequence(path: str, labels: dict = None,
 
 
 def tool_doctor() -> dict:
-    """Run the v0.6 environment doctor (Python, venv, deps, MCP, repo signals)."""
+    """Run the environment doctor (Python, venv, deps, MCP, repo signals)."""
     report = run_doctor()
     return report.to_dict()
 
@@ -658,7 +666,7 @@ TOOLS = [
     },
     {
         "name": "doctor",
-        "description": "Run the v0.6 environment doctor: Python, venv, dependencies, MCP self-check, repo signals.",
+        "description": "Run the environment doctor: Python, venv, dependencies, MCP self-check, repo signals.",
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
@@ -796,7 +804,7 @@ def handle_request(request: dict) -> dict:
                 "capabilities": {"tools": {}},
                 "serverInfo": {
                     "name": "CADCLAW",
-                    "version": "0.8.0",
+                    "version": CADCLAW_VERSION,
                 },
             },
         }
@@ -858,7 +866,7 @@ def handle_request(request: dict) -> dict:
 
 def main():
     """Run the MCP server over stdio."""
-    sys.stderr.write("CADCLAW MCP Server v0.1.0 starting...\n")
+    sys.stderr.write(f"CADCLAW MCP Server v{CADCLAW_VERSION} starting...\n")
     sys.stderr.flush()
 
     while True:
