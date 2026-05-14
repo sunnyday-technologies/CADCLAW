@@ -6,6 +6,22 @@ Authoritative cross-machine carry-over for post-release work. Travels with `git 
 
 ---
 
+## Closeout — 2026-05-14
+
+- **GitHub release state:** v0.9.0 release prep is committed and annotated
+  tag `v0.9.0` is pushed. `main` also contains
+  `docs/M3_CONFIGURATOR_PLAN.md` as the next-session planning handoff.
+- **PyPI state:** PyPI upload was intentionally deferred. Twine reached
+  PyPI but no non-interactive credentials were configured in the local
+  environment. Given the pivot to M3 configurator work, hold PyPI until
+  CADCLAW 1.0 unless a user explicitly asks to publish v0.9.x earlier.
+- **Next session:** start from `docs/M3_CONFIGURATOR_PLAN.md`. The
+  guiding correction is that CADCLAW-as-configurator should place
+  authored STEP components and generate only stock-like geometry
+  (extrusion cuts, explicit belts, optional fastener stand-ins).
+
+---
+
 ## Current version — v0.9.0
 
 Driven by the M3-CRETE 2026-04-29 V1.0 close-out field test
@@ -103,8 +119,9 @@ name embarrassment for new ones. Builder primitives stay parked until M3-CRETE
 surfaces a real demand.
 
 **PyPI status at v0.8.0 prep time:** PyPI was still at v0.5.0; v0.6,
-v0.7, and v0.7.1 were not published. v0.9.0 is now the intended
-catch-up release point once the package is built and uploaded.
+v0.7, and v0.7.1 were not published. As of the 2026-05-14 closeout,
+v0.9.0 is tagged on GitHub but PyPI publishing is deferred until 1.0
+unless explicitly requested earlier.
 
 ---
 
