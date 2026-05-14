@@ -1,13 +1,13 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "cadclaw"
-version = "0.8.0"
+version = "0.9.0"
 description = "CADCLAW — Automated geometric validation for STEP assemblies, with BOM-vs-CAD audit and an honesty toolchain (doctor, publish-audit, claim-audit). Includes an MCP server."
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.10"
 authors = [
     {name = "Sunnyday Technologies", email = "info@sunn3d.com"},
@@ -17,7 +17,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Manufacturing",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -29,6 +28,7 @@ dependencies = [
     "Pillow>=10.0",
     "pyyaml>=6.0",
     "pydantic>=2.5",
+    "vtk>=9.3",
 ]
 
 [project.scripts]

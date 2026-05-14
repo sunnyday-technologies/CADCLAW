@@ -198,7 +198,7 @@ def _cmd_publish_audit(args: argparse.Namespace) -> int:
 
 
 def _cmd_harness(args: argparse.Namespace) -> int:
-    """Union runner — runs every gate that the rule file declares."""
+    """Union runner — runs YAML-backed checks that the rule file configures."""
     import time
     from cadclaw.findings import Finding, ConfidenceBudget
     from cadclaw.rules import load_rules
@@ -631,7 +631,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_format_args(p_pub)
     p_pub.set_defaults(func=_cmd_publish_audit)
 
-    p_h = sub.add_parser("harness", help="Run every gate the rule file declares.")
+    p_h = sub.add_parser("harness", help="Run YAML-backed checks the rule file configures.")
     p_h.add_argument("--rules", default="cadclaw.yaml")
     p_h.add_argument("--repo", default=".")
     p_h.add_argument("--only", default=None,

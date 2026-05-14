@@ -1,5 +1,5 @@
 """
-Harness — the main runner that chains all gates together.
+Harness — programmatic runner for chained geometry checks.
 
 Usage:
     from cadclaw import Harness
@@ -89,7 +89,7 @@ class Harness:
         return 'other'
 
     def set_labels(self, labels: dict):
-        """Set the bbox signature → label mapping used by all gates."""
+        """Set the bbox signature → label mapping used by configured checks."""
         self._labels = labels
         self._label_fn = self._default_label_fn
 
@@ -155,7 +155,7 @@ class Harness:
     def run(self) -> HarnessReport:
         t0 = time.time()
 
-        # Load parts once, share across all gates
+        # Load parts once, share across configured geometry checks.
         parts = load_and_dedup(self.step_path)
         label_fn = self._label_fn or self._default_label_fn
 

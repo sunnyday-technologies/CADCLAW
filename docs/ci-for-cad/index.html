@@ -26,7 +26,7 @@
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "CAD validation / mechanical engineering QA",
         "operatingSystem": "Cross-platform (Windows, macOS, Linux)",
-        "softwareVersion": "0.7.1",
+        "softwareVersion": "0.9.0",
         "programmingLanguage": "Python",
         "downloadUrl": "https://pypi.org/project/cadclaw/",
         "installUrl": "https://pypi.org/project/cadclaw/",
@@ -190,7 +190,7 @@
 <ol>
 <li><strong><code>cadclaw</code></strong> is a Python package containing the gate implementations: <code>cadclaw.inventory</code>, <code>cadclaw.interference</code>, <code>cadclaw.adjacency</code>, <code>cadclaw.dimensional</code>, <code>cadclaw.kinematics</code>, <code>cadclaw.tolerance</code>, <code>cadclaw.disassembly</code>, <code>cadclaw.parity</code>, <code>cadclaw.bom_audit</code>. Each module is independently importable and follows the same pattern: a <code>*Check</code> class, a <code>*Result</code> dataclass, structured <code>Finding</code> objects with severity and evidence.</li>
 <li><strong><code>cadclaw</code> CLI</strong> is a console-script entry point that drives the harness from a declarative <code>cadclaw.yaml</code> rule file. Subcommands include <code>cadclaw doctor</code>, <code>cadclaw harness</code>, <code>cadclaw bom-audit</code>, <code>cadclaw inspect</code>, <code>cadclaw publish-audit</code>, and <code>cadclaw claim-audit</code>. Exit codes are pytest-style: <code>0</code> pass, <code>1</code> fail, <code>2</code> warn-only, <code>3</code> internal error.</li>
-<li><strong><code>cadclaw_mcp</code></strong> is an MCP (Model Context Protocol) server that exposes every gate as a tool an AI coding assistant can call directly. We come back to this in section 6.</li>
+<li><strong><code>cadclaw_mcp</code></strong> is an MCP (Model Context Protocol) server that exposes CADCLAW's core checks and audit helpers as tools an AI coding assistant can call directly. We come back to this in section 6.</li>
 </ol>
 <p>The framework is honest about its scope. CADCLAW reads geometry; it does not certify designs. It does not substitute for FEA, fatigue analysis, or physical testing. Every report ships with a <strong>confidence budget</strong> that lists what was checked, what was not, and what assumptions were baked in (mm units, rigid bodies, STEP exports faithful to the native CAD model). The README explicitly disclaims structural certification, hidden-suppressed-part detection in the native CAD package, vendor-stock validation, and physical-build conformance. CADCLAW does the geometric checks. The engineer is still the engineer.</p>
 <p>What it does do is run those geometric checks on every commit, in CI, with no human in the loop, with copy-pasteable assertions and a structured report. That is the missing infrastructure.</p>
@@ -317,7 +317,7 @@ jobs:
 <p>The M3-CRETE concrete-printer project uses exactly this pattern: every CAD pull request triggers <code>cadclaw harness</code> against the assembly STEP, and a failing harness blocks merge in the same way a failing <code>pytest</code> would. Section 7 describes what that catches in practice.</p>
 <h2 id="6-the-mcp-server">6. The MCP server</h2>
 <p>The fastest-growing class of CAD-editing collaborator in 2026 is not a human. AI coding assistants (Claude, OpenAI's Operator, Google's coding agents, and the broader cohort that has emerged since 2024) are now routinely editing CadQuery scripts, build123d files, and assembly drivers. Without a check layer, that workflow is dangerous. Field testing on real hardware projects has documented sessions where parametric plate generation produced motor-mount hole patterns that were uniformly misaligned with the assembly; rounds of generate-critique-strip later, the shipping code was <em>less</em> code than the start. That experience is the reason <code>AGENTS.md</code> exists in the CADCLAW repository.</p>
-<p>The MCP server is the integration layer that makes the AI-assisted workflow safe. CADCLAW ships <code>cadclaw_mcp</code>, a Model Context Protocol server that exposes every gate as a callable tool. An assistant connected over MCP can issue:</p>
+<p>The MCP server is the integration layer that makes the AI-assisted workflow safer. CADCLAW ships <code>cadclaw_mcp</code>, a Model Context Protocol server that exposes core validation, analysis, and audit checks as callable tools. An assistant connected over MCP can issue:</p>
 <ul>
 <li><code>load_assembly(path="CAD/your_assembly.step")</code></li>
 <li><code>check_inventory(expected={...})</code></li>
@@ -349,7 +349,7 @@ jobs:
 <li>The privacy guard correctly stripped vendor names, SKUs, unit costs, prices, and supplier identifiers from every emit path. Zero findings cited any of those keys, despite the BOM having them populated.</li>
 <li><code>cadclaw doctor</code> correctly resolved a venv with a <code>pyvenv.cfg</code> pointing at a deleted Python on a different machine, then ran clean against the freshly built venv.</li>
 <li>The <code>init_rules.py</code> scaffolder produced a small number of confident matches and a larger number of commented-out unknowns from a real-world BOM, defaulting on the side of asking the user to inspect rather than over-promising.</li>
-<li>The MCP server started and registered every gate-tool the harness exposes.</li>
+<li>The MCP server started and registered its available CADCLAW tools.</li>
 </ul>
 <p><strong>Interference families caught before fabrication.</strong> The canonical CADCLAW success on M3-CRETE is documented in the v0.6 field-test report and the related session log. An X-carriage gantry plate, after a series of edits to add the X-axis motor mount, ended up clipping the rear X-rail. The clip was a sliver in Y, plate-wide in X, motor-tall in Z, visually invisible from the default Fusion view, and geometrically certain to bind during assembly. The interference gate fired with structured evidence (overlap volume, bbox tuples, suggested shift axis, suggested shift distance), the engineer applied the shift in Fusion, re-saved, re-ran the harness, and watched the gate go green. Total time from finding to fix: minutes. Time to discover the same bug at the fabricator: at minimum a partial rebuild, more likely a custom shim and a multi-day delay.</p>
 <p>That single finding paid for the project. The same gate has caught related interference families across M3-CRETE's history: cantilever-pickoff plates running into rails, motor mounts clipping their own brackets after an offset refactor, splice connectors sitting proud of the wheel path, and Z-carriage versus cross-brace clearance at extremes of travel. Many of these were not user-edits; they were drift. A Fusion visibility-toggle export that silently dropped a part. A CadQuery placement script that picked up an off-by-one constant from a refactor. A BOM update that didn't match the geometry it was supposed to describe. This is the everyday output of a real mechanical-design process, and CADCLAW catches it because the harness runs every commit, not just the ones a human remembers to check.</p>
@@ -387,7 +387,7 @@ DOI: 10.5281/zenodo.19647391
       "applicationCategory": "DeveloperApplication",
       "applicationSubCategory": "CAD validation framework",
       "operatingSystem": "Linux, macOS, Windows",
-      "description": "Automated validation framework for STEP-based CAD assemblies. Pytest-style gates for interference, inventory, adjacency, dimensional, kinematic, tolerance, BOM-vs-CAD, parity, and disassembly checks. Includes an MCP server exposing all gates to AI coding assistants.",
+      "description": "Automated validation framework for STEP-based CAD assemblies. Pytest-style gates for interference, inventory, adjacency, dimensional, orientation, floating-part, color/material, kinematic, tolerance, BOM-vs-CAD, parity, and disassembly checks. Includes an MCP server exposing core CADCLAW checks to AI coding assistants.",
       "url": "https://cadclaw.io/",
       "downloadUrl": "https://pypi.org/project/cadclaw/",
       "codeRepository": "https://github.com/sunnyday-technologies/CADCLAW",
