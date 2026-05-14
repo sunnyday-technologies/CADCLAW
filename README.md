@@ -8,7 +8,7 @@
 
 *Generated end-to-end with `render_radial_explode_gif("M3-2_Assembly.step", "out.gif")` — parts explode radially from the centroid, then camera orbits 360°. 99+ parts, no manual animation work.*
 
-Automated geometric checks (inventory, interference, adjacency, dimensional, tolerance stacking) plus a **BOM-vs-CAD audit** and an **honesty toolchain** (doctor, publish-audit, claim-audit) for STEP assemblies. Like pytest for mechanical design — *in spirit*. Real CAD has analog characteristics pytest doesn't have (a part isn't binary present/absent — it can be slightly the wrong size, slightly clipping, slightly misplaced); CADCLAW reports findings with severity, evidence, and a confidence budget rather than just pass/fail.
+Automated geometric checks (inventory, interference, adjacency, dimensional, orientation, floating-part, color/material, tolerance stacking) plus a **BOM-vs-CAD audit** and an **honesty toolchain** (doctor, publish-audit, claim-audit) for STEP assemblies. Like pytest for mechanical design — *in spirit*. Real CAD has analog characteristics pytest doesn't have (a part isn't binary present/absent — it can be slightly the wrong size, slightly clipping, slightly misplaced); CADCLAW reports findings with severity, evidence, and a confidence budget rather than just pass/fail.
 
 ## The Problem
 
@@ -24,16 +24,19 @@ CADCLAW validates STEP assemblies + BOM JSON through a chain of automated gates:
 | **Interference** | Solid-solid overlaps. BRep boolean intersection, not just bbox. |
 | **Adjacency** | Parts that should be near each other but aren't (motor 600mm from mount). |
 | **Dimensional** | Wrong thickness, swapped `box()` args, impossible dimensions. |
+| **Orientation** | Rotated/mis-faced parts where a label declares an expected face plane. |
+| **Floating** | Parts isolated from configured structural labels beyond a max gap. |
+| **Color/material** | STEP AP242 color metadata against expected label colors. |
 | **Kinematics** | Beam deflection, motor torque budgets, belt tension, racking. |
 | **Tolerance** | Worst-case, RSS, Monte Carlo tolerance stacking with Cpk and variance decomposition. |
 | **Parity** | STEP-vs-STEP comparison; flags the Fusion visibility-toggle bug. |
-| **BOM audit** *(v0.6)* | BOM JSON ↔ CAD assembly: qty, mfg_type, required/forbidden text terms, CAD-side count. |
+| **BOM audit** | BOM JSON ↔ CAD assembly: qty, mfg_type, required/forbidden text terms, CAD-side count. |
 | **Disassembly** | Sequenced part removal, radial exploded views, animation frame export. |
 | **Render** | STEP → PNG → animated GIF via offscreen VTK. |
 
-All gates run against a single loaded STEP file. Configure once in `cadclaw.yaml`, run from `cadclaw harness`. Every report includes a **confidence budget** that lists what was checked, what was not, and what assumptions were made.
+The CLI harness runs the checks declared in `cadclaw.yaml`; geometry checks share the STEP export when possible, while parity, render, disassembly, tolerance, and audits are also available as focused commands/APIs. Every report includes a **confidence budget** that lists what was checked, what was not, and what assumptions were made.
 
-CADCLAW also includes an **MCP Server** — the same modules exposed as MCP tools, so an MCP-compatible assistant can call them directly. The MCP server only exposes CADCLAW's own checks; it does not give the assistant access to your CAD application or to anything outside what `cadclaw` itself can do. The full loop is: prompt → modify CadQuery script → regenerate STEP → run CADCLAW gates → inspect report.
+CADCLAW also includes an **MCP Server** — core validation, analysis, and audit modules exposed as MCP tools, so an MCP-compatible assistant can call them directly. The MCP server only exposes CADCLAW's own checks; it does not give the assistant access to your CAD application or to anything outside what `cadclaw` itself can do. The full loop is: prompt → modify a placement script → regenerate STEP → run CADCLAW checks → inspect report.
 
 ## What CADCLAW Does NOT Prove
 
@@ -104,7 +107,7 @@ print(report)
 #   [PASS] adjacency (15ms)
 ```
 
-### CLI workflow (v0.6)
+### CLI workflow
 
 Configure once in `cadclaw.yaml` — labels, expected inventory, regions, BOM
 rules, claim-audit terms, publish-audit globs — then drive everything from
@@ -114,7 +117,7 @@ the `cadclaw` console script:
 cadclaw doctor                                    # 1. verify the environment
 python examples/init_rules.py --step my.step      # 2. scaffold cadclaw.yaml
                               --bom bom.json
-cadclaw harness --rules cadclaw.yaml              # 3. run every gate the rule file declares
+cadclaw harness --rules cadclaw.yaml              # 3. run configured YAML-backed checks
 cadclaw bom-audit --rules cadclaw.yaml            # or run a single gate
 cadclaw publish-audit --rules cadclaw.yaml        # before `git push`
 cadclaw claim-audit --rules cadclaw.yaml --report-format md -o report.md
@@ -250,13 +253,15 @@ Exit code 0 = passed. Exit code 1 = failed. Works in any CI system.
 ```bash
 git clone https://github.com/sunnyday-technologies/CADCLAW.git
 cd CADCLAW
-pip install cadquery
+python -m venv .venv
+.\.venv\Scripts\python -m pip install --upgrade pip
+.\.venv\Scripts\python -m pip install -e .
 
 # Generate test fixture STEP assemblies (L1-L3, good + bad variants)
-python tests/generate_fixtures.py
+.\.venv\Scripts\python tests/generate_fixtures.py
 
-# Run the test suite (73 tests across every module)
-python -m unittest tests.test_harness -v
+# Run the full test suite
+.\.venv\Scripts\python -m unittest discover tests
 ```
 
 The test fixtures are generated from CadQuery — no external downloads needed.
@@ -277,9 +282,9 @@ GIF rendering.
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.10+; Python 3.11 is the current CADCLAW development runtime
 - CadQuery 2.7+ (provides OCC/STEP support)
-- pyyaml 6+ and pydantic 2.5+ (pulled in automatically)
+- VTK 9.3+ for rendering, plus pyyaml 6+ and pydantic 2.5+ (pulled in automatically)
 - No commercial CAD software needed for CADCLAW's own checks. Validation that depends on the native CAD application — feature-tree review, native-format parametric checks — is outside CADCLAW's scope.
 
 Run `cadclaw doctor` after install to verify your environment.

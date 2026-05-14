@@ -1,8 +1,8 @@
-# CADCLAW v0.7 starter rule file.
+# CADCLAW v0.9 starter rule file.
 #
 # Drop this in your repo root, edit to match your project, then run:
 #   cadclaw doctor                       (verify environment)
-#   cadclaw harness --rules cadclaw.yaml (run every gate this file declares)
+#   cadclaw harness --rules cadclaw.yaml (run configured YAML-backed checks)
 #
 # Sections are optional. Missing sections skip their gate and get listed
 # under confidence_budget.not_checked automatically.
