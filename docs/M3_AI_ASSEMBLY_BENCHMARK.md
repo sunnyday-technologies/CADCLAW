@@ -33,7 +33,7 @@ used to create it.
 
 Initial local sources:
 
-- Reference image: `../M3-CRETE/docs/media/M3-CRETE_render.jpg`.
+- Reference image: `../M3-CRETE/docs/M3-CRETE_render.jpg`.
 - Component roots:
   - `../M3-CRETE/CAD/Advanced`
   - `../M3-CRETE/CAD/Components`

@@ -161,6 +161,7 @@ class AssemblySpec(_Strict):
     variants: List[MachineVariant] = Field(default_factory=list)
     reference_assets: List[ReferenceAsset] = Field(default_factory=list)
     manifests: List[str] = Field(default_factory=list)
+    connector_metadata: Optional[str] = None
     component_roots: List[str] = Field(default_factory=list)
     protected_paths: List[str] = Field(default_factory=list)
     outputs: Outputs
