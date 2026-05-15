@@ -11,3 +11,4 @@ build/
 Thumbs.db
 .claude/
 docs/media/*.png
+!docs/media/cadclaw_*.png
