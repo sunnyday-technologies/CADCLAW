@@ -129,6 +129,41 @@ instances:
             self.assertEqual(d["meta"]["missing_sources"], 0)
             self.assertTrue(d["meta"]["dry_run"])
 
+    def test_check_round_dry_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            step = root / "CAD" / "Advanced" / "Thing.step"
+            step.parent.mkdir(parents=True, exist_ok=True)
+            step.write_text("placeholder", encoding="utf-8")
+            spec = root / "spec.yaml"
+            spec.write_text(
+                f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+validation:
+  expected_inventory:
+    test: 1
+instances:
+  - id: thing
+    role: test
+    source_path: {step.as_posix()}
+""",
+                encoding="utf-8",
+            )
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = main(["assemble", "check-round", str(spec),
+                             "--dry-run", "--report-format", "json"])
+            d = json.loads(buf.getvalue())
+            self.assertEqual(code, 2)
+            self.assertEqual(d["overall"], "warn")
+            self.assertEqual(d["meta"]["role_inventory"]["test"], 1)
+
 
 class TestExitCodes(unittest.TestCase):
     def test_missing_rules_file_returns_3(self):

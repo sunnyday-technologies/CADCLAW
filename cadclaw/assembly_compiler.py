@@ -7,21 +7,23 @@ non-authoritative STEP path.
 """
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import asdict, dataclass
 import os
 from pathlib import Path
 import json
 import time
-from typing import Dict, Iterable, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional
 
 import yaml
 
-from .assembly_spec import AssemblySpec, Instance, Transform, load_assembly_spec
+from .assembly_spec import AssemblySpec, Instance, ReviewView, Transform, load_assembly_spec
 from .connector_metadata import ConnectorMetadata, load_connector_metadata
 from .findings import ConfidenceBudget, Finding, Report, Severity
 
 
 DESIGN_INVENTORY_VERSION = "design_inventory.v0.1"
+GENERATED_SOURCE_PREFIXES = ("generated:", "parametric:", "placeholder:")
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,17 @@ class AssemblyBuildPlan:
         }
 
 
+@dataclass(frozen=True)
+class ReviewViewOutput:
+    name: str
+    view: str
+    output_path: str
+    width: int
+    height: int
+    rendered: bool
+    message: Optional[str] = None
+
+
 def _as_posix(path: Path) -> str:
     return path.as_posix()
 
@@ -85,6 +98,12 @@ def _resolve_output_path(value: str) -> Path:
     return Path.cwd() / path
 
 
+def _same_path(a: Path, b: Path) -> bool:
+    return os.path.normcase(str(a.resolve(strict=False))) == os.path.normcase(
+        str(b.resolve(strict=False))
+    )
+
+
 def _load_manifest_sources(manifest_paths: Iterable[str], spec_dir: Path) -> Dict[str, str]:
     sources: Dict[str, str] = {}
     for manifest_path in manifest_paths:
@@ -99,6 +118,49 @@ def _load_manifest_sources(manifest_paths: Iterable[str], spec_dir: Path) -> Dic
             if entry_id and source_path:
                 sources[str(entry_id)] = str(source_path)
     return sources
+
+
+def _protected_output_findings(spec: AssemblySpec, spec_dir: Path) -> List[Finding]:
+    output = _resolve_output_path(spec.outputs.step)
+    findings: List[Finding] = []
+    for protected_value in spec.protected_paths:
+        protected = _resolve_config_path(protected_value, spec_dir)
+        if _same_path(output, protected):
+            findings.append(Finding(
+                id="assemble.protected_output_path",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"output STEP would overwrite protected CAD export: {spec.outputs.step}",
+                suggested_fix="Set outputs.step to a generated build path outside protected CAD exports.",
+                evidence={
+                    "output_step": _display_path(output),
+                    "protected_path": _display_path(protected),
+                },
+            ))
+    return findings
+
+
+def _generation_policy_findings(plan: AssemblyBuildPlan) -> List[Finding]:
+    findings: List[Finding] = []
+    for instance in plan.instances:
+        source = instance.source_ref.strip().lower()
+        if source.startswith(GENERATED_SOURCE_PREFIXES):
+            findings.append(Finding(
+                id="assemble.generated_geometry_blocked",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{instance.id}: generated geometry source is not allowed in assembly specs",
+                suggested_fix=(
+                    "Use an authored STEP source_path/component_id, or explicitly add a "
+                    "future stock-only generator contract for this part."
+                ),
+                evidence={
+                    "instance": instance.id,
+                    "source_ref": instance.source_ref,
+                    "blocked_prefixes": list(GENERATED_SOURCE_PREFIXES),
+                },
+            ))
+    return findings
 
 
 def _candidate_paths(source_ref: str, spec: AssemblySpec, spec_dir: Path) -> List[Path]:
@@ -219,12 +281,19 @@ def _export_step(spec: AssemblySpec, spec_path: Path, plan: AssemblyBuildPlan) -
     from cadquery import Assembly
 
     assy = Assembly()
+    spec_dir = spec_path.resolve().parent
+    manifest_sources = _load_manifest_sources(spec.manifests, spec_dir)
     by_id = {instance.id: instance for instance in spec.instances}
     for resolved in plan.instances:
         if not resolved.exists:
             continue
-        source = cq.importers.importStep(resolved.resolved_path)
-        placed = _apply_transform(source, by_id[resolved.id].transform)
+        instance = by_id[resolved.id]
+        source_ref = _instance_source_ref(instance, manifest_sources)
+        if source_ref is None:
+            continue
+        source_path = resolve_source_path(source_ref, spec, spec_dir)
+        source = cq.importers.importStep(str(source_path))
+        placed = _apply_transform(source, instance.transform)
         assy.add(placed, name=resolved.id)
 
     output = _resolve_output_path(spec.outputs.step)
@@ -238,6 +307,169 @@ def write_design_inventory(plan: AssemblyBuildPlan, output_path: str | Path) -> 
     with path.open("w", encoding="utf-8", newline="\n") as f:
         json.dump(plan.to_dict(), f, indent=2)
         f.write("\n")
+
+
+def _validate_expected_inventory(spec: AssemblySpec) -> tuple[List[Finding], dict]:
+    expected_raw = spec.validation.get("expected_inventory")
+    counts = Counter(instance.role for instance in spec.instances)
+    inventory = dict(sorted(counts.items()))
+    findings: List[Finding] = []
+    if not expected_raw:
+        findings.append(Finding(
+            id="assemble.expected_inventory_not_provided",
+            category="assemble",
+            severity=Severity.WARN,
+            message="spec.validation.expected_inventory was not provided",
+        ))
+        return findings, inventory
+
+    if not isinstance(expected_raw, dict):
+        findings.append(Finding(
+            id="assemble.expected_inventory_invalid",
+            category="assemble",
+            severity=Severity.FAIL,
+            message="spec.validation.expected_inventory must be a mapping of role to count",
+            evidence={"expected_inventory_type": type(expected_raw).__name__},
+        ))
+        return findings, inventory
+
+    expected: Dict[str, int] = {}
+    for role, value in expected_raw.items():
+        if not isinstance(value, int) or value < 0:
+            findings.append(Finding(
+                id="assemble.expected_inventory_invalid",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"expected count for role {role!r} must be a non-negative integer",
+                evidence={"role": role, "value": value},
+            ))
+            continue
+        expected[str(role)] = value
+
+    for role in sorted(set(expected) | set(inventory)):
+        got = inventory.get(role, 0)
+        want = expected.get(role, 0)
+        if got != want:
+            findings.append(Finding(
+                id="assemble.expected_inventory_mismatch",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{role}: spec has {got}, expected {want}",
+                evidence={"role": role, "got": got, "expected": want},
+            ))
+    return findings, inventory
+
+
+def _view_output_path(views_dir: Path, view: ReviewView) -> Path:
+    safe_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in view.name)
+    return views_dir / f"{safe_name or view.view}.png"
+
+
+def render_review_views(
+    spec_path: str | Path,
+    step_path: str | Path | None = None,
+    views_dir: str | Path | None = None,
+    renderer: Optional[Callable[..., str]] = None,
+) -> Report:
+    start = time.time()
+    spec_file = Path(spec_path)
+    spec = load_assembly_spec(spec_file)
+    step = Path(step_path) if step_path is not None else _resolve_output_path(spec.outputs.step)
+    if not step.is_absolute():
+        step = _resolve_output_path(str(step))
+    out_dir = Path(views_dir) if views_dir is not None else _resolve_output_path(spec.outputs.views_dir)
+    if not out_dir.is_absolute():
+        out_dir = _resolve_output_path(str(out_dir))
+
+    findings: List[Finding] = []
+    outputs: List[ReviewViewOutput] = []
+    if not spec.review_views:
+        findings.append(Finding(
+            id="assemble.review_views_not_provided",
+            category="assemble",
+            severity=Severity.WARN,
+            message="no review_views were declared in the assembly spec",
+        ))
+
+    if not step.exists():
+        findings.append(Finding(
+            id="assemble.step_missing_for_render",
+            category="assemble",
+            severity=Severity.FAIL,
+            message=f"cannot render review views because STEP does not exist: {step}",
+            evidence={"step": _display_path(step)},
+        ))
+    else:
+        if renderer is None:
+            from .render import render_step_to_png as renderer
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for view in spec.review_views:
+            output = _view_output_path(out_dir, view)
+            try:
+                renderer(
+                    str(step),
+                    str(output),
+                    width=view.width,
+                    height=view.height,
+                    view=view.view,
+                    azimuth=view.azimuth,
+                    elevation=view.elevation,
+                )
+                rendered = output.exists()
+                if not rendered:
+                    findings.append(Finding(
+                        id="assemble.review_view_missing_output",
+                        category="assemble",
+                        severity=Severity.FAIL,
+                        message=f"{view.name}: renderer completed but no PNG was written",
+                        evidence={"output_path": _display_path(output)},
+                    ))
+                outputs.append(ReviewViewOutput(
+                    name=view.name,
+                    view=view.view,
+                    output_path=_display_path(output),
+                    width=view.width,
+                    height=view.height,
+                    rendered=rendered,
+                ))
+            except Exception as exc:
+                findings.append(Finding(
+                    id="assemble.review_view_render_failed",
+                    category="assemble",
+                    severity=Severity.FAIL,
+                    message=f"{view.name}: review view render failed: {exc}",
+                    evidence={
+                        "view": view.view,
+                        "output_path": _display_path(output),
+                    },
+                ))
+                outputs.append(ReviewViewOutput(
+                    name=view.name,
+                    view=view.view,
+                    output_path=_display_path(output),
+                    width=view.width,
+                    height=view.height,
+                    rendered=False,
+                    message=str(exc),
+                ))
+
+    report = Report(
+        findings=findings,
+        confidence_budget=ConfidenceBudget(
+            checked=["review view declarations", "STEP path presence"],
+            not_checked=[] if step.exists() else ["rendered view alignment"],
+            assumptions=list(spec.assumptions),
+        ),
+        duration_ms=(time.time() - start) * 1000,
+        meta={
+            "spec": str(spec_path),
+            "step": _display_path(step),
+            "views_dir": _display_path(out_dir),
+            "review_views": [asdict(output) for output in outputs],
+        },
+    )
+    report.overall = report.compute_overall()
+    return report
 
 
 def run_assembly_build(
@@ -257,6 +489,8 @@ def run_assembly_build(
     )
 
     findings: List[Finding] = []
+    findings.extend(_protected_output_findings(spec, spec_file.resolve().parent))
+    findings.extend(_generation_policy_findings(plan))
     missing = [instance for instance in plan.instances if not instance.exists]
     for instance in missing:
         findings.append(Finding(
@@ -307,7 +541,11 @@ def run_assembly_build(
             },
         ))
 
-    if not dry_run and not missing:
+    blocking = [
+        finding for finding in findings
+        if finding.severity == Severity.FAIL
+    ]
+    if not dry_run and not missing and not blocking:
         _export_step(spec, spec_file, plan)
 
     if write_inventory and spec.outputs.design_inventory:
@@ -318,6 +556,7 @@ def run_assembly_build(
             "assembly spec schema",
             "instance source path resolution",
             "protected output path validation",
+            "authored STEP placement policy",
             "connector metadata presence"
             if metadata_value else "connector metadata omission",
         ],
@@ -353,12 +592,102 @@ def run_assembly_build(
     return report
 
 
+def run_assembly_check_round(
+    spec_path: str | Path,
+    connector_metadata_path: str | Path | None = None,
+    dry_run: bool = False,
+    write_inventory: bool = True,
+    render_views: bool = True,
+    write_report: bool = False,
+) -> Report:
+    start = time.time()
+    spec_file = Path(spec_path)
+    spec = load_assembly_spec(spec_file)
+    build_report = run_assembly_build(
+        spec_file,
+        connector_metadata_path=connector_metadata_path,
+        dry_run=dry_run,
+        write_inventory=write_inventory,
+    )
+    findings = list(build_report.findings)
+    inventory_findings, role_inventory = _validate_expected_inventory(spec)
+    findings.extend(inventory_findings)
+
+    render_report: Optional[Report] = None
+    render_skipped_reason: Optional[str] = None
+    if render_views:
+        if dry_run:
+            render_skipped_reason = "dry_run"
+            findings.append(Finding(
+                id="assemble.review_render_skipped",
+                category="assemble",
+                severity=Severity.WARN,
+                message="review views were skipped because this check round is a dry run",
+            ))
+        elif build_report.overall == Severity.FAIL:
+            render_skipped_reason = "build_failed"
+            findings.append(Finding(
+                id="assemble.review_render_skipped",
+                category="assemble",
+                severity=Severity.WARN,
+                message="review views were skipped because assembly build failed",
+            ))
+        else:
+            render_report = render_review_views(spec_file)
+            findings.extend(render_report.findings)
+
+    confidence = ConfidenceBudget(
+        checked=list(build_report.confidence_budget.checked),
+        not_checked=list(build_report.confidence_budget.not_checked),
+        assumptions=list(build_report.confidence_budget.assumptions),
+    )
+    for item in ["spec role inventory"]:
+        if item not in confidence.checked:
+            confidence.checked.append(item)
+    if render_report:
+        confidence.merge(render_report.confidence_budget)
+    elif render_views:
+        label = f"review view rendering ({render_skipped_reason})"
+        if label not in confidence.not_checked:
+            confidence.not_checked.append(label)
+
+    report = Report(
+        findings=findings,
+        confidence_budget=confidence,
+        duration_ms=(time.time() - start) * 1000,
+        meta={
+            "spec": str(spec_path),
+            "project": spec.meta.project,
+            "assembly_id": spec.meta.assembly_id,
+            "active_variant": spec.active_variant,
+            "dry_run": dry_run,
+            "build": build_report.meta,
+            "role_inventory": role_inventory,
+            "render": render_report.meta if render_report else {
+                "skipped": bool(render_views),
+                "reason": render_skipped_reason,
+            },
+        },
+    )
+    report.overall = report.compute_overall()
+
+    if write_report and spec.outputs.report:
+        path = _resolve_output_path(spec.outputs.report)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8", newline="\n") as f:
+            json.dump(report.to_dict(), f, indent=2)
+            f.write("\n")
+    return report
+
+
 __all__ = [
     "AssemblyBuildPlan",
     "DESIGN_INVENTORY_VERSION",
     "ResolvedInstance",
     "plan_assembly_build",
+    "render_review_views",
     "resolve_source_path",
+    "run_assembly_check_round",
     "run_assembly_build",
     "write_design_inventory",
 ]

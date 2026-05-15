@@ -211,12 +211,12 @@ validated performance.
 - [x] Shareable process-flow graphics and repeatable generator.
 - [x] Connector metadata schema.
 - [x] Compiler dry-run/source-resolution report.
-- [ ] CadQuery compiler for explicit placements.
-- [ ] Stock-only generation policy and guards.
-- [ ] Design inventory emitter.
-- [ ] Standard review view renderer.
-- [ ] Validation wrapper for generated assemblies.
-- [ ] MCP/CLI tools for LLM operation.
+- [x] Initial CadQuery compiler for explicit authored-STEP placements.
+- [x] Stock-only generation policy guards for the current spec contract.
+- [x] Design inventory emitter.
+- [x] Standard review view renderer.
+- [x] Validation wrapper for generated assembly rounds.
+- [x] Initial CLI tools for LLM operation.
 
 ## LLM Tool Surface
 
@@ -232,6 +232,17 @@ The eventual tool surface should be deterministic and narrow:
 
 The LLM should edit specs and connector metadata, not freehand arbitrary
 CadQuery scripts.
+
+Current implementation status:
+
+- `assemble build` resolves authored STEP sources, writes design inventory,
+  and can export an explicit CadQuery assembly from placed authored STEP files.
+- `assemble render-views` renders declared PNG review views from the generated
+  STEP using the existing CADCLAW VTK renderer.
+- `assemble check-round` runs one build round, verifies declared spec role
+  inventory, optionally renders review views, and emits a single report.
+- `assemble suggest-adjustment` remains future work; for now adjustment advice
+  comes from existing CADCLAW findings such as `interference.clip`.
 
 ## Open Decisions
 
