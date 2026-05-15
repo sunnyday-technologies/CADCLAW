@@ -93,6 +93,42 @@ class TestAssembleCommand(unittest.TestCase):
             for f in d["findings"]
         ))
 
+    def test_build_dry_run_resolves_sources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cad_root = root / "CADRoot" / "CAD"
+            step = cad_root.parent / "CAD" / "Advanced" / "Thing.step"
+            step.parent.mkdir(parents=True, exist_ok=True)
+            step.write_text("placeholder", encoding="utf-8")
+            spec = root / "spec.yaml"
+            spec.write_text(
+                f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+component_roots:
+  - {cad_root.as_posix()}
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+instances:
+  - id: thing
+    role: test
+    source_path: CAD/Advanced/Thing.step
+""",
+                encoding="utf-8",
+            )
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = main(["assemble", "build", str(spec),
+                             "--dry-run", "--report-format", "json"])
+            d = json.loads(buf.getvalue())
+            self.assertEqual(code, 2)
+            self.assertEqual(d["overall"], "warn")
+            self.assertEqual(d["meta"]["missing_sources"], 0)
+            self.assertTrue(d["meta"]["dry_run"])
+
 
 class TestExitCodes(unittest.TestCase):
     def test_missing_rules_file_returns_3(self):
