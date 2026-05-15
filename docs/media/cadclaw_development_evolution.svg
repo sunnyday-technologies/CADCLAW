@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M 0 0 L 10 5 L 0 10 z" fill="#97d700" />
+</marker>
+</defs>
+<rect width="1600" height="1000" fill="#06111f" />
+<rect width="1600" height="92" fill="#08213c" />
+<rect y="92" width="1600" height="6" fill="#97d700" />
+<text x="58" y="58" fill="#f5f8fb" font-size="44" font-family="Arial, sans-serif" font-weight="700">CADCLAW Development Evolution</text>
+<text x="60" y="132" fill="#c9d8e5" font-size="22" font-family="Arial, sans-serif" font-weight="400">From STEP validation to an AI-guided assembly harness for functional structures</text>
+<line x1="315.0" y1="305.0" x2="375.0" y2="305.0" stroke="#97d700" stroke-width="4" marker-end="url(#arrow)" />
+<text x="345.0" y="297.0" fill="#f5f8fb" font-size="15" font-family="Arial, sans-serif" text-anchor="middle">formalize</text>
+<line x1="620.0" y1="305.0" x2="680.0" y2="305.0" stroke="#97d700" stroke-width="4" marker-end="url(#arrow)" />
+<text x="650.0" y="297.0" fill="#f5f8fb" font-size="15" font-family="Arial, sans-serif" text-anchor="middle">field test</text>
+<line x1="925.0" y1="305.0" x2="985.0" y2="305.0" stroke="#97d700" stroke-width="4" marker-end="url(#arrow)" />
+<text x="955.0" y="297.0" fill="#f5f8fb" font-size="15" font-family="Arial, sans-serif" text-anchor="middle">make usable</text>
+<line x1="1230.0" y1="305.0" x2="1290.0" y2="305.0" stroke="#97d700" stroke-width="4" marker-end="url(#arrow)" />
+<text x="1260.0" y="297.0" fill="#f5f8fb" font-size="15" font-family="Arial, sans-serif" text-anchor="middle">rename</text>
+<line x1="1290.0" y1="343.6" x2="530.0" y2="582.8" stroke="#97d700" stroke-width="4" marker-end="url(#arrow)" />
+<text x="910.0" y="455.2" fill="#f5f8fb" font-size="15" font-family="Arial, sans-serif" text-anchor="middle">new gates</text>
+<line x1="530.0" y1="630.0" x2="650.0" y2="630.0" stroke="#97d700" stroke-width="4" marker-end="url(#arrow)" />
+<text x="590.0" y="622.0" fill="#f5f8fb" font-size="15" font-family="Arial, sans-serif" text-anchor="middle">assemble</text>
+<line x1="950.0" y1="630.0" x2="1070.0" y2="630.0" stroke="#97d700" stroke-width="4" marker-end="url(#arrow)" />
+<text x="1010.0" y="622.0" fill="#f5f8fb" font-size="15" font-family="Arial, sans-serif" text-anchor="middle">complete loop</text>
+<line x1="1070.0" y1="713.9" x2="907.2" y2="805.0" stroke="#97d700" stroke-width="4" marker-end="url(#arrow)" />
+<text x="988.6" y="751.5" fill="#f5f8fb" font-size="15" font-family="Arial, sans-serif" text-anchor="middle">operating rule</text>
+<rect x="70" y="210" width="245" height="190" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
+<rect x="70" y="210" width="9" height="190" fill="#38bdf8" />
+<text x="94" y="252" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">Initial Harness</text>
+<text x="94" y="290" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">STEP geometry checks</text>
+<text x="94" y="314" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="94" y="338" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">inventory</text>
+<text x="94" y="362" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="94" y="386" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">interference</text>
+<text x="94" y="410" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="94" y="434" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">adjacency</text>
+<text x="94" y="458" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<rect x="375" y="210" width="245" height="190" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
+<rect x="375" y="210" width="9" height="190" fill="#97d700" />
+<text x="399" y="252" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">v0.6 Honest Core</text>
+<text x="399" y="290" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">unified findings</text>
+<text x="399" y="314" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="399" y="338" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">BOM-vs-CAD audit</text>
+<text x="399" y="362" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="399" y="386" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">claim/publish audit</text>
+<text x="399" y="410" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<rect x="680" y="210" width="245" height="190" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
+<rect x="680" y="210" width="9" height="190" fill="#f0c55b" />
+<text x="704" y="252" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">v0.7 Field Polish</text>
+<text x="704" y="290" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">BOM semantics</text>
+<text x="704" y="314" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="704" y="338" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">negation-aware claims</text>
+<text x="704" y="362" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="704" y="386" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">design vs spare qty</text>
+<text x="704" y="410" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<rect x="985" y="210" width="245" height="190" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
+<rect x="985" y="210" width="9" height="190" fill="#97d700" />
+<text x="1009" y="252" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">v0.7.1 Usability</text>
+<text x="1009" y="290" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">inspect subcommands</text>
+<text x="1009" y="314" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="1009" y="338" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">interference fix vectors</text>
+<text x="1009" y="362" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="1009" y="386" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">AGENTS.md guardrails</text>
+<text x="1009" y="410" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<rect x="1290" y="210" width="245" height="190" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
+<rect x="1290" y="210" width="9" height="190" fill="#38bdf8" />
+<text x="1314" y="252" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">v0.8 Naming</text>
+<text x="1314" y="290" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">cadclaw module</text>
+<text x="1314" y="314" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="1314" y="338" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">compat shim</text>
+<text x="1314" y="362" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="1314" y="386" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">clear package identity</text>
+<text x="1314" y="410" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<rect x="230" y="535" width="300" height="190" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
+<rect x="230" y="535" width="9" height="190" fill="#ff6b6b" />
+<text x="254" y="577" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">v0.9 Validation Gates</text>
+<text x="254" y="615" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">orientation / face mates</text>
+<text x="254" y="639" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="254" y="663" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">floating parts</text>
+<text x="254" y="687" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="254" y="711" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">AP242 color checks</text>
+<text x="254" y="735" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<rect x="650" y="535" width="300" height="190" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
+<rect x="650" y="535" width="9" height="190" fill="#f0c55b" />
+<text x="674" y="577" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">Current Build-Out</text>
+<text x="674" y="615" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">assembly spec schema</text>
+<text x="674" y="639" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="674" y="663" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">component manifest</text>
+<text x="674" y="687" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="674" y="711" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">M3 variants + BOM plan</text>
+<text x="674" y="735" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<rect x="1070" y="535" width="300" height="190" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
+<rect x="1070" y="535" width="9" height="190" fill="#97d700" />
+<text x="1094" y="577" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">Next Capability</text>
+<text x="1094" y="615" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">connector metadata</text>
+<text x="1094" y="639" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="1094" y="663" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">CadQuery placement compiler</text>
+<text x="1094" y="687" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="1094" y="711" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">review-view round trip</text>
+<text x="1094" y="735" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<rect x="360" y="805" width="880" height="120" rx="14" fill="#102b45" stroke="#183a5e" stroke-width="2" />
+<rect x="360" y="805" width="9" height="120" fill="#b8f23f" />
+<text x="384" y="847" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">Design Lesson Now Built Into The Tool</text>
+<text x="384" y="885" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">AI should place authored STEP parts and edit typed specs. CADCLAW checks the exported</text>
+<text x="384" y="909" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">assembly, reports uncertainty, and keeps physical validation separate.</text>
+<text x="384" y="933" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="58" y="964" fill="#87a4ba" font-size="15" font-family="Arial, sans-serif" font-weight="400">Audience takeaway: CAD designers keep native CAD authority; novice AI users get guardrails, rendered checks, and explicit assumptions.</text>
+</svg>

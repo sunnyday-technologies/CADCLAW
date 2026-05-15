@@ -4,9 +4,12 @@ Last updated: 2026-05-14
 
 Purpose: next-session plan for turning CADCLAW from a validation harness into an M3-CRETE configurator that can assemble validated machines from authored STEP components, frame-size inputs, motion-system choices, and BOM/vendor constraints.
 
+General harness tracking now lives in `docs/AUTO_ASSEMBLY_HARNESS_PLAN.md`.
+This file remains the M3-CRETE proving-project plan.
+
 ## Operating Principle
 
-CADCLAW should remain honest about what it builds. For M3-CRETE, the configurator should place authored STEP components from `D:/SunnydayTech/M3-CRETE/CAD/Components` and `D:/SunnydayTech/M3-CRETE/CAD/Advanced`, generate only genuinely parametric stock, then run CADCLAW validation against the emitted assembly.
+CADCLAW should remain honest about what it builds. For M3-CRETE, the configurator should place authored STEP components from `../M3-CRETE/CAD/Components` and `../M3-CRETE/CAD/Advanced`, generate only genuinely parametric stock, then run CADCLAW validation against the emitted assembly.
 
 Generate:
 
@@ -34,11 +37,12 @@ M3-CRETE CAD component libraries are present:
 - `CAD/Components`: V-Slot rails in multiple profiles and lengths, NEMA 23 motors, NEMA 23 motor plates, V-Slot gantry plates, tee nuts, brackets, pulleys, idlers, wheels, spacers, bearings.
 - `CAD/Advanced`: C-Beam and Open Rail stock, C-Beam actuator assemblies, C-Beam plates, NEMA 17/NEMA 23 actuator assemblies, screws, spacers, couplings, wheels, electronics.
 - `CAD/Advanced/Assemblies` appears to contain prebuilt actuator assemblies; useful as references or optional macro-components, but not as the only source of configurable machines.
+- Directory comparison on 2026-05-15 found `Components` is not simply replicated in `Advanced`: 68 `Components` STEP files, 76 `Advanced` STEP files, no exact normalized filename overlap, no exact SHA-256 file duplicates, and only 6 `Components` files with matching `Advanced` bbox-signature sets. Default first-pass manifest scope should be `Advanced` because of the macro assemblies; include `Components` explicitly when lower-level V-Slot/NEMA23/tee-nut assets are needed.
 
 M3-CRETE BOM data exists separately:
 
-- Public/design BOM source: `D:/SunnydayTech/M3-CRETE/bom/data.json`.
-- CAD-derived structural/hardware BOM CSVs under `D:/SunnydayTech/M3-CRETE/CAD/`.
+- Public/design BOM source: `../M3-CRETE/bom/data.json`.
+- CAD-derived structural/hardware BOM CSVs under `../M3-CRETE/CAD/`.
 - Private order/procurement records exist and must not be treated as public BOM truth or echoed in reports.
 
 ## Old Goals: Keep, Revise, Deprecate
@@ -128,6 +132,7 @@ Every generated assembly should immediately run:
 
 - Start by listing all STEP files.
 - Run CADCLAW inspect/signature extraction for each.
+- First pass may scan `CAD/Advanced` only, because `Advanced/Assemblies` carries prebuilt actuator macro-components. Treat `CAD/Components` as a supplemental lower-level library, not a duplicate cache.
 - Mark files as `part`, `assembly`, or `macro_assembly`.
 - Bind obvious public BOM ids where possible; leave ambiguous bindings as `needs_user_mapping`.
 
