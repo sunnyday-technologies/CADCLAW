@@ -237,6 +237,9 @@ Current implementation status:
 
 - `assemble build` resolves authored STEP sources, writes design inventory,
   and can export an explicit CadQuery assembly from placed authored STEP files.
+- `assemble inspect-component` resolves one authored STEP component from a
+  spec/manifest or direct source path, reports bbox signatures, and can render
+  isolated review views for orientation checks.
 - `assemble render-views` renders declared PNG review views from the generated
   STEP using the existing CADCLAW VTK renderer.
 - `assemble check-round` runs one build round, verifies declared spec role

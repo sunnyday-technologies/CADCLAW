@@ -328,6 +328,26 @@ def _cmd_assemble_build(args: argparse.Namespace) -> int:
     return _exit_code_for(report)
 
 
+def _cmd_assemble_inspect_component(args: argparse.Namespace) -> int:
+    from cadclaw.assembly_compiler import inspect_component
+
+    try:
+        views = [v.strip() for v in args.views.split(",") if v.strip()]
+        report = inspect_component(
+            args.spec,
+            component_id=args.component_id,
+            source_path=args.source_path,
+            render_views=args.render_views,
+            views=views or None,
+            views_dir=args.views_dir,
+        )
+    except Exception as exc:
+        print(f"error: component inspection failed: {exc}", file=sys.stderr)
+        return 3
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
 def _cmd_assemble_render_views(args: argparse.Namespace) -> int:
     from cadclaw.assembly_compiler import render_review_views
 
@@ -844,6 +864,40 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_format_args(p_build)
     p_build.set_defaults(func=_cmd_assemble_build)
+
+    p_inspect_component = asm_sub.add_parser(
+        "inspect-component",
+        help="Inspect one authored STEP component from an assembly spec.",
+    )
+    p_inspect_component.add_argument("spec")
+    selector = p_inspect_component.add_mutually_exclusive_group(required=True)
+    selector.add_argument(
+        "--component-id",
+        default=None,
+        help="Component id to resolve from the spec manifests.",
+    )
+    selector.add_argument(
+        "--source-path",
+        default=None,
+        help="Direct authored STEP path/source reference to resolve.",
+    )
+    p_inspect_component.add_argument(
+        "--render-views",
+        action="store_true",
+        help="Render isolated component review views.",
+    )
+    p_inspect_component.add_argument(
+        "--views",
+        default="front,side,top,iso",
+        help="Comma-separated views to render when --render-views is set.",
+    )
+    p_inspect_component.add_argument(
+        "--views-dir",
+        default=None,
+        help="Optional output directory for component review views.",
+    )
+    _add_format_args(p_inspect_component)
+    p_inspect_component.set_defaults(func=_cmd_assemble_inspect_component)
 
     p_render_views = asm_sub.add_parser(
         "render-views",

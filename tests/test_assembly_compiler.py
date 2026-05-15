@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from cadclaw.assembly_compiler import (
+    inspect_component,
     plan_assembly_build,
     render_review_views,
     run_assembly_build,
@@ -280,6 +281,110 @@ instances:
             report = run_assembly_build(spec, dry_run=False)
             self.assertNotEqual(report.overall.value, "fail")
             self.assertTrue(out.exists())
+
+    def test_inspect_component_reports_signatures_from_direct_source(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = Path(__file__).resolve().parent / "fixtures" / "L1_good.step"
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+instances:
+  - id: fixture_assembly
+    role: fixture
+    source_path: {fixture.as_posix()}
+""")
+
+            report = inspect_component(spec, source_path=fixture)
+            self.assertEqual(report.overall.value, "pass")
+            self.assertGreater(report.meta["part_count"], 0)
+            self.assertTrue(report.meta["signature_histogram"])
+
+    def test_inspect_component_resolves_manifest_component_id(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = Path(__file__).resolve().parent / "fixtures" / "L1_good.step"
+            manifest = self._write(root, "manifest.yaml", f"""
+schema_version: m3_component_manifest.v0.1
+components:
+  - id: l1_fixture
+    source_path: {fixture.as_posix()}
+""")
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+manifests:
+  - {manifest.as_posix()}
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+instances:
+  - id: fixture_assembly
+    role: fixture
+    component_id: l1_fixture
+""")
+
+            report = inspect_component(spec, component_id="l1_fixture")
+            self.assertEqual(report.overall.value, "pass")
+            self.assertEqual(report.meta["source_ref"], fixture.as_posix())
+
+    def test_inspect_component_can_use_fake_renderer(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = Path(__file__).resolve().parent / "fixtures" / "L1_good.step"
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+instances:
+  - id: part
+    role: fixture
+    source_path: {fixture.as_posix()}
+""")
+
+            calls = []
+
+            def fake_renderer(step_path, output_path, **kwargs):
+                calls.append((step_path, output_path, kwargs))
+                Path(output_path).write_text("png", encoding="utf-8")
+                return output_path
+
+            report = inspect_component(
+                spec,
+                source_path=fixture,
+                render_views=True,
+                views=["front"],
+                renderer=fake_renderer,
+            )
+            self.assertEqual(report.overall.value, "pass")
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(report.meta["rendered_views"][0]["view"], "front")
 
 
 if __name__ == "__main__":
