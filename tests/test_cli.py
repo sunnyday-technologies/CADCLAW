@@ -34,7 +34,7 @@ class TestParser(unittest.TestCase):
                 names.update(action.choices.keys())
         for expected in ["doctor", "parity", "inventory",
                           "bom-audit", "claim-audit", "publish-audit",
-                          "harness", "inspect"]:
+                          "harness", "inspect", "assemble"]:
             self.assertIn(expected, names)
 
 
@@ -64,6 +64,34 @@ class TestParityCommand(unittest.TestCase):
         # L3_bad has 1 fewer part
         self.assertEqual(d["overall"], "fail")
         self.assertTrue(any(f["category"] == "parity" for f in d["findings"]))
+
+
+class TestAssembleCommand(unittest.TestCase):
+    def test_validate_spec_reports_incomplete_round(self):
+        spec = Path("examples/m3_crete/m3_reference_assembly.yaml")
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            code = main(["assemble", "validate-spec", str(spec),
+                         "--report-format", "json"])
+        d = json.loads(buf.getvalue())
+        self.assertEqual(code, 2)
+        self.assertEqual(d["overall"], "warn")
+        self.assertEqual(d["meta"]["active_variant"], "M3-2")
+        self.assertGreater(d["meta"]["not_built_yet"], 0)
+
+    def test_validate_spec_release_mode_fails_on_not_built_yet(self):
+        spec = Path("examples/m3_crete/m3_reference_assembly.yaml")
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            code = main(["assemble", "validate-spec", str(spec),
+                         "--release", "--report-format", "json"])
+        d = json.loads(buf.getvalue())
+        self.assertEqual(code, 1)
+        self.assertEqual(d["overall"], "fail")
+        self.assertTrue(any(
+            f["id"] == "assemble.not_built_yet" and f["severity"] == "fail"
+            for f in d["findings"]
+        ))
 
 
 class TestExitCodes(unittest.TestCase):
