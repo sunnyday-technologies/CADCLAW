@@ -164,6 +164,38 @@ instances:
             self.assertEqual(d["overall"], "warn")
             self.assertEqual(d["meta"]["role_inventory"]["test"], 1)
 
+    def test_inspect_component_direct_source(self):
+        fixture = FIXTURES / "L1_good.step"
+        if not fixture.exists():
+            self.skipTest("L1 fixture not generated; run tests/generate_fixtures.py")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec = root / "spec.yaml"
+            spec.write_text(
+                f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+instances:
+  - id: thing
+    role: test
+    source_path: {fixture.as_posix()}
+""",
+                encoding="utf-8",
+            )
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = main(["assemble", "inspect-component", str(spec),
+                             "--source-path", str(fixture),
+                             "--report-format", "json"])
+            d = json.loads(buf.getvalue())
+            self.assertEqual(code, 0)
+            self.assertGreater(d["meta"]["part_count"], 0)
+
 
 class TestExitCodes(unittest.TestCase):
     def test_missing_rules_file_returns_3(self):
