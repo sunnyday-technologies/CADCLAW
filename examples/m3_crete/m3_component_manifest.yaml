@@ -1,0 +1,2603 @@
+schema_version: m3_component_manifest.v0.1
+generated_at: '2026-05-15T11:07:08.047911+00:00'
+source_cad_root_hint: ../M3-CRETE/CAD
+libraries:
+- Advanced
+policy:
+  default_non_stock_geometry: place_authored_step_only
+  generated_geometry_allowed:
+  - linear stock cut to length
+  - explicit belt segments
+  - optional standard fastener stand-ins when requested
+  missing_required_component: emit_not_built_yet
+  release_placeholder_policy: explicit placeholders fail release validation
+components:
+- id: advanced_assemblies_c_beam_linear_actuator_1000mm
+  display_name: C-Beam Linear Actuator 1000mm
+  source_library: Advanced
+  category: Assemblies
+  source_path: CAD/Advanced/Assemblies/C-Beam Linear Actuator 1000mm.step
+  kind: macro_assembly
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 64
+    signatures:
+    - sig:
+      - 9.0
+      - 9.0
+      - 21.5
+      count: 10
+    - sig:
+      - 1.0
+      - 8.0
+      - 8.0
+      count: 8
+    - sig:
+      - 4.2
+      - 10.0
+      - 10.0
+      count: 8
+    - sig:
+      - 5.0
+      - 8.8
+      - 9.0
+      count: 4
+    - sig:
+      - 8.8
+      - 15.2
+      - 15.2
+      count: 4
+    - sig:
+      - 9.0
+      - 9.0
+      - 26.5
+      count: 4
+    - sig:
+      - 1.1
+      - 11.8
+      - 11.8
+      count: 2
+    - sig:
+      - 3.0
+      - 10.0
+      - 10.0
+      count: 2
+    - sig:
+      - 5.0
+      - 8.0
+      - 9.2
+      count: 2
+    - sig:
+      - 5.0
+      - 16.0
+      - 16.0
+      count: 2
+    - sig:
+      - 6.0
+      - 10.0
+      - 10.0
+      count: 2
+    - sig:
+      - 7.0
+      - 14.0
+      - 14.0
+      count: 2
+    - sig:
+      - 8.5
+      - 9.7
+      - 10.0
+      count: 2
+    - sig:
+      - 9.0
+      - 9.0
+      - 56.5
+      count: 2
+    - sig:
+      - 10.0
+      - 10.0
+      - 40.0
+      count: 2
+    - sig:
+      - 12.0
+      - 50.0
+      - 80.0
+      count: 2
+    - sig:
+      - 6.0
+      - 77.2
+      - 77.2
+      count: 1
+    - sig:
+      - 8.0
+      - 8.0
+      - 1040.0
+      count: 1
+    - sig:
+      - 12.0
+      - 20.0
+      - 34.0
+      count: 1
+    - sig:
+      - 20.0
+      - 20.0
+      - 25.0
+      count: 1
+    - sig:
+      - 40.0
+      - 80.0
+      - 1000.0
+      count: 1
+    - sig:
+      - 56.4
+      - 56.4
+      - 76.6
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_assemblies_c_beam_linear_actuator_250mm
+  display_name: C-Beam Linear Actuator 250mm
+  source_library: Advanced
+  category: Assemblies
+  source_path: CAD/Advanced/Assemblies/C-Beam Linear Actuator 250mm.step
+  kind: macro_assembly
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 64
+    signatures:
+    - sig:
+      - 9.0
+      - 9.0
+      - 21.5
+      count: 10
+    - sig:
+      - 1.0
+      - 8.0
+      - 8.0
+      count: 8
+    - sig:
+      - 4.2
+      - 10.0
+      - 10.0
+      count: 8
+    - sig:
+      - 5.0
+      - 8.8
+      - 9.0
+      count: 4
+    - sig:
+      - 8.8
+      - 15.2
+      - 15.2
+      count: 4
+    - sig:
+      - 9.0
+      - 9.0
+      - 26.5
+      count: 4
+    - sig:
+      - 3.0
+      - 10.0
+      - 10.0
+      count: 2
+    - sig:
+      - 5.0
+      - 8.0
+      - 9.2
+      count: 2
+    - sig:
+      - 5.0
+      - 16.0
+      - 16.0
+      count: 2
+    - sig:
+      - 6.0
+      - 10.0
+      - 10.0
+      count: 2
+    - sig:
+      - 7.0
+      - 14.0
+      - 14.0
+      count: 2
+    - sig:
+      - 8.5
+      - 9.7
+      - 10.0
+      count: 2
+    - sig:
+      - 9.0
+      - 9.0
+      - 56.5
+      count: 2
+    - sig:
+      - 10.0
+      - 10.0
+      - 40.0
+      count: 2
+    - sig:
+      - 12.0
+      - 50.0
+      - 80.0
+      count: 2
+    - sig:
+      - 1.1
+      - 11.8
+      - 11.8
+      count: 1
+    - sig:
+      - 1.2
+      - 11.8
+      - 11.8
+      count: 1
+    - sig:
+      - 6.0
+      - 77.2
+      - 77.2
+      count: 1
+    - sig:
+      - 8.0
+      - 8.0
+      - 290.0
+      count: 1
+    - sig:
+      - 12.0
+      - 20.0
+      - 34.0
+      count: 1
+    - sig:
+      - 20.0
+      - 20.0
+      - 25.0
+      count: 1
+    - sig:
+      - 40.0
+      - 80.0
+      - 250.0
+      count: 1
+    - sig:
+      - 56.4
+      - 56.4
+      - 76.6
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_assemblies_c_beam_linear_actuator_500mm
+  display_name: C-Beam Linear Actuator 500mm
+  source_library: Advanced
+  category: Assemblies
+  source_path: CAD/Advanced/Assemblies/C-Beam Linear Actuator 500mm.step
+  kind: macro_assembly
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 64
+    signatures:
+    - sig:
+      - 9.0
+      - 9.0
+      - 21.5
+      count: 10
+    - sig:
+      - 1.0
+      - 8.0
+      - 8.0
+      count: 8
+    - sig:
+      - 4.2
+      - 10.0
+      - 10.0
+      count: 8
+    - sig:
+      - 5.0
+      - 8.8
+      - 9.0
+      count: 4
+    - sig:
+      - 8.8
+      - 15.2
+      - 15.2
+      count: 4
+    - sig:
+      - 9.0
+      - 9.0
+      - 26.5
+      count: 4
+    - sig:
+      - 1.1
+      - 11.8
+      - 11.8
+      count: 2
+    - sig:
+      - 3.0
+      - 10.0
+      - 10.0
+      count: 2
+    - sig:
+      - 5.0
+      - 8.0
+      - 9.2
+      count: 2
+    - sig:
+      - 5.0
+      - 16.0
+      - 16.0
+      count: 2
+    - sig:
+      - 6.0
+      - 10.0
+      - 10.0
+      count: 2
+    - sig:
+      - 7.0
+      - 14.0
+      - 14.0
+      count: 2
+    - sig:
+      - 8.5
+      - 9.7
+      - 10.0
+      count: 2
+    - sig:
+      - 9.0
+      - 9.0
+      - 56.5
+      count: 2
+    - sig:
+      - 10.0
+      - 10.0
+      - 40.0
+      count: 2
+    - sig:
+      - 12.0
+      - 50.0
+      - 80.0
+      count: 2
+    - sig:
+      - 6.0
+      - 77.2
+      - 77.2
+      count: 1
+    - sig:
+      - 8.0
+      - 8.0
+      - 540.0
+      count: 1
+    - sig:
+      - 12.0
+      - 20.0
+      - 34.0
+      count: 1
+    - sig:
+      - 20.0
+      - 20.0
+      - 25.0
+      count: 1
+    - sig:
+      - 40.0
+      - 80.0
+      - 500.0
+      count: 1
+    - sig:
+      - 56.4
+      - 56.4
+      - 76.6
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_assemblies_delrin_mini_v_wheel
+  display_name: Delrin Mini V Wheel
+  source_library: Advanced
+  category: Assemblies
+  source_path: CAD/Advanced/Assemblies/Delrin Mini V Wheel.step
+  kind: macro_assembly
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 8.8
+      - 15.2
+      - 15.2
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_assemblies_mini_v_linear_actuator_500mm
+  display_name: Mini V Linear Actuator 500mm
+  source_library: Advanced
+  category: Assemblies
+  source_path: CAD/Advanced/Assemblies/Mini V Linear Actuator 500mm.step
+  kind: macro_assembly
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 79
+    signatures:
+    - sig:
+      - 7.5
+      - 9.0
+      - 9.0
+      count: 16
+    - sig:
+      - 1.0
+      - 8.0
+      - 8.0
+      count: 8
+    - sig:
+      - 3.0
+      - 10.0
+      - 36.9
+      count: 8
+    - sig:
+      - 4.2
+      - 10.0
+      - 10.0
+      count: 8
+    - sig:
+      - 6.0
+      - 10.0
+      - 10.0
+      count: 6
+    - sig:
+      - 5.7
+      - 5.7
+      - 13.7
+      count: 4
+    - sig:
+      - 8.8
+      - 15.2
+      - 15.2
+      count: 4
+    - sig:
+      - 9.0
+      - 9.0
+      - 26.5
+      count: 4
+    - sig:
+      - 5.0
+      - 8.8
+      - 9.0
+      count: 3
+    - sig:
+      - 5.0
+      - 16.0
+      - 16.0
+      count: 2
+    - sig:
+      - 8.5
+      - 9.7
+      - 10.0
+      count: 2
+    - sig:
+      - 28.4
+      - 54.9
+      - 86.3
+      count: 2
+    - sig:
+      - 3.2
+      - 7.9
+      - 7.9
+      count: 1
+    - sig:
+      - 3.2
+      - 10.0
+      - 10.0
+      count: 1
+    - sig:
+      - 5.0
+      - 8.1
+      - 9.2
+      count: 1
+    - sig:
+      - 5.0
+      - 8.3
+      - 9.2
+      count: 1
+    - sig:
+      - 5.0
+      - 20.3
+      - 561.3
+      count: 1
+    - sig:
+      - 6.0
+      - 50.0
+      - 50.0
+      count: 1
+    - sig:
+      - 6.4
+      - 10.0
+      - 10.0
+      count: 1
+    - sig:
+      - 9.0
+      - 9.0
+      - 36.5
+      count: 1
+    - sig:
+      - 12.7
+      - 22.0
+      - 22.0
+      count: 1
+    - sig:
+      - 17.5
+      - 22.0
+      - 22.0
+      count: 1
+    - sig:
+      - 20.0
+      - 40.0
+      - 500.0
+      count: 1
+    - sig:
+      - 42.4
+      - 42.4
+      - 72.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_assemblies_nema_17_v_slot_belt_driven_actuator_500mm
+  display_name: Nema 17 V Slot Belt Driven Actuator 500mm
+  source_library: Advanced
+  category: Assemblies
+  source_path: CAD/Advanced/Assemblies/Nema 17 V Slot Belt Driven Actuator 500mm.step
+  kind: macro_assembly
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 56
+    signatures:
+    - sig:
+      - 5.0
+      - 16.0
+      - 16.0
+      count: 10
+    - sig:
+      - 1.0
+      - 10.0
+      - 10.0
+      count: 8
+    - sig:
+      - 9.0
+      - 9.0
+      - 26.5
+      count: 5
+    - sig:
+      - 5.0
+      - 8.8
+      - 9.0
+      count: 4
+    - sig:
+      - 5.7
+      - 5.7
+      - 7.7
+      count: 4
+    - sig:
+      - 9.0
+      - 9.0
+      - 9.5
+      count: 4
+    - sig:
+      - 10.2
+      - 23.9
+      - 23.9
+      count: 4
+    - sig:
+      - 3.0
+      - 10.0
+      - 36.9
+      count: 2
+    - sig:
+      - 6.0
+      - 10.0
+      - 10.0
+      count: 2
+    - sig:
+      - 8.5
+      - 10.0
+      - 11.5
+      count: 2
+    - sig:
+      - 3.0
+      - 10.0
+      - 10.0
+      count: 1
+    - sig:
+      - 3.0
+      - 39.5
+      - 67.0
+      count: 1
+    - sig:
+      - 3.0
+      - 39.5
+      - 82.0
+      count: 1
+    - sig:
+      - 3.0
+      - 65.5
+      - 65.5
+      count: 1
+    - sig:
+      - 3.2
+      - 7.9
+      - 7.9
+      count: 1
+    - sig:
+      - 5.0
+      - 8.0
+      - 9.2
+      count: 1
+    - sig:
+      - 5.0
+      - 20.3
+      - 552.3
+      count: 1
+    - sig:
+      - 12.7
+      - 22.0
+      - 22.0
+      count: 1
+    - sig:
+      - 17.5
+      - 22.0
+      - 22.0
+      count: 1
+    - sig:
+      - 20.0
+      - 40.0
+      - 500.0
+      count: 1
+    - sig:
+      - 42.4
+      - 42.4
+      - 72.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_assemblies_nema_17_v_slot_lead_screw_driven_actuator
+  display_name: Nema 17 V Slot Lead Screw Driven Actuator
+  source_library: Advanced
+  category: Assemblies
+  source_path: CAD/Advanced/Assemblies/Nema 17 V Slot Lead Screw Driven Actuator.step
+  kind: macro_assembly
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 66
+    signatures:
+    - sig:
+      - 5.0
+      - 16.0
+      - 16.0
+      count: 10
+    - sig:
+      - 1.0
+      - 10.0
+      - 10.0
+      count: 8
+    - sig:
+      - 9.0
+      - 9.0
+      - 16.5
+      count: 6
+    - sig:
+      - 5.0
+      - 8.8
+      - 9.0
+      count: 4
+    - sig:
+      - 9.0
+      - 9.0
+      - 41.5
+      count: 4
+    - sig:
+      - 9.6
+      - 9.6
+      - 20.4
+      count: 4
+    - sig:
+      - 10.2
+      - 23.9
+      - 23.9
+      count: 4
+    - sig:
+      - 5.5
+      - 5.5
+      - 48.0
+      count: 3
+    - sig:
+      - 10.0
+      - 10.0
+      - 38.1
+      count: 3
+    - sig:
+      - 3.0
+      - 53.0
+      - 59.3
+      count: 2
+    - sig:
+      - 5.0
+      - 8.0
+      - 9.2
+      count: 2
+    - sig:
+      - 6.0
+      - 10.0
+      - 10.0
+      count: 2
+    - sig:
+      - 7.0
+      - 14.0
+      - 14.0
+      count: 2
+    - sig:
+      - 8.5
+      - 10.0
+      - 11.5
+      count: 2
+    - sig:
+      - 12.0
+      - 20.0
+      - 86.4
+      count: 2
+    - sig:
+      - 1.1
+      - 11.8
+      - 11.8
+      count: 1
+    - sig:
+      - 1.2
+      - 11.8
+      - 11.8
+      count: 1
+    - sig:
+      - 3.0
+      - 88.0
+      - 127.0
+      count: 1
+    - sig:
+      - 8.0
+      - 8.0
+      - 520.0
+      count: 1
+    - sig:
+      - 12.0
+      - 20.0
+      - 34.0
+      count: 1
+    - sig:
+      - 20.0
+      - 20.0
+      - 25.0
+      count: 1
+    - sig:
+      - 20.0
+      - 60.0
+      - 500.0
+      count: 1
+    - sig:
+      - 53.0
+      - 53.0
+      - 72.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_assemblies_nema_23_v_slot_lead_screw_driven_actuator
+  display_name: Nema 23 V Slot Lead Screw Driven Actuator
+  source_library: Advanced
+  category: Assemblies
+  source_path: CAD/Advanced/Assemblies/Nema 23 V Slot Lead Screw Driven Actuator.step
+  kind: macro_assembly
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 69
+    signatures:
+    - sig:
+      - 5.0
+      - 16.0
+      - 16.0
+      count: 10
+    - sig:
+      - 1.0
+      - 10.0
+      - 10.0
+      count: 8
+    - sig:
+      - 9.0
+      - 9.0
+      - 16.5
+      count: 6
+    - sig:
+      - 5.0
+      - 8.0
+      - 9.2
+      count: 4
+    - sig:
+      - 5.0
+      - 8.8
+      - 9.0
+      count: 4
+    - sig:
+      - 9.0
+      - 9.0
+      - 41.5
+      count: 4
+    - sig:
+      - 9.6
+      - 9.6
+      - 20.4
+      count: 4
+    - sig:
+      - 10.2
+      - 23.9
+      - 23.9
+      count: 4
+    - sig:
+      - 9.0
+      - 9.0
+      - 56.5
+      count: 3
+    - sig:
+      - 10.0
+      - 10.0
+      - 40.0
+      count: 3
+    - sig:
+      - 3.0
+      - 72.5
+      - 80.0
+      count: 2
+    - sig:
+      - 6.0
+      - 10.0
+      - 10.0
+      count: 2
+    - sig:
+      - 7.0
+      - 14.0
+      - 14.0
+      count: 2
+    - sig:
+      - 8.5
+      - 10.0
+      - 11.5
+      count: 2
+    - sig:
+      - 12.0
+      - 20.0
+      - 86.4
+      count: 2
+    - sig:
+      - 1.1
+      - 11.8
+      - 11.8
+      count: 1
+    - sig:
+      - 1.2
+      - 11.8
+      - 11.8
+      count: 1
+    - sig:
+      - 3.0
+      - 88.0
+      - 127.0
+      count: 1
+    - sig:
+      - 5.0
+      - 8.9
+      - 8.9
+      count: 1
+    - sig:
+      - 8.0
+      - 8.0
+      - 520.0
+      count: 1
+    - sig:
+      - 12.0
+      - 20.0
+      - 34.0
+      count: 1
+    - sig:
+      - 20.0
+      - 20.0
+      - 25.0
+      count: 1
+    - sig:
+      - 20.0
+      - 80.0
+      - 500.0
+      count: 1
+    - sig:
+      - 76.0
+      - 76.0
+      - 76.6
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_bearings_ball_bearing_0_25_x_0_625_x_0_196
+  display_name: Ball Bearing 0.25 x 0.625 x 0.196
+  source_library: Advanced
+  category: Bearings
+  source_path: CAD/Advanced/Bearings/Ball Bearing 0.25 x 0.625 x 0.196.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 5.0
+      - 15.9
+      - 15.9
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_bearings_ball_bearing_5_x_10_x_4_2
+  display_name: Ball Bearing 5 x 10 x 4.2
+  source_library: Advanced
+  category: Bearings
+  source_path: CAD/Advanced/Bearings/Ball Bearing 5 x 10 x 4.2.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 4.2
+      - 10.0
+      - 10.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_brackets_black_angle_corner_connector
+  display_name: Black Angle Corner Connector
+  source_library: Advanced
+  category: Brackets
+  source_path: CAD/Advanced/Brackets/Black Angle Corner Connector.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 20.0
+      - 20.0
+      - 20.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_brackets_end_cap
+  display_name: End Cap
+  source_library: Advanced
+  category: Brackets
+  source_path: CAD/Advanced/Brackets/End Cap.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 3.0
+      - 20.0
+      - 20.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_brackets_router_spindle_mount
+  display_name: Router Spindle Mount
+  source_library: Advanced
+  category: Brackets
+  source_path: CAD/Advanced/Brackets/Router Spindle Mount.step
+  kind: assembly
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 2
+    signatures:
+    - sig:
+      - 20.0
+      - 20.3
+      - 90.8
+      count: 1
+    - sig:
+      - 20.0
+      - 85.1
+      - 90.8
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_brackets_v_slot_door_handle
+  display_name: V-Slot Door Handle
+  source_library: Advanced
+  category: Brackets
+  source_path: CAD/Advanced/Brackets/V-Slot Door Handle.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 20.0
+      - 36.5
+      - 109.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_electronics_dq542ma_stepper_motor_driver
+  display_name: DQ542MA Stepper Motor Driver
+  source_library: Advanced
+  category: Electronics
+  source_path: CAD/Advanced/Electronics/DQ542MA Stepper Motor Driver.STEP
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 35.0
+      - 77.2
+      - 118.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_electronics_mini_heated_bed
+  display_name: Mini Heated Bed
+  source_library: Advanced
+  category: Electronics
+  source_path: CAD/Advanced/Electronics/Mini Heated Bed.STEP
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 1.6
+      - 100.0
+      - 100.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_electronics_nema_17_stepper_motor
+  display_name: Nema 17 Stepper Motor
+  source_library: Advanced
+  category: Electronics
+  source_path: CAD/Advanced/Electronics/Nema 17 Stepper Motor.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 42.4
+      - 42.4
+      - 72.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_hardware_8mm_acme_anti_backlash_nut_block
+  display_name: 8mm Acme Anti Backlash Nut Block
+  source_library: Advanced
+  category: Hardware
+  source_path: CAD/Advanced/Hardware/8mm Acme Anti Backlash Nut Block.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 12.0
+      - 33.0
+      - 34.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_hardware_8mm_acme_nut_block
+  display_name: 8mm Acme Nut Block
+  source_library: Advanced
+  category: Hardware
+  source_path: CAD/Advanced/Hardware/8mm Acme Nut Block.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 12.0
+      - 20.0
+      - 34.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_hardware_8mm_acme_nut_plate
+  display_name: 8mm Acme Nut Plate
+  source_library: Advanced
+  category: Hardware
+  source_path: CAD/Advanced/Hardware/8mm Acme Nut Plate.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 12.7
+      - 20.0
+      - 40.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_hardware_flexible_coupling_0_25in_x_8mm
+  display_name: Flexible Coupling 0.25in x 8mm
+  source_library: Advanced
+  category: Hardware
+  source_path: CAD/Advanced/Hardware/Flexible Coupling 0.25in x 8mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 20.0
+      - 20.0
+      - 25.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_hardware_flexible_coupling_5mm_x_0_25in
+  display_name: Flexible Coupling 5mm x 0.25in
+  source_library: Advanced
+  category: Hardware
+  source_path: CAD/Advanced/Hardware/Flexible Coupling 5mm x 0.25in.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 20.0
+      - 20.0
+      - 25.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_hardware_flexible_coupling_5mm_x_6mm
+  display_name: Flexible Coupling 5mm x 6mm
+  source_library: Advanced
+  category: Hardware
+  source_path: CAD/Advanced/Hardware/Flexible Coupling 5mm x 6mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 20.0
+      - 20.0
+      - 25.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_hardware_flexible_coupling_5mm_x_8mm
+  display_name: Flexible Coupling 5mm x 8mm
+  source_library: Advanced
+  category: Hardware
+  source_path: CAD/Advanced/Hardware/Flexible Coupling 5mm x 8mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 20.0
+      - 20.0
+      - 25.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_hardware_lock_collar_0_25_in
+  display_name: Lock Collar 0.25 in
+  source_library: Advanced
+  category: Hardware
+  source_path: CAD/Advanced/Hardware/Lock Collar 0.25 in.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 7.0
+      - 14.0
+      - 14.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_hardware_lock_collar_5mm
+  display_name: Lock Collar 5mm
+  source_library: Advanced
+  category: Hardware
+  source_path: CAD/Advanced/Hardware/Lock Collar 5mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 7.0
+      - 14.0
+      - 14.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_hardware_mounting_hub_5mm
+  display_name: Mounting Hub 5mm
+  source_library: Advanced
+  category: Hardware
+  source_path: CAD/Advanced/Hardware/Mounting Hub 5mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 6.0
+      - 21.2
+      - 21.2
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_hardware_nylon_insert_lock_nut_m3
+  display_name: Nylon Insert Lock Nut M3
+  source_library: Advanced
+  category: Hardware
+  source_path: CAD/Advanced/Hardware/Nylon Insert Lock Nut M3.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 4.0
+      - 5.5
+      - 6.4
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+  display_name: C-Beam 40x80x1000 Linear Rail
+  source_library: Advanced
+  category: Linear Rail
+  source_path: CAD/Advanced/Linear Rail/C-Beam 40x80x1000 Linear Rail.step
+  kind: part
+  stock_like: true
+  generation_policy: stock_profile_may_be_generated_or_placed
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 40.0
+      - 80.0
+      - 1000.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_linear_rail_c_beam_40x80x250_linear_rail
+  display_name: C-Beam 40x80x250 Linear Rail
+  source_library: Advanced
+  category: Linear Rail
+  source_path: CAD/Advanced/Linear Rail/C-Beam 40x80x250 Linear Rail.step
+  kind: part
+  stock_like: true
+  generation_policy: stock_profile_may_be_generated_or_placed
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 40.0
+      - 80.0
+      - 250.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_linear_rail_c_beam_40x80x500_linear_rail
+  display_name: C-Beam 40x80x500 Linear Rail
+  source_library: Advanced
+  category: Linear Rail
+  source_path: CAD/Advanced/Linear Rail/C-Beam 40x80x500 Linear Rail.step
+  kind: part
+  stock_like: true
+  generation_policy: stock_profile_may_be_generated_or_placed
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 40.0
+      - 80.0
+      - 500.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_linear_rail_open_rail_1000mm
+  display_name: Open Rail 1000mm
+  source_library: Advanced
+  category: Linear Rail
+  source_path: CAD/Advanced/Linear Rail/Open Rail 1000mm.step
+  kind: part
+  stock_like: true
+  generation_policy: stock_profile_may_be_generated_or_placed
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 4.8
+      - 22.5
+      - 1000.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_linear_rail_open_rail_1500mm
+  display_name: Open Rail 1500mm
+  source_library: Advanced
+  category: Linear Rail
+  source_path: CAD/Advanced/Linear Rail/Open Rail 1500mm.step
+  kind: part
+  stock_like: true
+  generation_policy: stock_profile_may_be_generated_or_placed
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 4.8
+      - 22.5
+      - 1500.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_linear_rail_open_rail_500mm
+  display_name: Open Rail 500mm
+  source_library: Advanced
+  category: Linear Rail
+  source_path: CAD/Advanced/Linear Rail/Open Rail 500mm.step
+  kind: part
+  stock_like: true
+  generation_policy: stock_profile_may_be_generated_or_placed
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 4.8
+      - 22.5
+      - 500.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_c_beam_end_mount
+  display_name: C-Beam End Mount
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/C-Beam End Mount.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 12.0
+      - 50.0
+      - 80.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_c_beam_gantry_plate_xlarge
+  display_name: C-Beam Gantry Plate XLarge
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 6.0
+      - 125.0
+      - 125.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_c_beam_gantry_plate
+  display_name: C-Beam Gantry Plate
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/C-Beam Gantry Plate.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 6.0
+      - 77.2
+      - 77.2
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_c_beam_riser_plate
+  display_name: C-Beam Riser Plate
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/C-Beam Riser Plate.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 8.0
+      - 14.9
+      - 77.5
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_c_beam_shield_250mm
+  display_name: C-Beam Shield 250mm
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/C-Beam Shield 250mm.STEP
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 3.0
+      - 45.0
+      - 273.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_c_beam_shield_500mm
+  display_name: C-Beam Shield 500mm
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/C-Beam Shield 500mm.STEP
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 3.0
+      - 45.0
+      - 523.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_double_cb_gantry_plate
+  display_name: Double CB-Gantry Plate
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Double CB-Gantry Plate.STEP
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 6.0
+      - 77.5
+      - 155.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_joining_plate_90_degree
+  display_name: Joining Plate 90 Degree
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Joining Plate 90 Degree.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 4.0
+      - 60.0
+      - 60.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_joining_plate_cross
+  display_name: Joining Plate Cross
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Joining Plate Cross.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 4.0
+      - 60.0
+      - 100.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_joining_plate_t
+  display_name: Joining Plate T
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Joining Plate T.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 4.0
+      - 60.0
+      - 60.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_joining_strip_plate_2_hole
+  display_name: Joining Strip Plate 2 Hole
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Joining Strip Plate 2 Hole.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 4.0
+      - 18.0
+      - 40.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_joining_strip_plate_3_hole
+  display_name: Joining Strip Plate 3 Hole
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Joining Strip Plate 3 Hole.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 4.0
+      - 18.0
+      - 60.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_mini_v_wheel_plate
+  display_name: Mini V Wheel Plate
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Mini V Wheel Plate.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 6.0
+      - 50.0
+      - 50.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_motor_mount_plate_nema_17
+  display_name: Motor Mount Plate Nema 17
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Motor Mount Plate Nema 17.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 3.0
+      - 39.5
+      - 82.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_nema_23_reduction_stand_off_plate
+  display_name: NEMA 23 Reduction Stand Off Plate
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/NEMA 23 Reduction Stand Off Plate.STEP
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 6.0
+      - 80.0
+      - 124.8
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_open_rail_gantry_plate_20mm
+  display_name: Open Rail Gantry Plate 20mm
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Open Rail Gantry Plate 20mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 3.0
+      - 80.0
+      - 80.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_open_rail_gantry_plate_40mm
+  display_name: Open Rail Gantry Plate 40mm
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Open Rail Gantry Plate 40mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 3.0
+      - 100.0
+      - 120.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_open_rail_gantry_plate_60mm
+  display_name: Open Rail Gantry Plate 60mm
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Open Rail Gantry Plate 60mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 3.0
+      - 120.0
+      - 140.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_open_rail_gantry_plate_80mm
+  display_name: Open Rail Gantry Plate 80mm
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Open Rail Gantry Plate 80mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 3.0
+      - 140.0
+      - 160.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_plates_threaded_rod_plate_nema_17
+  display_name: Threaded Rod Plate Nema 17
+  source_library: Advanced
+  category: Plates
+  source_path: CAD/Advanced/Plates/Threaded Rod Plate Nema 17.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 3.0
+      - 53.0
+      - 59.3
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_pulleys_gt2_timing_pulley_14_tooth
+  display_name: GT2 Timing Pulley 14 Tooth
+  source_library: Advanced
+  category: Pulleys
+  source_path: CAD/Advanced/Pulleys/GT2 Timing Pulley 14 Tooth.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 12.0
+      - 12.0
+      - 14.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_pulleys_gt2_timing_pulley_30_tooth
+  display_name: GT2 Timing Pulley 30 Tooth
+  source_library: Advanced
+  category: Pulleys
+  source_path: CAD/Advanced/Pulleys/GT2 Timing Pulley 30 Tooth.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 17.5
+      - 22.0
+      - 22.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_screws_button_head_socket_cap_screw_m3
+  display_name: Button Head Socket Cap Screw M3
+  source_library: Advanced
+  category: Screws
+  source_path: CAD/Advanced/Screws/Button Head Socket Cap Screw M3.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 5.7
+      - 5.7
+      - 7.7
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_screws_low_profile_screw_m5
+  display_name: Low Profile Screw M5
+  source_library: Advanced
+  category: Screws
+  source_path: CAD/Advanced/Screws/Low Profile Screw M5.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 9.0
+      - 9.0
+      - 9.5
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_screws_self_tapping_screw
+  display_name: Self Tapping Screw
+  source_library: Advanced
+  category: Screws
+  source_path: CAD/Advanced/Screws/Self Tapping Screw.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 9.6
+      - 9.6
+      - 20.4
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_screws_socket_head_cap_screw_m3
+  display_name: Socket Head Cap Screw M3
+  source_library: Advanced
+  category: Screws
+  source_path: CAD/Advanced/Screws/Socket Head Cap Screw M3.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 5.5
+      - 5.5
+      - 33.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_aluminum_spacer_125in
+  display_name: Aluminum Spacer .125in
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Aluminum Spacer .125in.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 3.2
+      - 10.0
+      - 10.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_aluminum_spacer_25in
+  display_name: Aluminum Spacer .25in
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Aluminum Spacer .25in.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 6.3
+      - 10.0
+      - 10.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_aluminum_spacer_1_5in
+  display_name: Aluminum Spacer 1.5in
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Aluminum Spacer 1.5in.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 10.0
+      - 10.0
+      - 38.1
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_aluminum_spacer_20mm
+  display_name: Aluminum Spacer 20mm
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Aluminum Spacer 20mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 10.0
+      - 10.0
+      - 20.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_aluminum_spacer_35mm
+  display_name: Aluminum Spacer 35mm
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Aluminum Spacer 35mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 10.0
+      - 10.0
+      - 35.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_aluminum_spacer_3mm
+  display_name: Aluminum Spacer 3mm
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Aluminum Spacer 3mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 3.0
+      - 10.0
+      - 10.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_aluminum_spacer_40mm
+  display_name: Aluminum Spacer 40mm
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Aluminum Spacer 40mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 10.0
+      - 10.0
+      - 40.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_aluminum_spacer_6mm
+  display_name: Aluminum Spacer 6mm
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Aluminum Spacer 6mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 6.0
+      - 10.0
+      - 10.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_aluminum_spacer_9mm
+  display_name: Aluminum Spacer 9mm
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Aluminum Spacer 9mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 9.0
+      - 10.0
+      - 10.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_flat_washer_0_25in
+  display_name: Flat Washer 0.25in
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Flat Washer 0.25in.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 1.8
+      - 18.7
+      - 18.7
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_nylon_spacer_0_125in
+  display_name: Nylon Spacer 0.125in
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Nylon Spacer 0.125in.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 3.2
+      - 7.9
+      - 7.9
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_nylon_spacer_0_25in
+  display_name: Nylon Spacer 0.25in
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Nylon Spacer 0.25in.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 6.3
+      - 7.9
+      - 7.9
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_shim_washer_8mm
+  display_name: Shim Washer 8mm
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Shim Washer 8mm.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 1.1
+      - 11.8
+      - 11.8
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_shims_and_spacers_slot_washer_15_x_5_x_2
+  display_name: Slot Washer 15 x 5 x 2
+  source_library: Advanced
+  category: Shims and Spacers
+  source_path: CAD/Advanced/Shims and Spacers/Slot Washer 15 x 5 x 2.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 2.0
+      - 15.0
+      - 15.0
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_wheels_delrin_mini_v_wheel
+  display_name: Delrin Mini V Wheel
+  source_library: Advanced
+  category: Wheels
+  source_path: CAD/Advanced/Wheels/Delrin Mini V Wheel.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 8.8
+      - 15.2
+      - 15.2
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
+- id: advanced_wheels_metal_v_wheel
+  display_name: Metal V Wheel
+  source_library: Advanced
+  category: Wheels
+  source_path: CAD/Advanced/Wheels/Metal V Wheel.step
+  kind: part
+  stock_like: false
+  generation_policy: place_authored_step_only
+  inspection:
+    status: ok
+    part_count: 1
+    signatures:
+    - sig:
+      - 10.2
+      - 23.9
+      - 23.9
+      count: 1
+  bom_binding:
+    status: needs_user_mapping
+    public_bom_ids: []
+  connector_metadata:
+    status: needs_definition
+  source_note: Authored STEP asset. Verify upstream license/source terms before public
+    redistribution.
