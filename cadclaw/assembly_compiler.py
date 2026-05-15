@@ -68,6 +68,18 @@ class ReviewViewOutput:
     message: Optional[str] = None
 
 
+def _shape_bbox(shape) -> List[float]:
+    bb = shape.BoundingBox()
+    return [
+        round(bb.xmin, 3),
+        round(bb.ymin, 3),
+        round(bb.zmin, 3),
+        round(bb.xmax, 3),
+        round(bb.ymax, 3),
+        round(bb.zmax, 3),
+    ]
+
+
 def _as_posix(path: Path) -> str:
     return path.as_posix()
 
@@ -307,6 +319,187 @@ def write_design_inventory(plan: AssemblyBuildPlan, output_path: str | Path) -> 
     with path.open("w", encoding="utf-8", newline="\n") as f:
         json.dump(plan.to_dict(), f, indent=2)
         f.write("\n")
+
+
+def inspect_component(
+    spec_path: str | Path,
+    component_id: str | None = None,
+    source_path: str | Path | None = None,
+    render_views: bool = False,
+    views: Optional[List[str]] = None,
+    views_dir: str | Path | None = None,
+    renderer: Optional[Callable[..., str]] = None,
+) -> Report:
+    start = time.time()
+    spec_file = Path(spec_path)
+    spec_dir = spec_file.resolve().parent
+    spec = load_assembly_spec(spec_file)
+    manifest_sources = _load_manifest_sources(spec.manifests, spec_dir)
+
+    findings: List[Finding] = []
+    if bool(component_id) == bool(source_path):
+        findings.append(Finding(
+            id="assemble.inspect_component_selector_invalid",
+            category="assemble",
+            severity=Severity.FAIL,
+            message="provide exactly one of component_id or source_path",
+        ))
+        source_ref = "<invalid-selector>"
+        resolved = Path(source_ref)
+    elif component_id:
+        if component_id not in manifest_sources:
+            findings.append(Finding(
+                id="assemble.inspect_component_missing_manifest_entry",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"component_id not found in manifests: {component_id}",
+                evidence={"component_id": component_id},
+            ))
+            source_ref = component_id
+            resolved = Path(component_id)
+        else:
+            source_ref = manifest_sources[component_id]
+            resolved = resolve_source_path(source_ref, spec, spec_dir)
+    else:
+        source_ref = str(source_path)
+        resolved = resolve_source_path(source_ref, spec, spec_dir)
+
+    exists = resolved.exists()
+    part_summaries: List[dict] = []
+    signature_histogram: Dict[str, int] = {}
+    render_outputs: List[ReviewViewOutput] = []
+    if not exists:
+        findings.append(Finding(
+            id="assemble.inspect_component_source_missing",
+            category="assemble",
+            severity=Severity.FAIL,
+            message=f"component STEP not found: {source_ref}",
+            evidence={
+                "source_ref": source_ref,
+                "resolved_path": _display_path(resolved),
+            },
+        ))
+    elif source_ref.strip().lower().startswith(GENERATED_SOURCE_PREFIXES):
+        findings.extend(_generation_policy_findings(AssemblyBuildPlan(
+            spec_path=str(spec_path),
+            output_step=spec.outputs.step,
+            dry_run=True,
+            instances=[ResolvedInstance(
+                id=component_id or "source_path",
+                role="component",
+                source_ref=source_ref,
+                resolved_path=_display_path(resolved),
+                exists=True,
+                transform={"translate_mm": [0.0, 0.0, 0.0], "rotate_deg": [0.0, 0.0, 0.0]},
+            )],
+        )))
+    else:
+        from .inventory import center, load_and_dedup, sig
+
+        parts = load_and_dedup(str(resolved))
+        if not parts:
+            findings.append(Finding(
+                id="assemble.inspect_component_empty",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"component STEP loaded but no solids/shells were found: {source_ref}",
+                evidence={"resolved_path": _display_path(resolved)},
+            ))
+        for index, part in enumerate(parts):
+            signature = sig(part)
+            key = ",".join(f"{value:g}" for value in signature)
+            signature_histogram[key] = signature_histogram.get(key, 0) + 1
+            part_summaries.append({
+                "index": index,
+                "signature_mm": list(signature),
+                "center_mm": [round(value, 3) for value in center(part)],
+                "bbox_mm": _shape_bbox(part),
+            })
+
+        if render_views:
+            view_names = views or ["front", "side", "top", "iso"]
+            out_dir = (
+                Path(views_dir)
+                if views_dir is not None
+                else _resolve_output_path(spec.outputs.views_dir) / "components"
+            )
+            if not out_dir.is_absolute():
+                out_dir = _resolve_output_path(str(out_dir))
+            safe_id = component_id or Path(source_ref).stem
+            safe_id = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in safe_id)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            if renderer is None:
+                from .render import render_step_to_png as renderer
+            for view_name in view_names:
+                output = out_dir / f"{safe_id}_{view_name}.png"
+                try:
+                    renderer(
+                        str(resolved),
+                        str(output),
+                        width=900,
+                        height=700,
+                        view=view_name,
+                    )
+                    render_outputs.append(ReviewViewOutput(
+                        name=f"{safe_id}_{view_name}",
+                        view=view_name,
+                        output_path=_display_path(output),
+                        width=900,
+                        height=700,
+                        rendered=output.exists(),
+                    ))
+                    if not output.exists():
+                        findings.append(Finding(
+                            id="assemble.inspect_component_render_missing_output",
+                            category="assemble",
+                            severity=Severity.FAIL,
+                            message=f"{view_name}: renderer completed but no PNG was written",
+                            evidence={"output_path": _display_path(output)},
+                        ))
+                except Exception as exc:
+                    findings.append(Finding(
+                        id="assemble.inspect_component_render_failed",
+                        category="assemble",
+                        severity=Severity.FAIL,
+                        message=f"{view_name}: component render failed: {exc}",
+                        evidence={"view": view_name, "output_path": _display_path(output)},
+                    ))
+                    render_outputs.append(ReviewViewOutput(
+                        name=f"{safe_id}_{view_name}",
+                        view=view_name,
+                        output_path=_display_path(output),
+                        width=900,
+                        height=700,
+                        rendered=False,
+                        message=str(exc),
+                    ))
+
+    report = Report(
+        findings=findings,
+        confidence_budget=ConfidenceBudget(
+            checked=[
+                "component source path resolution",
+                "STEP loadability" if exists else "STEP path presence",
+                "bbox signature extraction" if part_summaries else "bbox signature extraction not completed",
+            ],
+            not_checked=[] if render_views else ["component review rendering"],
+            assumptions=list(spec.assumptions),
+        ),
+        duration_ms=(time.time() - start) * 1000,
+        meta={
+            "spec": str(spec_path),
+            "component_id": component_id,
+            "source_ref": source_ref,
+            "resolved_path": _display_path(resolved),
+            "exists": exists,
+            "part_count": len(part_summaries),
+            "signature_histogram": signature_histogram,
+            "parts": part_summaries,
+            "rendered_views": [asdict(output) for output in render_outputs],
+        },
+    )
+    report.overall = report.compute_overall()
+    return report
 
 
 def _validate_expected_inventory(spec: AssemblySpec) -> tuple[List[Finding], dict]:
@@ -684,6 +877,7 @@ __all__ = [
     "AssemblyBuildPlan",
     "DESIGN_INVENTORY_VERSION",
     "ResolvedInstance",
+    "inspect_component",
     "plan_assembly_build",
     "render_review_views",
     "resolve_source_path",
