@@ -27,7 +27,7 @@ placement, validation, and review loop.
 
 The initial tracked target is the M3-CRETE frame render:
 
-- Local reference image: `../M3-CRETE/docs/media/M3-CRETE_render.jpg`
+- Local reference image: `../M3-CRETE/docs/M3-CRETE_render.jpg`
 - Role: visual assembly target for topology, rough proportions, and review
   view comparison.
 - Limitation: this image is not dimensional evidence. Exact dimensions must
@@ -209,7 +209,8 @@ validated performance.
 - [x] CLI spec validator: `cadclaw assemble validate-spec`.
 - [x] Formal M3 AI assembly benchmark plan.
 - [x] Shareable process-flow graphics and repeatable generator.
-- [ ] Connector metadata schema.
+- [x] Connector metadata schema.
+- [x] Compiler dry-run/source-resolution report.
 - [ ] CadQuery compiler for explicit placements.
 - [ ] Stock-only generation policy and guards.
 - [ ] Design inventory emitter.

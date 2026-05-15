@@ -212,6 +212,15 @@ def _cmd_assemble_validate_spec(args: argparse.Namespace) -> int:
                 evidence={"path": manifest},
             ))
 
+    if spec.connector_metadata and not Path(spec.connector_metadata).exists():
+        findings.append(Finding(
+            id="assemble.connector_metadata_missing",
+            category="assemble",
+            severity=Severity.WARN,
+            message=f"connector metadata not found: {spec.connector_metadata}",
+            evidence={"path": spec.connector_metadata},
+        ))
+
     for root in spec.component_roots:
         if not Path(root).exists():
             findings.append(Finding(
@@ -264,6 +273,7 @@ def _cmd_assemble_validate_spec(args: argparse.Namespace) -> int:
             "protected output path validation",
             "reference asset path presence",
             "component manifest path presence",
+            "connector metadata path presence",
             "component root path presence",
             "variant declaration",
         ],
@@ -292,10 +302,28 @@ def _cmd_assemble_validate_spec(args: argparse.Namespace) -> int:
             "not_built_yet": len(spec.not_built_yet),
             "missing_release_items": missing_release_items,
             "outputs": spec.outputs.model_dump(exclude_none=True),
+            "connector_metadata": spec.connector_metadata,
             "bom": spec.bom.model_dump(exclude_none=True),
         },
     )
     report.overall = report.compute_overall()
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
+def _cmd_assemble_build(args: argparse.Namespace) -> int:
+    from cadclaw.assembly_compiler import run_assembly_build
+
+    try:
+        report = run_assembly_build(
+            args.spec,
+            connector_metadata_path=args.connector_metadata,
+            dry_run=args.dry_run,
+            write_inventory=args.write_design_inventory,
+        )
+    except Exception as exc:
+        print(f"error: assembly build failed: {exc}", file=sys.stderr)
+        return 3
     _emit_report(report, args.report_format, args.out)
     return _exit_code_for(report)
 
@@ -758,6 +786,29 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_format_args(p_validate_spec)
     p_validate_spec.set_defaults(func=_cmd_assemble_validate_spec)
+
+    p_build = asm_sub.add_parser(
+        "build",
+        help="Resolve and optionally compile an assembly spec with CadQuery.",
+    )
+    p_build.add_argument("spec")
+    p_build.add_argument(
+        "--connector-metadata",
+        default=None,
+        help="Optional connector metadata YAML for local frames and mates.",
+    )
+    p_build.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Resolve authored STEP paths without importing/exporting geometry.",
+    )
+    p_build.add_argument(
+        "--write-design-inventory",
+        action="store_true",
+        help="Write spec.outputs.design_inventory with resolved instances.",
+    )
+    _add_format_args(p_build)
+    p_build.set_defaults(func=_cmd_assemble_build)
 
     p_claim = sub.add_parser("claim-audit", help="Lint docs and BOM notes for claims.")
     p_claim.add_argument("--rules", default="cadclaw.yaml")

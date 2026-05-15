@@ -1,0 +1,101 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+import yaml
+from pydantic import ValidationError
+
+from cadclaw.connector_metadata import (
+    CONNECTOR_METADATA_VERSION,
+    ConnectorMetadata,
+    dump_connector_metadata,
+    load_connector_metadata,
+)
+
+
+GOOD_METADATA = """
+schema_version: connector_metadata.v0.1
+assumptions:
+  - Local frames are draft placement aids.
+components:
+  - id: cbeam_1000
+    source_path: CAD/Advanced/Linear Rail/C-Beam 40x80x1000 Linear Rail.step
+    frames:
+      - id: negative_x_end
+        kind: extrusion_end
+        origin_mm: [-500, 0, 0]
+        x_axis: [-1, 0, 0]
+      - id: positive_x_end
+        kind: extrusion_end
+        origin_mm: [500, 0, 0]
+mates:
+  - id: splice_a
+    kind: align
+    from_instance: rail_a
+    from_frame: positive_x_end
+    to_instance: rail_b
+    to_frame: negative_x_end
+    offset_mm: [0, 0, 0]
+"""
+
+
+class TestConnectorMetadata(unittest.TestCase):
+    def _write_tmp(self, text: str) -> str:
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+            f.write(text)
+            return f.name
+
+    def test_load_good_metadata(self):
+        path = self._write_tmp(GOOD_METADATA)
+        try:
+            metadata = load_connector_metadata(path)
+            self.assertEqual(metadata.schema_version, CONNECTOR_METADATA_VERSION)
+            self.assertEqual(metadata.components[0].frames[0].origin_mm, [-500.0, 0.0, 0.0])
+            self.assertIn("cbeam_1000", metadata.component_keys())
+            self.assertIn(
+                "CAD/Advanced/Linear Rail/C-Beam 40x80x1000 Linear Rail.step",
+                metadata.component_keys(),
+            )
+        finally:
+            Path(path).unlink()
+
+    def test_dump_round_trips(self):
+        metadata = ConnectorMetadata.model_validate(yaml.safe_load(GOOD_METADATA))
+        dumped = dump_connector_metadata(metadata)
+        loaded = ConnectorMetadata.model_validate(yaml.safe_load(dumped))
+        self.assertEqual(loaded.mates[0].kind, "align")
+
+    def test_rejects_duplicate_component_ids(self):
+        bad = GOOD_METADATA.replace(
+            "mates:",
+            "  - id: cbeam_1000\n    source_path: CAD/Other.step\nmates:",
+        )
+        with self.assertRaises(ValidationError):
+            ConnectorMetadata.model_validate(yaml.safe_load(bad))
+
+    def test_rejects_duplicate_frame_ids(self):
+        bad = GOOD_METADATA.replace(
+            "      - id: positive_x_end",
+            "      - id: negative_x_end",
+        )
+        with self.assertRaises(ValidationError):
+            ConnectorMetadata.model_validate(yaml.safe_load(bad))
+
+    def test_rejects_unknown_frame_kind(self):
+        bad = GOOD_METADATA.replace("kind: extrusion_end", "kind: magic_snap", 1)
+        with self.assertRaises(ValidationError):
+            ConnectorMetadata.model_validate(yaml.safe_load(bad))
+
+    def test_rejects_bad_vector(self):
+        bad = GOOD_METADATA.replace("origin_mm: [-500, 0, 0]", "origin_mm: [-500, 0]")
+        with self.assertRaises(ValidationError):
+            ConnectorMetadata.model_validate(yaml.safe_load(bad))
+
+    def test_m3_connector_seed_loads(self):
+        metadata = load_connector_metadata("examples/m3_crete/m3_connector_metadata.yaml")
+        self.assertGreaterEqual(len(metadata.components), 3)
+        self.assertTrue(any(c.id == "cbeam_40x80_1000" for c in metadata.components))
+
+
+if __name__ == "__main__":
+    unittest.main()
