@@ -3,7 +3,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from cadclaw.assembly_compiler import plan_assembly_build, run_assembly_build
+from cadclaw.assembly_compiler import (
+    plan_assembly_build,
+    render_review_views,
+    run_assembly_build,
+    run_assembly_check_round,
+)
 
 
 class TestAssemblyCompiler(unittest.TestCase):
@@ -128,6 +133,153 @@ instances:
             self.assertEqual(report.overall.value, "fail")
             self.assertEqual(report.meta["missing_sources"], 1)
             self.assertTrue(any(f.id == "assemble.source_missing" for f in report.findings))
+
+    def test_build_blocks_resolved_protected_output_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = self._touch(root, "CAD/Advanced/Thing.step")
+            output = root / "build" / "out.step"
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+component_roots:
+  - {(root / "CAD").as_posix()}
+protected_paths:
+  - build/out.step
+outputs:
+  step: {output.as_posix()}
+  views_dir: {root.as_posix()}/build/views
+instances:
+  - id: thing
+    role: test
+    source_path: {source.as_posix()}
+""")
+
+            report = run_assembly_build(spec, dry_run=True)
+            self.assertEqual(report.overall.value, "fail")
+            self.assertTrue(
+                any(f.id == "assemble.protected_output_path" for f in report.findings)
+            )
+
+    def test_build_blocks_generated_source_refs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+instances:
+  - id: generated_plate
+    role: plate
+    source_path: generated:nema23_plate
+""")
+
+            report = run_assembly_build(spec, dry_run=True)
+            ids = {finding.id for finding in report.findings}
+            self.assertIn("assemble.generated_geometry_blocked", ids)
+            self.assertIn("assemble.source_missing", ids)
+
+    def test_render_review_views_uses_declared_outputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            step = self._touch(root, "build/out.step")
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {step.as_posix()}
+  views_dir: {root.as_posix()}/build/views
+review_views:
+  - name: front-check
+    view: front
+    width: 320
+    height: 200
+instances:
+  - id: thing
+    role: test
+    source_path: {step.as_posix()}
+""")
+
+            calls = []
+
+            def fake_renderer(step_path, output_path, **kwargs):
+                calls.append((step_path, output_path, kwargs))
+                Path(output_path).write_text("png", encoding="utf-8")
+                return output_path
+
+            report = render_review_views(spec, renderer=fake_renderer)
+            self.assertEqual(report.overall.value, "pass")
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(calls[0][2]["view"], "front")
+            self.assertEqual(calls[0][2]["width"], 320)
+            self.assertTrue(Path(report.meta["review_views"][0]["output_path"]).exists())
+
+    def test_check_round_dry_run_validates_spec_inventory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            step = self._touch(root, "CAD/Advanced/Thing.step")
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+  design_inventory: {root.as_posix()}/build/inventory.json
+validation:
+  expected_inventory:
+    rail: 2
+instances:
+  - id: thing
+    role: rail
+    source_path: {step.as_posix()}
+""")
+
+            report = run_assembly_check_round(spec, dry_run=True)
+            self.assertEqual(report.overall.value, "fail")
+            self.assertTrue(
+                any(f.id == "assemble.expected_inventory_mismatch" for f in report.findings)
+            )
+            self.assertTrue(
+                any(f.id == "assemble.review_render_skipped" for f in report.findings)
+            )
+
+    def test_non_dry_run_exports_step_from_authored_fixture(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = Path(__file__).resolve().parent / "fixtures" / "L1_good.step"
+            out = root / "build" / "out.step"
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {out.as_posix()}
+  views_dir: {root.as_posix()}/build/views
+instances:
+  - id: fixture_assembly
+    role: fixture
+    source_path: {fixture.as_posix()}
+""")
+
+            report = run_assembly_build(spec, dry_run=False)
+            self.assertNotEqual(report.overall.value, "fail")
+            self.assertTrue(out.exists())
 
 
 if __name__ == "__main__":

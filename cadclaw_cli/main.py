@@ -328,6 +328,41 @@ def _cmd_assemble_build(args: argparse.Namespace) -> int:
     return _exit_code_for(report)
 
 
+def _cmd_assemble_render_views(args: argparse.Namespace) -> int:
+    from cadclaw.assembly_compiler import render_review_views
+
+    try:
+        report = render_review_views(
+            args.spec,
+            step_path=args.step,
+            views_dir=args.views_dir,
+        )
+    except Exception as exc:
+        print(f"error: review view rendering failed: {exc}", file=sys.stderr)
+        return 3
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
+def _cmd_assemble_check_round(args: argparse.Namespace) -> int:
+    from cadclaw.assembly_compiler import run_assembly_check_round
+
+    try:
+        report = run_assembly_check_round(
+            args.spec,
+            connector_metadata_path=args.connector_metadata,
+            dry_run=args.dry_run,
+            write_inventory=not args.no_inventory,
+            render_views=not args.no_render_views,
+            write_report=args.write_report,
+        )
+    except Exception as exc:
+        print(f"error: assembly check round failed: {exc}", file=sys.stderr)
+        return 3
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
 def _cmd_claim_audit(args: argparse.Namespace) -> int:
     from cadclaw.rules import load_rules
     rules = load_rules(args.rules)
@@ -809,6 +844,57 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_format_args(p_build)
     p_build.set_defaults(func=_cmd_assemble_build)
+
+    p_render_views = asm_sub.add_parser(
+        "render-views",
+        help="Render the review_views declared by an assembly spec.",
+    )
+    p_render_views.add_argument("spec")
+    p_render_views.add_argument(
+        "--step",
+        default=None,
+        help="Optional STEP path to render; defaults to spec.outputs.step.",
+    )
+    p_render_views.add_argument(
+        "--views-dir",
+        default=None,
+        help="Optional output directory; defaults to spec.outputs.views_dir.",
+    )
+    _add_format_args(p_render_views)
+    p_render_views.set_defaults(func=_cmd_assemble_render_views)
+
+    p_check_round = asm_sub.add_parser(
+        "check-round",
+        help="Build, inventory-check, optionally render views, and report one assembly round.",
+    )
+    p_check_round.add_argument("spec")
+    p_check_round.add_argument(
+        "--connector-metadata",
+        default=None,
+        help="Optional connector metadata YAML for local frames and mates.",
+    )
+    p_check_round.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Resolve paths and spec inventory without importing/exporting geometry.",
+    )
+    p_check_round.add_argument(
+        "--no-inventory",
+        action="store_true",
+        help="Do not write spec.outputs.design_inventory during the round.",
+    )
+    p_check_round.add_argument(
+        "--no-render-views",
+        action="store_true",
+        help="Skip review-view rendering even after a successful build.",
+    )
+    p_check_round.add_argument(
+        "--write-report",
+        action="store_true",
+        help="Write the round report to spec.outputs.report when declared.",
+    )
+    _add_format_args(p_check_round)
+    p_check_round.set_defaults(func=_cmd_assemble_check_round)
 
     p_claim = sub.add_parser("claim-audit", help="Lint docs and BOM notes for claims.")
     p_claim.add_argument("--rules", default="cadclaw.yaml")
