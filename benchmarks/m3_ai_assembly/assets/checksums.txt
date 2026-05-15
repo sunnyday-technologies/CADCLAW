@@ -1,0 +1,4 @@
+# No redistributable benchmark assets are included yet.
+#
+# When assets are approved, record one SHA-256 per line:
+# <sha256>  <relative/path>

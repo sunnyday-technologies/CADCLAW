@@ -226,19 +226,21 @@ manufacturing constraints.
 
 ## Next Implementation Steps
 
-1. Confirm the canonical FusionClaw article URL and preserve the exact
-   benchmark prompt derived from it.
-2. Audit which M3-CRETE STEP assets and reference images can be redistributed
-   publicly.
-3. Freeze a versioned M3-2 seed spec and component manifest for benchmark use.
-4. Add a benchmark fixture directory with asset checksums and license notes.
-5. Implement `run_grader.py` to run the CADCLAW gates and emit normalized JSON.
-6. Implement `score_report.py` with the metric weights and hard-fail rules
-   above.
-7. Run at least one Claude-Fusion and one AI-CADCLAW dry run against the same
-   fixture.
-8. Publish a prerelease fixture package, then archive the first stable test kit
-   on Zenodo.
+- [ ] Confirm the canonical FusionClaw article URL and preserve the exact
+      benchmark prompt derived from it.
+- [ ] Audit which M3-CRETE STEP assets and reference images can be redistributed
+      publicly.
+- [x] Freeze an initial M3-2 seed spec and component manifest for benchmark use.
+- [x] Add a benchmark fixture directory scaffold with asset checksum and
+      license-note placeholders.
+- [x] Implement `run_grader.py` to run the CADCLAW gates and emit normalized
+      JSON.
+- [x] Implement `score_report.py` with the metric weights and hard-fail rules
+      above.
+- [ ] Run at least one Claude-Fusion and one AI-CADCLAW dry run against the same
+      fixture.
+- [ ] Publish a prerelease fixture package, then archive the first stable test
+      kit on Zenodo.
 
 ## Local References
 
