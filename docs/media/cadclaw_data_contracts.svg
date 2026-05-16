@@ -48,8 +48,10 @@
 <text x="1124" y="294" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <text x="1124" y="318" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">Variants, instances, transforms, outputs.</text>
 <text x="1124" y="342" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="1124" y="366" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">Assumptions and not_built_yet stay visible.</text>
+<text x="1124" y="366" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">Assembly sequence encodes spacing order.</text>
 <text x="1124" y="390" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="1124" y="414" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">Assumptions and not_built_yet stay visible.</text>
+<text x="1124" y="438" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <rect x="70" y="465" width="430" height="178" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
 <rect x="70" y="465" width="9" height="178" fill="#ff6b6b" />
 <text x="94" y="507" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">connector_metadata.yaml</text>
@@ -66,7 +68,7 @@
 <text x="609" y="569" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <text x="609" y="593" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">M3-2 base; M3-1/M3-4 overrides.</text>
 <text x="609" y="617" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="609" y="641" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">Private procurement fields stay redacted.</text>
+<text x="609" y="641" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">Spacer thickness stays explicit.</text>
 <text x="609" y="665" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <rect x="1100" y="465" width="430" height="178" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
 <rect x="1100" y="465" width="9" height="178" fill="#38bdf8" />

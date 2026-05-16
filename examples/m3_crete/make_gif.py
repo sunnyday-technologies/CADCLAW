@@ -1,6 +1,6 @@
 """Build an animated disassembly GIF of the M3-CRETE frame.
 
-Per-part coloring matches the Fusion viewport — extrusions render
+Per-part coloring matches the native CAD viewport — extrusions render
 black, printed brackets green, metal plates grey.
 
 Run:  python examples/m3_crete/make_gif.py path/to/assembly.step [out.gif]

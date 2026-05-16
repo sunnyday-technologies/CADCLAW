@@ -24,7 +24,7 @@ checks them.
 ## The core rule: place authored parts, don't generate them
 
 **Default to placement, not generation.** The user authors complex
-geometry in Fusion 360, Rhino, or another native CAD package, exports a
+geometry in a native CAD package, exports a
 STEP, and the project's CadQuery script (or whatever assembly driver is
 in use) places copies of those authored parts into the assembly.
 CADCLAW then verifies the placement.
@@ -42,7 +42,7 @@ Field-test evidence (M3-CRETE, 2026-04-26): a session pursued
 parametric Y-mount, Z-mount, and bottom-mount plate generation. Three
 rounds of generate → critique → strip later, the shipping code was
 *less* code than the start, and the user had hand-authored the plates
-in Fusion in the time it took to write the parametric recipe. Hole
+in the native CAD model in the time it took to write the parametric recipe. Hole
 patterns generated against assumed motor positions were uniformly
 wrong.
 
@@ -99,7 +99,7 @@ hole(...)`, stop. Ask the user.
 
 ## The intended workflow
 
-1. **User authors** the geometry in Fusion / Rhino / FreeCAD / etc.
+1. **User authors** the geometry in a native CAD or STEP-capable package.
 2. **User exports** a STEP — typically the whole assembly, or one
    sub-assembly per file.
 3. **Assembly script** (CadQuery / build123d / etc.) imports the

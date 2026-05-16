@@ -26,11 +26,11 @@
 <rect x="70" y="190" width="330" height="170" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
 <rect x="70" y="190" width="9" height="170" fill="#38bdf8" />
 <text x="94" y="232" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">Any CAD System</text>
-<text x="94" y="270" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">Fusion 360</text>
+<text x="94" y="270" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">desktop CAD</text>
 <text x="94" y="294" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="94" y="318" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">Rhino / FreeCAD</text>
+<text x="94" y="318" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">cloud CAD</text>
 <text x="94" y="342" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="94" y="366" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">SolidWorks / Onshape</text>
+<text x="94" y="366" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">scripted CAD/API</text>
 <text x="94" y="390" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <rect x="510" y="190" width="330" height="170" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
 <rect x="510" y="190" width="9" height="170" fill="#97d700" />

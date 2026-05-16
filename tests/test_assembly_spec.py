@@ -183,6 +183,19 @@ class TestAssemblySpec(unittest.TestCase):
         self.assertGreater(len(spec.assembly_sequence), 0)
         self.assertGreater(len(spec.not_built_yet), 0)
         self.assertNotIn("M3-2_Assembly.step", spec.outputs.step)
+        roles = {instance.role for instance in spec.instances}
+        self.assertIn("y_gantry_actuator", roles)
+        self.assertIn("y_axis_spacer_6mm", roles)
+        self.assertEqual(
+            [step.id for step in spec.assembly_sequence],
+            [
+                "x_gantry",
+                "y_gantry",
+                "z_carriages_and_y_spacers",
+                "z_posts",
+                "frame_completion",
+            ],
+        )
 
 
 if __name__ == "__main__":

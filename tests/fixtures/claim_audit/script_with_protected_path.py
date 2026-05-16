@@ -1,4 +1,4 @@
-"""Fixture script that writes to a Fusion-reserved output path."""
+"""Fixture script that writes to a native-CAD reserved output path."""
 import cadquery as cq
 
 assy = cq.Workplane("XY").box(10, 10, 10)
