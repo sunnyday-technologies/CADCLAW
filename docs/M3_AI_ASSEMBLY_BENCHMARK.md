@@ -1,4 +1,4 @@
-# M3 AI Assembly Benchmark
+# M3 Assembly Workflow Benchmark
 
 Status: draft benchmark plan
 
@@ -11,8 +11,8 @@ reproducibility, not to certify physical performance.
 
 | Track | Description | Primary artifact |
 |---|---|---|
-| Claude-Fusion | AI works in or through Fusion 360/native CAD tooling, following the FusionClaw article premise. | Native-authored/exported STEP assembly. |
-| AI-CADCLAW | AI edits CADCLAW assembly specs and placement metadata, then CADCLAW compiles authored STEP assets into an assembly. | CADCLAW-generated STEP assembly plus spec, inventory, and report. |
+| Native CAD driver | AI works in or through native CAD or CAD-API tooling and exports STEP. | Native-authored/exported STEP assembly. |
+| CADCLAW spec driver | AI edits CADCLAW assembly specs and placement metadata, then CADCLAW compiles authored STEP assets into an assembly. | CADCLAW-generated STEP assembly plus spec, inventory, and report. |
 
 Both tracks receive the same prompt, same target definition, same STEP asset
 library, same reference image, and same public constraints. The grader is
@@ -33,7 +33,7 @@ used to create it.
 
 Initial local sources:
 
-- Reference image: `../M3-CRETE/docs/media/M3-CRETE_render.jpg`.
+- Reference image: `../M3-CRETE/docs/M3-CRETE_render.jpg`.
 - Component roots:
   - `../M3-CRETE/CAD/Advanced`
   - `../M3-CRETE/CAD/Components`
@@ -83,7 +83,8 @@ Each competitor run should emit:
 - Machine-readable run manifest with tool versions, model/provider name,
   prompt id, input asset hashes, and elapsed time.
 - Source artifacts needed to reproduce the run: native script/export notes for
-  Claude-Fusion, assembly spec and placement metadata for AI-CADCLAW.
+  the native-CAD-driver track, assembly spec and placement metadata for the
+  CADCLAW-spec-driver track.
 - CADCLAW design inventory.
 - CADCLAW validation report.
 - Named review renders: `front`, `left`, `right`, `top`, `iso`, plus any
@@ -104,7 +105,8 @@ Minimum gates:
 - Dimensional checks for target envelope and major axis spans.
 - Orientation/color/material checks where metadata exists.
 - BOM-vs-CAD audit when the public BOM is included.
-- Parity/protected-path checks to prevent clobbering Fusion exports.
+- Parity/protected-path checks to prevent clobbering authoritative native CAD
+  exports.
 - Claim-audit for any generated public text.
 
 Every report must include a confidence budget: checked, not checked,
@@ -226,19 +228,21 @@ manufacturing constraints.
 
 ## Next Implementation Steps
 
-1. Confirm the canonical FusionClaw article URL and preserve the exact
-   benchmark prompt derived from it.
-2. Audit which M3-CRETE STEP assets and reference images can be redistributed
-   publicly.
-3. Freeze a versioned M3-2 seed spec and component manifest for benchmark use.
-4. Add a benchmark fixture directory with asset checksums and license notes.
-5. Implement `run_grader.py` to run the CADCLAW gates and emit normalized JSON.
-6. Implement `score_report.py` with the metric weights and hard-fail rules
-   above.
-7. Run at least one Claude-Fusion and one AI-CADCLAW dry run against the same
-   fixture.
-8. Publish a prerelease fixture package, then archive the first stable test kit
-   on Zenodo.
+- [ ] Preserve the exact native-CAD-driver test procedure and prompt variant
+      used for any published run.
+- [ ] Audit which M3-CRETE STEP assets and reference images can be redistributed
+      publicly.
+- [x] Freeze an initial M3-2 seed spec and component manifest for benchmark use.
+- [x] Add a benchmark fixture directory scaffold with asset checksum and
+      license-note placeholders.
+- [x] Implement `run_grader.py` to run the CADCLAW gates and emit normalized
+      JSON.
+- [x] Implement `score_report.py` with the metric weights and hard-fail rules
+      above.
+- [ ] Run at least one native-CAD-driver and one CADCLAW-spec-driver dry run
+      against the same fixture.
+- [ ] Publish a prerelease fixture package, then archive the first stable test
+      kit on Zenodo.
 
 ## Local References
 

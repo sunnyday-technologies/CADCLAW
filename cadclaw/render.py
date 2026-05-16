@@ -36,9 +36,9 @@ GIF_SIZE_WARN_BYTES = 5_000_000
 
 def _warn_if_gif_too_large(output_gif: str) -> int:
     """Warn on stderr if the rendered GIF is too large to be embedded as an
-    image payload by Claude Code's Read tool. Threshold set at 5 MB based on
-    the Claude API vision doc limit; empirical 4.76 MB GIFs have rendered
-    successfully in chat, so this is set to match the API cap directly.
+    image payload by common chat or assistant clients. Threshold set at 5 MB
+    to stay conservative for multimodal payload caps; empirical 4.76 MB GIFs
+    have rendered successfully in chat.
     Returns the file size in bytes."""
     try:
         size = os.path.getsize(output_gif)
@@ -47,8 +47,8 @@ def _warn_if_gif_too_large(output_gif: str) -> int:
     if size > GIF_SIZE_WARN_BYTES:
         sys.stderr.write(
             f"WARNING: {output_gif} is {size/1_000_000:.2f} MB, exceeds "
-            f"{GIF_SIZE_WARN_BYTES/1_000_000:.1f} MB gate. Claude Code's Read "
-            f"tool may reject it as 'Image too large'. Reduce gif_width/height, "
+            f"{GIF_SIZE_WARN_BYTES/1_000_000:.1f} MB gate. Some clients may "
+            f"reject it as 'Image too large'. Reduce gif_width/height, "
             f"lower gif_colors (e.g. 32), drop frames, or keep optimize=True.\n"
         )
     return size
@@ -89,7 +89,7 @@ def _combined_polydata(shapes, tolerance: float = 0.5, angular: float = 0.3):
 
 # ---------------------------------------------------------------
 # Per-part coloring: distinguish extrusions from printed parts so the
-# output reads like a CAD viewport (Fusion-style) instead of a solid-color
+# output reads like a shaded CAD viewport instead of a solid-color
 # silhouette.
 # ---------------------------------------------------------------
 
@@ -105,7 +105,7 @@ COLOR_BELT = (0.15, 0.15, 0.15)        # GT2 belt
 # Printed parts explicit so they render bright-green under label-map
 # priority; previously the "default fallback → green" path was bypassed
 # once AP242 colors were added, causing printed parts to dim to their
-# raw Fusion-stored RGB (which is a darker design-intent value).
+# raw STEP-stored RGB (which can be a darker design-intent value).
 DEFAULT_COLOR_MAP = {
     'cbeam': COLOR_EXTRUSION, 'beam': COLOR_EXTRUSION,
     'extrusion': COLOR_EXTRUSION, 'post': COLOR_EXTRUSION,
@@ -258,14 +258,13 @@ def _color_for(shape, labels, color_map, default_color, step_colors=None):
     Priority (intentional):
       1. Caller's label map (labels[dim_sig] -> color_map[label]) —
          brand/semantic colors the user authored for visual clarity.
-      2. STEP AP242 color (step_colors[dim_sig]) — raw Fusion-stored
+      2. STEP AP242 color (step_colors[dim_sig]) — raw STEP-stored
          RGB, used only when the shape has no label.
       3. default_color.
 
-    Label map wins because Fusion stores STEP RGB that does not
-    necessarily match what its viewport shows users (Fusion applies
-    materials on top of raw AP242 color). The caller's own color map
-    is the authoritative visual source when present.
+    Label map wins because exported STEP RGB does not necessarily match what
+    the native CAD viewport shows users. The caller's own color map is the
+    authoritative visual source when present.
 
     Note: step_colors must be keyed by dim-signature (sorted 3-tuple of
     rounded extents), the same signature `inventory.sig` uses.
@@ -311,7 +310,7 @@ def _aim_camera(renderer, shapes, view: str = "iso", azimuth: float = 0.0,
     adjusted by `zoom` (>1 zooms in, <1 zooms out).
 
     `view` picks the starting octant:
-      - "iso":         front-right-above (default, Fusion-like)
+      - "iso":         front-right-above (default CAD-like)
       - "iso_left":    front-left-above
       - "iso_below":   front-right-BELOW — looks up into an open base
       - "iso_below_left": front-left-below
@@ -381,7 +380,7 @@ def render_step_to_png(step_path: str, output_path: str,
     """Render a STEP file to a PNG via offscreen VTK — CAD-standard Z-up,
     per-part coloring (black extrusions, green printed parts, metal
     plates), blue-grey gradient background, studio lighting, visible
-    part edges. Approximates a Fusion viewport.
+    part edges. Approximates a shaded CAD viewport.
 
     Args:
         step_path: Input STEP file.
@@ -392,7 +391,7 @@ def render_step_to_png(step_path: str, output_path: str,
         azimuth, elevation: Fine-tuning rotations applied after the view
             preset, in degrees.
         background_top, background_bottom: RGB 0-1 gradient (top to bottom).
-            Default is a Fusion-like blue-grey.
+            Default is a CAD-like blue-grey.
         labels: Optional bbox-signature -> label dict (e.g. the same dict
             used by Harness). Lets the renderer color parts consistently.
         color_map: Optional label -> RGB dict. Defaults to

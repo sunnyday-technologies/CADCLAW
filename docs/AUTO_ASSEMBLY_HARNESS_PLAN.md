@@ -1,6 +1,6 @@
 # CADCLAW Auto-Assembly Harness Plan
 
-Last updated: 2026-05-15
+Last updated: 2026-05-16
 
 Purpose: define and track a general CADCLAW assembly harness that lets an
 LLM or human assemble a STEP-based machine with CadQuery, using authored
@@ -27,7 +27,7 @@ placement, validation, and review loop.
 
 The initial tracked target is the M3-CRETE frame render:
 
-- Local reference image: `../M3-CRETE/docs/media/M3-CRETE_render.jpg`
+- Local reference image: `../M3-CRETE/docs/M3-CRETE_render.jpg`
 - Role: visual assembly target for topology, rough proportions, and review
   view comparison.
 - Limitation: this image is not dimensional evidence. Exact dimensions must
@@ -68,13 +68,13 @@ STEP folders
 
 ## Benchmark Track
 
-The FusionClaw-to-M3 benchmark is tracked in
+The M3 assembly workflow benchmark is tracked in
 `docs/M3_AI_ASSEMBLY_BENCHMARK.md`. It compares:
 
-- **Claude-Fusion:** Claude drives Autodesk Fusion through the existing
-  FusionClaw-style live CAD/API loop.
-- **AI-CADCLAW:** an LLM edits assembly specs and connector metadata while
-  CADCLAW/CadQuery compiles and validates each round.
+- **Native CAD driver:** an LLM works through native CAD or CAD-API tooling and
+  exports STEP.
+- **CADCLAW spec driver:** an LLM edits assembly specs and connector metadata
+  while CADCLAW/CadQuery compiles and validates each round.
 
 CADCLAW grades both routes with the same STEP, BOM, and review-view checks.
 This keeps the comparison focused on where verification belongs in the loop,
@@ -136,14 +136,16 @@ Initial output targets:
 - `examples/m3_crete/build/m3_reference_round1_report.json`
 - `examples/m3_crete/build/views/*.png`
 
-First useful build:
+Current useful build:
 
-- Four vertical posts.
-- Top and bottom rectangular frame rails.
-- Rear/front cross rails where visible.
-- X gantry beam and rough gantry plates.
-- Z/Y actuator or guide placeholders only if represented as authored STEP
-  macro-components; otherwise `not_built_yet`.
+- X gantry beam and X-carriage/end plates first.
+- Authored 1000 mm C-Beam linear actuator macro assemblies as the two Y
+  gantries.
+- Y-gantry and Z-carriage plate declarations from authored plate STEP assets.
+- Explicit 6 mm Y-axis spacer declarations so the frame gap is visible in the
+  design inventory and BOM CSV.
+- Four C-Beam Z posts and the remaining 1000 mm frame extrusions placed after
+  the moving gantry stackup.
 
 Acceptance for round 1:
 
@@ -174,17 +176,18 @@ validated performance.
   `preview_assembly.py` ran hundreds of geometry invariants and wrote
   orthographic PNGs. CADCLAW's new assembly round should always emit both.
 - **Prefer placement and filter-and-replace over re-authoring.** Existing
-  code captured authored Fusion/STEP parts and cloned them by signature when
+  code captured authored STEP parts and cloned them by signature when
   necessary. That remains the right pattern for mounts, brackets, plates,
   carriages, wheels, and motor-adjacent geometry.
 - **Generated geometry needs guardrails.** C-beam/linear stock and belts are
   reasonable generated/parameterized geometry; contextual plates and bolt
   patterns are not.
-- **Source STEP visibility is fragile.** Fusion exports can omit invisible
-  parts. The harness should compare inventories between reference/source
-  STEP files and generated assemblies.
+- **Source STEP visibility is fragile.** Native CAD exports can omit hidden or
+  suppressed parts. The harness should compare inventories between
+  reference/source STEP files and generated assemblies.
 - **Output paths must be protected.** Earlier work explicitly moved CadQuery
-  output to `M3-2_Assembly_cadquery.step` to avoid clobbering Fusion exports.
+  output to `M3-2_Assembly_cadquery.step` to avoid clobbering authoritative
+  native CAD exports.
 - **BOM is partly modeled and partly derived.** Fasteners and some hardware
   should come from rules over detected joints and placed parts, not necessarily
   from modeled bodies.
@@ -197,6 +200,14 @@ validated performance.
 - **M3-2 design-specific constraints matter.** 4080 C-Beam is the primary
   structure; 1000 mm stock is the shipping-constrained standard length; C
   openings face inward; X-gantry reinforcement stays internal/below wheel path.
+- **Build inside-out when spacing depends on motion.** For M3-2, the X gantry
+  plates attach to the Y gantries; the Y gantry ends attach to Z-carriage
+  plates; the Z posts and frame then accommodate that stackup. The assembly
+  sequence is therefore a spacing strategy, not just a presentation order.
+- **Spacer thickness must be explicit.** Current user guidance sets the Y-axis
+  spacer at 6 mm for the CADCLAW reference round. If the production part is a
+  rectangular plate rather than the currently provided 6 mm spacer STEP, the
+  final authored STEP/BOM binding must be frozen before release.
 
 ## Implementation Checklist
 
@@ -209,13 +220,18 @@ validated performance.
 - [x] CLI spec validator: `cadclaw assemble validate-spec`.
 - [x] Formal M3 AI assembly benchmark plan.
 - [x] Shareable process-flow graphics and repeatable generator.
-- [ ] Connector metadata schema.
-- [ ] CadQuery compiler for explicit placements.
-- [ ] Stock-only generation policy and guards.
-- [ ] Design inventory emitter.
-- [ ] Standard review view renderer.
-- [ ] Validation wrapper for generated assemblies.
-- [ ] MCP/CLI tools for LLM operation.
+- [x] Connector metadata schema.
+- [x] Compiler dry-run/source-resolution report.
+- [x] Initial CadQuery compiler for explicit authored-STEP placements.
+- [x] Stock-only generation policy guards for the current spec contract.
+- [x] Design inventory emitter.
+- [x] Standard review view renderer.
+- [x] Validation wrapper for generated assembly rounds.
+- [x] Initial CLI tools for LLM operation.
+- [x] Gantry-first M3-2 assembly sequence: X gantry, Y gantries, Z carriage
+      plates/spacers, Z posts, then frame completion.
+- [x] Explicit 6 mm Y-axis spacer declarations in the M3 reference spec and
+      BOM CSV path.
 
 ## LLM Tool Surface
 
@@ -226,11 +242,29 @@ The eventual tool surface should be deterministic and narrow:
 - `cadclaw assemble validate-spec`
 - `cadclaw assemble build`
 - `cadclaw assemble render-views`
+- `cadclaw assemble render-sequence`
 - `cadclaw assemble check-round`
 - `cadclaw assemble suggest-adjustment`
 
 The LLM should edit specs and connector metadata, not freehand arbitrary
 CadQuery scripts.
+
+Current implementation status:
+
+- `assemble build` resolves authored STEP sources, writes design inventory,
+  and can export an explicit CadQuery assembly from placed authored STEP files.
+- `assemble inspect-component` resolves one authored STEP component from a
+  spec/manifest or direct source path, reports bbox signatures, and can render
+  isolated review views for orientation checks.
+- `assemble render-views` renders declared PNG review views from the generated
+  STEP using the existing CADCLAW VTK renderer.
+- `assemble render-sequence` exports cumulative partial STEP assemblies,
+  renders per-step X/Y/Z/hero/iso image sets, can render a final rotating GIF,
+  and emits a public-safe CSV BOM grouped by authored STEP source and role.
+- `assemble check-round` runs one build round, verifies declared spec role
+  inventory, optionally renders review views, and emits a single report.
+- `assemble suggest-adjustment` remains future work; for now adjustment advice
+  comes from existing CADCLAW findings such as `interference.clip`.
 
 ## Open Decisions
 
@@ -240,5 +274,7 @@ CadQuery scripts.
   reliable instead of image-guided guessing?
 - Which M3-CRETE dimensions are authoritative for M3-1/M3-2/M3-4: outer frame,
   target build envelope, or product class names?
+- Which authored STEP should be the final public 6 mm rectangular Y-axis spacer
+  plate if it differs from the provided `Aluminum Spacer 6mm.step` asset?
 - Which reference assets can be redistributed publicly?
 - How strict should release validation be about `not_built_yet` findings?

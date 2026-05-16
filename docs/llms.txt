@@ -5,8 +5,7 @@ mechanical design", in spirit. It is a Python package (PyPI: `cadclaw`) that
 validates STEP files and BOM JSON through a chain of geometric, kinematic,
 tolerance, and text-audit gates, and reports findings with severity, evidence,
 and a confidence budget rather than just pass/fail. CADCLAW also ships an MCP
-server so MCP-compatible assistants (Claude Desktop, Cursor, etc.) can call its
-checks directly.
+server so MCP-compatible assistants and clients can call its checks directly.
 
 This file is a high-density plain-text summary intended for LLM and
 agent-driven retrieval. The canonical site is https://cadclaw.io.
@@ -50,8 +49,8 @@ Validation domains (each maps to a module under `cadclaw/`):
   motor torque budgets, belt tension, GT2 tooth-skip resistance.
 - Tolerance (`cadclaw/tolerance.py`) — worst-case, RSS, and Monte Carlo
   tolerance stacking with Cpk and per-dimension variance contribution.
-- Parity (`cadclaw/parity.py`) — STEP-vs-STEP comparison; flags the
-  Fusion visibility-toggle bug.
+- Parity (`cadclaw/parity.py`) — STEP-vs-STEP comparison; flags
+  hidden/suppressed-part export drift.
 - BOM audit (`cadclaw/bom_audit.py`) — BOM JSON ↔ CAD assembly: qty,
   mfg_type, unit, required/forbidden text terms, CAD-side count drift.
 - Disassembly (`cadclaw/disassembly.py`) — sequenced part removal,
@@ -124,8 +123,7 @@ Entry point: `python -m cadclaw_mcp` (see `cadclaw_mcp/server.py`).
 - This file: https://cadclaw.io/llms.txt
 - MCP manifest (experimental, static-site read-only resources):
   https://cadclaw.io/.well-known/mcp-manifest.json
-- robots.txt (explicit opt-in for ClaudeBot, GPTBot, Google-Extended,
-  PerplexityBot): https://cadclaw.io/robots.txt
+- robots.txt (crawler policy): https://cadclaw.io/robots.txt
 - README, source, issues: https://github.com/sunnyday-technologies/CADCLAW
 - Package: https://pypi.org/project/cadclaw/
 
