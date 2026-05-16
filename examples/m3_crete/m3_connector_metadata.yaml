@@ -3,6 +3,8 @@ assumptions:
   - Frames are first-pass local references for LLM/CADCLAW placement, not certified mating definitions.
   - Extrusion origins are centered on the authored STEP asset unless later inspection proves otherwise.
   - Gantry plate frames need human review against rendered views before release use.
+  - Y gantry, C-Beam XLarge plate, and 6mm spacer frames are first-pass
+    references from CADCLAW inspect-component bbox centers.
 
 components:
   - id: vslot_20x80_1000
@@ -56,6 +58,53 @@ components:
         origin_mm: [0.0, 0.0, 0.0]
         tags: [gantry_plate, needs_verification]
 
+  - id: cbeam_linear_actuator_1000
+    source_path: CAD/Advanced/Assemblies/C-Beam Linear Actuator 1000mm.step
+    notes: Authored macro assembly used as the explicit Y-gantry stage for M3-2.
+    frames:
+      - id: rail_low_end
+        kind: extrusion_end
+        origin_mm: [26.4, 38.3, -943.9]
+        z_axis: [0.0, 0.0, -1.0]
+        tags: [y_gantry, rail_end, needs_verification]
+      - id: rail_high_end
+        kind: extrusion_end
+        origin_mm: [26.4, 38.3, 56.1]
+        z_axis: [0.0, 0.0, 1.0]
+        tags: [y_gantry, rail_end, needs_verification]
+      - id: internal_gantry_plate_center
+        kind: mount_face
+        origin_mm: [26.4, 63.0, -291.6]
+        tags: [y_gantry, carriage_plate, needs_verification]
+      - id: motor_axis_reference
+        kind: shaft_axis
+        origin_mm: [26.4, 50.8, 125.8]
+        z_axis: [0.0, 0.0, 1.0]
+        tags: [motor, shaft_axis, needs_verification]
+
+  - id: cbeam_gantry_plate_xlarge
+    source_path: CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP
+    notes: 125x125x6 C-Beam plate used for Y-gantry and Z-carriage declarations.
+    frames:
+      - id: plate_center
+        kind: mount_face
+        origin_mm: [0.0, 0.0, 3.0]
+        tags: [gantry_plate, center, needs_verification]
+      - id: wheel_contact_plane
+        kind: wheel_contact
+        origin_mm: [0.0, 0.0, 3.0]
+        tags: [gantry_plate, needs_verification]
+
+  - id: aluminum_spacer_6mm
+    source_path: CAD/Advanced/Shims and Spacers/Aluminum Spacer 6mm.step
+    notes: Provided 6mm spacer STEP used to make Y-axis spacer declarations explicit.
+    frames:
+      - id: spacer_center
+        kind: reference
+        origin_mm: [0.0, 0.0, 3.0]
+        z_axis: [0.0, 0.0, 1.0]
+        tags: [spacer, y_axis, 6mm, needs_verification]
+
 mates:
   - id: top_front_splice_reference
     kind: align
@@ -64,3 +113,17 @@ mates:
     to_instance: top_front_rail_splice
     to_frame: negative_x_end
     notes: First-pass declared splice relationship; hardware/connector parts are not placed yet.
+  - id: x_left_plate_to_y_left_plate_reference
+    kind: align
+    from_instance: x_gantry_plate_left
+    from_frame: plate_center
+    to_instance: y_gantry_plate_left
+    to_frame: plate_center
+    notes: First-pass reference showing X-gantry end plate connection to left Y carriage.
+  - id: x_right_plate_to_y_right_plate_reference
+    kind: align
+    from_instance: x_gantry_plate_right
+    from_frame: plate_center
+    to_instance: y_gantry_plate_right
+    to_frame: plate_center
+    notes: First-pass reference showing X-gantry end plate connection to right Y carriage.

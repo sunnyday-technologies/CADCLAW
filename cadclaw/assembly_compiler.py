@@ -139,6 +139,10 @@ def _ordered_unique(values: Iterable[str]) -> List[str]:
     return ordered
 
 
+def _has_explicit_spacers(spec: AssemblySpec) -> bool:
+    return any("spacer" in instance.role.lower() for instance in spec.instances)
+
+
 def _load_manifest_sources(manifest_paths: Iterable[str], spec_dir: Path) -> Dict[str, str]:
     sources: Dict[str, str] = {}
     for manifest_path in manifest_paths:
@@ -850,12 +854,19 @@ def run_assembly_sequence(
             "instance source path resolution",
             "authored STEP placement policy",
             "BOM CSV generation" if write_bom else "BOM CSV skipped by request",
+            *(
+                ["explicit spacer placement declarations"]
+                if _has_explicit_spacers(spec) else []
+            ),
         ],
         not_checked=[
             *([] if not dry_run else ["sequence STEP export"]),
             *([] if render_views else ["sequence review rendering"]),
             *([] if rotate_final else ["final rotation GIF"]),
-            "spacer requirement inference",
+            *(
+                [] if _has_explicit_spacers(spec)
+                else ["spacer requirement inference"]
+            ),
             "website BOM parity",
         ],
         assumptions=list(spec.assumptions),
@@ -1143,11 +1154,19 @@ def run_assembly_build(
             "authored STEP placement policy",
             "connector metadata presence"
             if metadata_value else "connector metadata omission",
+            *(
+                ["explicit spacer placement declarations"]
+                if _has_explicit_spacers(spec) else []
+            ),
         ],
         not_checked=[
             "interference",
             "BOM-vs-CAD parity",
             "rendered view alignment",
+            *(
+                [] if _has_explicit_spacers(spec)
+                else ["spacer requirement inference"]
+            ),
             *(
                 ["CadQuery STEP export"]
                 if dry_run else []

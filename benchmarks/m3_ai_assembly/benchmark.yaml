@@ -9,11 +9,11 @@ target:
   interpretation: target envelope/class; requires physical validation
 
 tracks:
-  - id: claude_fusion
-    label: Claude-Fusion
+  - id: native_cad_driver
+    label: Native CAD driver
     primary_artifact: native-authored/exported STEP assembly
-  - id: ai_cadclaw
-    label: AI-CADCLAW
+  - id: cadclaw_spec_driver
+    label: CADCLAW spec driver
     primary_artifact: CADCLAW-generated STEP plus spec, inventory, and report
 
 seeds:
@@ -25,7 +25,7 @@ seeds:
 asset_policy:
   public_assets_included: false
   notes:
-    - Do not redistribute local M3-CRETE STEP, image, BOM, or Fusion assets until source/license review is complete.
+    - Do not redistribute local M3-CRETE STEP, image, BOM, or native CAD assets until source/license review is complete.
     - Public fixture packages must include checksums and license/source notes for every asset.
     - Private procurement fields and credentials must never appear in benchmark manifests.
 

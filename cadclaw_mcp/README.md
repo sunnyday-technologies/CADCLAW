@@ -4,25 +4,9 @@ Connect CADCLAW to an MCP-compatible assistant as a Model Context Protocol tool 
 
 ## Setup
 
-### Claude Code (CLI)
+### Generic MCP host
 
-Add to your project's `.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "cadclaw": {
-      "command": "python",
-      "args": ["-m", "cadclaw_mcp"],
-      "cwd": "/path/to/CADCLAW"
-    }
-  }
-}
-```
-
-### Claude Desktop
-
-Add to `claude_desktop_config.json`:
+Add to your MCP host configuration:
 
 ```json
 {
@@ -65,7 +49,7 @@ Once connected, the assistant can call these tools directly:
 ```
 User: "Load my assembly and check for interference"
 
-Claude: I'll load your STEP file and run an interference check.
+Assistant: I'll load your STEP file and run an interference check.
 
 [Calls load_assembly with path="assembly.step"]
 [Calls check_interference with skip_labels=["belt", "wheel"]]

@@ -133,7 +133,7 @@
       <div class="gate"><h3>Kinematics</h3><p>Beam deflection, motor torque budgets, belt tension, racking.</p></div>
       <div class="gate"><h3>Tolerance</h3><p>Worst-case, RSS, Monte Carlo stacking with C<sub>pk</sub> and variance decomposition.</p></div>
       <div class="gate new"><h3>BOM audit</h3><p>BOM JSON ↔ CAD assembly: <code>qty</code>, <code>mfg_type</code>, required/forbidden text terms, CAD-side count drift. Private fields never echoed.</p></div>
-      <div class="gate new"><h3>Parity</h3><p>STEP-vs-STEP comparison; flags the Fusion visibility-toggle bug (file shrinks but unique signatures grow).</p></div>
+      <div class="gate new"><h3>Parity</h3><p>STEP-vs-STEP comparison; flags hidden/suppressed-part export drift (file shrinks but unique signatures grow).</p></div>
       <div class="gate"><h3>Disassembly</h3><p>Sequenced part removal, radial exploded views, animation frame export.</p></div>
       <div class="gate"><h3>Render</h3><p>STEP → PNG → animated GIF via offscreen VTK. Closes the loop to shareable visuals.</p></div>
     </div>
@@ -143,7 +143,7 @@
     </div>
 
     <div class="callout">
-      <strong>MCP Server included.</strong> Core validation, analysis, and audit modules are exposed as MCP tools so an MCP-compatible assistant (Claude Desktop, Cursor, etc.) can call them directly. The MCP server only exposes CADCLAW's own checks; it does not give the assistant access to your CAD application or to anything outside what <code>cadclaw</code> itself can do.
+      <strong>MCP Server included.</strong> Core validation, analysis, and audit modules are exposed as MCP tools so an MCP-compatible assistant or client can call them directly. The MCP server only exposes CADCLAW's own checks; it does not give the assistant access to your CAD application or to anything outside what <code>cadclaw</code> itself can do.
     </div>
   </section>
 
@@ -151,7 +151,7 @@
     <h2>What CADCLAW does NOT prove</h2>
     <p class="lede">CADCLAW checks the geometry of a STEP file, the JSON of a BOM, and the text of your README against rules <em>you</em> write. It does not prove:</p>
     <ul class="not-prove-list">
-      <li>That the <strong>native CAD model</strong> (Fusion, SolidWorks, etc.) has no hidden or suppressed parts. CADCLAW reads the STEP export, which can silently drop invisible parts.</li>
+      <li>That the <strong>native CAD model</strong> has no hidden or suppressed parts. CADCLAW reads the STEP export, which can silently drop invisible parts.</li>
       <li>That the <strong>physical build</strong> matches the CAD. CAD passing CADCLAW says nothing about whether the parts on your bench match the file.</li>
       <li>That a <strong>vendor part is in stock</strong>, available, or the price you assumed.</li>
       <li>That a <strong>printed part is strong enough</strong> for production use. CADCLAW's kinematics gates do bare-beam math; they don't simulate printed-PLA fatigue, layer adhesion, or thermal creep.</li>

@@ -18,7 +18,7 @@ Rules:
 - Generate only explicitly allowed stock-like geometry: linear rail/extrusion
   stock, explicit belt segments, or standard fastener stand-ins if the test kit
   enables them.
-- Do not overwrite authoritative Fusion/native CAD exports.
+- Do not overwrite authoritative native CAD exports.
 - Keep assumptions and incomplete areas explicit as `not_built_yet`.
 - Produce a non-authoritative STEP assembly, design inventory, validation
   report, and review views.
@@ -28,7 +28,8 @@ Known incomplete areas in the current seed:
 - Connector frames need rendered-view and CAD inspection verification.
 - Belt paths and pulley/idler routing are not fully specified.
 - Motors and motor plates require authored assets and connector metadata.
-- Z/Y drive assemblies need a macro-vs-decomposed placement decision.
+- Y gantries are represented by authored actuator macro assemblies in the
+  current seed; Z drive assemblies still need connector-backed placement.
 - Printhead/tooling interface has not been selected for this round.
 
 Output expectations:

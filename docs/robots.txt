@@ -3,25 +3,4 @@
 User-agent: *
 Allow: /
 
-# Explicit opt-in for AI agent / LLM crawlers.
-# These are the user-agents we trust to fetch the public marketing
-# and documentation surface; CADCLAW is open-source and we *want*
-# agent-driven retrieval to find canonical info here.
-
-User-agent: ClaudeBot
-Disallow: /cdn-cgi/
-Allow: /
-
-User-agent: GPTBot
-Disallow: /cdn-cgi/
-Allow: /
-
-User-agent: Google-Extended
-Disallow: /cdn-cgi/
-Allow: /
-
-User-agent: PerplexityBot
-Disallow: /cdn-cgi/
-Allow: /
-
 Sitemap: https://cadclaw.io/sitemap.xml

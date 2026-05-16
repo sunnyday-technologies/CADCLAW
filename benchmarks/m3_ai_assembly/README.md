@@ -1,13 +1,14 @@
-# M3 AI Assembly Benchmark
+# M3 Assembly Workflow Benchmark
 
 Status: prerelease scaffold.
 
 This benchmark compares two AI-assisted assembly workflows against the same
 M3-CRETE M3-2 target:
 
-- Claude-Fusion: an LLM drives Fusion/native CAD tooling and exports STEP.
-- AI-CADCLAW: an LLM edits CADCLAW assembly specs and connector metadata, then
-  CADCLAW compiles authored STEP assets with CadQuery.
+- Native CAD driver: an LLM drives a native CAD or CAD-API workflow and exports
+  STEP.
+- CADCLAW spec driver: an LLM edits CADCLAW assembly specs and connector
+  metadata, then CADCLAW compiles authored STEP assets with CadQuery.
 
 The benchmark grades exported artifacts with CADCLAW. It is decision support
 for assembly correctness and reproducibility; it does not certify physical

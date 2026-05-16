@@ -445,8 +445,8 @@ existing open-source CAD-as-code libraries, not reinvent. Candidates:
 4. Honesty extensions: `confidence_budget.not_built_yet` for declared-
    but-not-emitted pieces, `parametric_placeholder: true` markers for
    stand-in geometry awaiting replacement, source-of-truth tracking when
-   the same piece exists in multiple backends (CadQuery script ↔ Fusion
-   STEP ↔ build123d script).
+   the same piece exists in multiple backends (CadQuery script ↔ native
+   CAD STEP ↔ build123d script).
 5. A library of named primitives (vwheel, cbeam, plate, motor_nemaXX,
    etc.) backed by CadQuery. Each primitive is a thin wrapper —
    parameters in, OCP shape out — not a new modeling system.
@@ -468,8 +468,8 @@ existing open-source CAD-as-code libraries, not reinvent. Candidates:
 
 - Writing a CAD kernel. OCP/OpenCascade does the geometry; CADCLAW
   composes.
-- Native `.f3d` editing. Fusion stays an export source; CADCLAW reads
-  the resulting STEP.
+- Native CAD editing. The CAD package stays an export source; CADCLAW
+  reads the resulting STEP.
 - A GUI. The CLI + MCP + rule file are the interface.
 - Replacing CadQuery's API. CADCLAW's value is the spec + audit + REPL,
   not the modeling DSL.
@@ -498,31 +498,31 @@ listing every piece that's specced but not yet emitted.
 - **Abandoned `feat/cable-drag-chains`** (Y:/M3-CRETE) — reverted regression of authored brackets + removed out-of-scope kinematic simulation. Branch deleted locally (never pushed). Stash `stash@{0}` kept as safety net.
 - **Dropped `m3crete_radial_dragchains.gif`** from CADCLAW docs (was untracked; just `rm`'d).
 - **Added GIF output size gate** to `cadclaw/render.py`:
-  - `GIF_SIZE_WARN_BYTES = 5_000_000` (matches Claude API vision cap directly)
+  - `GIF_SIZE_WARN_BYTES = 5_000_000` (conservative multimodal payload cap)
   - `_warn_if_gif_too_large()` fires stderr warning at both save paths (`render_frames_to_gif`, `render_radial_explode_gif`)
   - Initial threshold was 4.5 MB; raised to 5.0 MB after empirical evidence showed 4.76 MB files worked in chat
 - **Added** `examples/m3_crete/render_baseline.py` — repeatable runner for both GIF types, points at the current authoritative M3-CRETE STEP.
 - **Dropped sequential-disassembly GIF** — only the radial explode + 360 spin is published now; it communicates the same thing in 15 s of render vs 10 min.
-- **Re-rendered `docs/media/m3crete_radial_spin.gif`** from the 9.18 MB Fusion full-model export — 4.08 MB, 76 frames, 720×540, `gif_colors=48`, `dither=Image.NONE` (flat colors, no speckle).
+- **Re-rendered `docs/media/m3crete_radial_spin.gif`** from the 9.18 MB native CAD full-model export — 4.08 MB, 76 frames, 720×540, `gif_colors=48`, `dither=Image.NONE` (flat colors, no speckle).
 - **Dither fix in `render.py`** — switched `convert("P", ...)` to `dither=Image.NONE` at both save paths. This eliminates the "grey-with-green-speckles" quantization artifact on the Sunnyday-green printed parts. Default adaptive-palette dither was Floyd-Steinberg and mixed non-green pixels into flat-green regions.
-- **STEP color import (AP242) in `render.py`** — new `_extract_step_colors()` helper uses `STEPCAFControl_Reader` + `XCAFDoc_ColorTool` to pull per-shape RGB from the STEP's AP242 color metadata. `render_step_to_png` and `render_radial_explode_gif` now take `use_step_colors: bool = True` (default on). Priority: STEP color → label map → default. Verified against the M3-CRETE Fusion export: 85 colored shapes extracted cleanly (V-wheels and pulleys come through green as Fusion tagged them; motors black; plates dark).
+- **STEP color import (AP242) in `render.py`** — new `_extract_step_colors()` helper uses `STEPCAFControl_Reader` + `XCAFDoc_ColorTool` to pull per-shape RGB from the STEP's AP242 color metadata. `render_step_to_png` and `render_radial_explode_gif` now take `use_step_colors: bool = True` (default on). Priority: STEP color → label map → default. Verified against the M3-CRETE native CAD export: 85 colored shapes extracted cleanly (V-wheels and pulleys come through green as exported; motors black; plates dark).
 - **Dropped `cadclaw/wheel_carriage.py`** — written, smoke-tested, then removed. User's insight reframed the problem: buried-wheel was passing validation because `skip_labels={'belt','vwheel'}` in the example config was suppressing the very check that should have caught it. Minimal fix was to drop `'vwheel'` from [examples/m3_crete/check.py:38](examples/m3_crete/check.py#L38). No new module.
 
 ### Key findings
 
-- **Claude Code `Read` tool image limit ≈ 5 MB** (documented API cap). Empirically: 4.76 MB sometimes accepted, 5.05 MB+ rejected. Gate at 5 MB is operationally safe with `optimize=True` on GIFs.
+- **Chat/assistant image payload limit ≈ 5 MB**. Empirically: 4.76 MB sometimes accepted, 5.05 MB+ rejected. Gate at 5 MB is operationally conservative with `optimize=True` on GIFs.
 - **GIF quantization artifact on flat-color parts** — default Pillow `convert("P", palette=Image.ADAPTIVE)` uses Floyd-Steinberg dithering, which produces visible speckle on nominally-flat colored surfaces (Sunnyday green became "grey with green speckles"). Fix: pass `dither=Image.NONE`. Costs some gradient smoothness, wins flat color fidelity — right trade for CAD renders with solid per-part colors.
 - **Interference-check blanket skips are anti-patterns.** `skip_labels={'belt','vwheel'}` was suppressing legitimate mis-placement detection. The correct posture: reserve skips for labels with *geometric* justification (belts wrap pulleys, creating unavoidable tooth-mesh overlap). Wheels correctly placed in V-grooves overlap the groove *void* (no solid material), not the extrusion — so they don't need skipping in the first place.
-- **Fusion STEP exports silently drop invisible parts.** The user hit this twice in this session — a part that was toggled invisible in Fusion's browser panel was not included in the STEP export, with no warning. Compensate by: (a) preferring CADQuery-regen STEPs for reproducibility, (b) sanity-check part counts after each Fusion export, (c) flag any Fusion export that is *smaller* than a prior version despite added geometry.
+- **Native CAD STEP exports can silently drop invisible parts.** The user hit this twice in this session — a part toggled invisible in the CAD browser panel was not included in the STEP export, with no warning. Compensate by: (a) preferring scripted-regeneration STEPs for reproducibility, (b) sanity-check part counts after each native CAD export, (c) flag any export that is *smaller* than a prior version despite added geometry.
 - **X-axis flexure resolved by extrusion rotation alone** — the 2 m X-beam (two 1 m sections butt-joined) only needs to be rotated to tall orientation (80 mm vertical). Bare-beam deflection at 5 kg mid-span = 0.225 mm (target ≤ 0.5 mm). No internal plate reinforcement needed for deflection control per the 2026-04-20 calc. Joint-integrity splice plate is a separate concern, deferred.
-- **Directly writing a CADQuery regen to `CAD/M3-2_Assembly.step` will clobber any Fusion-exported STEP at that path.** `m3_2_assembly.py` hard-codes its output path. **Fix before next CADQuery regen:** change the output path to a distinct name (e.g. `M3-2_Assembly_cadquery.step`) so Fusion and CADQuery outputs never collide.
+- **Directly writing a CADQuery regen to `CAD/M3-2_Assembly.step` will clobber any native-CAD exported STEP at that path.** `m3_2_assembly.py` hard-codes its output path. **Fix before next CADQuery regen:** change the output path to a distinct name (e.g. `M3-2_Assembly_cadquery.step`) so native CAD and CADQuery outputs never collide.
 
 ### M3-CRETE state — two-sided divergence (as of 2026-04-20)
 
-- **Fusion side** (`M3-CRETE/CAD/M3-2_Assembly.step`, 9.18 MB) — latest authoritative source:
+- **Native CAD side** (`M3-CRETE/CAD/M3-2_Assembly.step`, 9.18 MB) — latest authoritative source:
   - Has: X-axis tall rotation, X-gantry carriage (plate + V-wheels), top T-plate connector, all brackets
   - This is the single source of truth for GIF rendering as of end-of-session
-- **CADQuery side** (`M3-CRETE/CAD/m3_2_assembly.py`, 757 lines) — stale relative to Fusion:
+- **CADQuery side** (`M3-CRETE/CAD/m3_2_assembly.py`, 757 lines) — stale relative to the native CAD export:
   - Missing: X-axis tall rotation, X-gantry carriage
   - Has: 3D-printed green T-brackets at mid-X spreader, combined motor-mount plates, bottom spacer plates, Y-motor adapter plates, correct L-brackets
   - **Next-session work**: rotate X-rail template to tall, add X-gantry carriage by replicating Z/Y carriage geometry pattern (explicit user ask: "copy the same carriage we are using from the z- and y axes (we are replicating here intentionally)")
@@ -531,31 +531,31 @@ listing every piece that's specced but not yet emitted.
 
 Concrete gaps CADCLAW should catch automatically, not leave to eyeball:
 
-1. **Source-to-source parity check** — compare two STEPs (e.g., Fusion export vs CADQuery regen) and report parts present in one but not the other. Would have caught the X-carriage-plate gap and the triangular-gusset-vs-rectangular-approximation mismatch in seconds.
+1. **Source-to-source parity check** — compare two STEPs (e.g., native CAD export vs scripted regeneration) and report parts present in one but not the other. Would have caught the X-carriage-plate gap and the triangular-gusset-vs-rectangular-approximation mismatch in seconds.
 2. **Template-substitution warnings** — when a CADQuery script replaces real geometry with a parametric placeholder (e.g., cylinder stand-in for a V-wheel), emit a warning. Buried placeholders are a recurring gotcha.
 3. **Per-region inventory** — allow BOM-style counts per spatial region ("X-carriage should have 8 wheels + 2 plates"), not just global counts. Would catch region-local omissions that pass a global check.
 4. **Bbox-sig vs transform-aware color matching** — current `_extract_step_colors` keys by untransformed leaf bbox; many AP242-colored parts fall through to the label-map fallback because the render's transformed shapes don't match keys. Fix: key by dim-signature (sorted tuple) so all instances of a shape share a color even after translation.
-5. **Fusion visibility-toggle detector** — a Fusion STEP export that is *smaller* than a prior version despite added parts should raise a structured warning. Recurring pitfall this session.
+5. **Hidden-part export detector** — a native CAD STEP export that is *smaller* than a prior version despite added parts should raise a structured warning. Recurring pitfall this session.
 
 Logged as CADCLAW v0.6.0 candidates.
 
 ### Current in-flight
 
-- Render `bzuwfkofy` — re-rendering both GIFs from the new 9.18 MB Fusion export (disassembly ~10 min, radial_spin ~15 s).
+- Render `bzuwfkofy` — re-rendering both GIFs from the new 9.18 MB native CAD export (disassembly ~10 min, radial_spin ~15 s).
 - HANDOFF.md update (this file) written mid-render.
 
 ### Uncommitted state at snapshot
 
 **CADCLAW** (branch `feat/simultaneous-explode`):
 - `cadclaw/render.py` (5 MB size gate + `dither=Image.NONE`)
-- `docs/media/m3crete_radial_spin.gif` (4.08 MB clean re-render from Fusion full model)
+- `docs/media/m3crete_radial_spin.gif` (4.08 MB clean re-render from native CAD full model)
 - `docs/media/m3crete_disassembly.gif` dropped — radial-spin replaces it
 - `examples/m3_crete/check.py` (dropped `vwheel` from interference skip list)
 - `README.md` (disassembly → radial-spin hero GIF reference)
 - `examples/m3_crete/render_baseline.py` (new render runner, radial-only)
 
 **M3-CRETE** (branch `main`):
-- `CAD/M3-2_Assembly.step` — new Fusion export, 9.18 MB, authoritative
+- `CAD/M3-2_Assembly.step` — new native CAD export, 9.18 MB, authoritative
 
 ---
 
@@ -568,8 +568,8 @@ Logged as CADCLAW v0.6.0 candidates.
 
 ## Remaining M3-CRETE work
 
-1. **Catch CADQuery script up with Fusion** — rotate X-rail to tall + add X-gantry carriage (Z/Y pattern replication). Then regen, verify visual parity with Fusion, publish a deterministic source.
-2. **Split script output path** so CADQuery regen never clobbers Fusion-exported `M3-2_Assembly.step`. Change `m3_2_assembly.py:750` from `"M3-2_Assembly.step"` to e.g. `"M3-2_Assembly_cadquery.step"`.
+1. **Catch CADQuery script up with the native CAD export** — rotate X-rail to tall + add X-gantry carriage (Z/Y pattern replication). Then regen, verify visual parity with the exported STEP, publish a deterministic source.
+2. **Split script output path** so CADQuery regen never clobbers native-CAD exported `M3-2_Assembly.step`. Change `m3_2_assembly.py:750` from `"M3-2_Assembly.step"` to e.g. `"M3-2_Assembly_cadquery.step"`.
 3. **Butt-joint splice plate** (deferred this session) — 2 m X-beam made of two 1 m sections. Tall orientation handles deflection; plate is for joint integrity. Size and bolt spacing TBD next session. Internal C-channel: 26 × 36 mm interior (tall orientation); plate oriented width-vertical.
 4. **Other remaining CAD cleanup from pre-session backlog**: NEMA23 hole alignment (verify 3 corners vs Nick's reference corner), bottom spacer/idler-bracket treatment, CF reinforcement rods (BOM vs STEP), Y-motor adapter plate refinement, limit switches.
 
@@ -603,8 +603,8 @@ Two repos, both on GitHub under the `sunnyday-technologies` org:
 ### Key M3-CRETE files
 - `CAD/m3_2_assembly.py` — CADQuery assembly script (757 lines); loads `M3-2_AllC.step`, outputs to `CAD/M3-2_Assembly.step` (hard-coded, collision risk)
 - `CAD/M3-2_AllC.step` — 24 MB source (inputs)
-- `CAD/M3-2_Assembly.step` — **9.18 MB Fusion export, authoritative source of truth**
-- `CAD/M3-2_Assembly_latest.step`, `CAD/M3-2_Assembly-latest.step` — intermediate Fusion exports (can be deleted once `.step` is confirmed complete)
+- `CAD/M3-2_Assembly.step` — **9.18 MB native CAD export, authoritative source of truth**
+- `CAD/M3-2_Assembly_latest.step`, `CAD/M3-2_Assembly-latest.step` — intermediate native CAD exports (can be deleted once `.step` is confirmed complete)
 
 ---
 
@@ -622,9 +622,9 @@ When v0.5.0 is ready to publish:
 
 ## How the next session should use this file
 
-Read this first to restore context. Update or cross out items as they complete. Don't delete — history of what was done / deferred is useful. If Claude's per-machine user memory is missing, this file is authoritative.
+Read this first to restore context. Update or cross out items as they complete. Don't delete — history of what was done / deferred is useful. If the assistant's per-machine user memory is missing, this file is authoritative.
 
 In particular for this session's carry-forward:
-- The CADQuery script `m3_2_assembly.py` is the thing that most needs attention next: catch it up to the Fusion design (X-axis rotation + X-gantry carriage) AND change its output path so it doesn't clobber Fusion exports.
+- The CADQuery script `m3_2_assembly.py` is the thing that most needs attention next: catch it up to the native CAD design (X-axis rotation + X-gantry carriage) AND change its output path so it doesn't clobber native CAD exports.
 - GIF size gate is set at 5 MB; if you generate a new GIF and see the warning, use `gif_colors=32`, `720x540`, `n_transition_frames=1` as the shrink recipe.
-- Fusion exports require visibility audit — never trust a Fusion STEP export until part count has been checked against the assembly design.
+- Native CAD exports require visibility audit — never trust a STEP export until part count has been checked against the assembly design.
