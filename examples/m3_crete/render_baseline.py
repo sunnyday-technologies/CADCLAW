@@ -1,5 +1,5 @@
 """Render the canonical M3-CRETE radial-explode + 360 spin GIF from the
-authoritative Fusion export (X-axis in tall orientation, X-gantry
+authoritative native CAD export (X-axis in tall orientation, X-gantry
 carriage present, top T-plate connector, all brackets).
 
 One GIF now — the sequential disassembly variant was dropped; the

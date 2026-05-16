@@ -93,8 +93,10 @@ class TestConnectorMetadata(unittest.TestCase):
 
     def test_m3_connector_seed_loads(self):
         metadata = load_connector_metadata("examples/m3_crete/m3_connector_metadata.yaml")
-        self.assertGreaterEqual(len(metadata.components), 3)
+        self.assertGreaterEqual(len(metadata.components), 6)
         self.assertTrue(any(c.id == "cbeam_40x80_1000" for c in metadata.components))
+        self.assertTrue(any(c.id == "cbeam_linear_actuator_1000" for c in metadata.components))
+        self.assertTrue(any(c.id == "aluminum_spacer_6mm" for c in metadata.components))
 
 
 if __name__ == "__main__":

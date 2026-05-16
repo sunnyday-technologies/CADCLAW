@@ -30,7 +30,7 @@ CADCLAW v0.9.0 now provides a usable validation base:
 
 - Inventory, region inventory, interference, adjacency, dimensional, orientation, floating-part, color/material, BOM audit, parity, render/disassembly, doctor, claim-audit, and publish-audit surfaces.
 - A local Python 3.11 CADCLAW runtime with CadQuery/OCP/VTK.
-- M3-CRETE field-test knowledge around Fusion export omissions, CADQuery/Fusion parity, output-path clobbering, BOM drift, and unsafe parametric plate generation.
+- M3-CRETE field-test knowledge around native CAD export omissions, STEP parity, output-path clobbering, BOM drift, and unsafe parametric plate generation.
 
 M3-CRETE CAD component libraries are present:
 
@@ -51,7 +51,7 @@ Keep:
 
 - `cadclaw build` / `cadclaw build-piece` as a command idea, but define it as "compose and validate an assembly from a spec," not "author arbitrary CAD."
 - Rule-file confidence budget extensions: `not_built_yet`, `parametric_placeholder`, source-of-truth tracking.
-- STEP-vs-STEP parity, region inventory, Fusion visibility-toggle detection, and protected output path linting.
+- STEP-vs-STEP parity, region inventory, hidden-part export detection, and protected output path linting.
 - Interactive BOM negotiation: source availability, price, shipping, and substitutions feed selection, while public reports redact private vendor/order fields.
 
 Revise:

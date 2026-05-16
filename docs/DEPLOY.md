@@ -36,7 +36,7 @@ until GitHub's cert is live).
 ```
 docs/
 ├── index.html          # landing page
-├── styles.css          # Claude Code CLI aesthetic
+├── styles.css          # terminal-inspired aesthetic
 ├── CNAME               # custom domain → cadclaw.io
 ├── .nojekyll           # skip Jekyll processing
 ├── robots.txt

@@ -27,7 +27,7 @@ Tools:
 
 Usage:
   python -m cadclaw_mcp.server
-  # or add to Claude's MCP config:
+  # or add to an MCP host config:
   # "cadclaw": {"command": "python", "args": ["-m", "cadclaw_mcp.server"]}
 
 Protocol: MCP over stdio (JSON-RPC 2.0)
@@ -720,7 +720,7 @@ TOOLS = [
     },
     {
         "name": "compare_step_parity",
-        "description": "Compare two STEP files by dim-signature inventory. Detects parts present in one but not the other, plus the Fusion visibility-toggle bug (file shrinks but unique signatures grow).",
+        "description": "Compare two STEP files by dim-signature inventory. Detects parts present in one but not the other, plus hidden/suppressed-part export drift (file shrinks but unique signatures grow).",
         "inputSchema": {
             "type": "object",
             "properties": {

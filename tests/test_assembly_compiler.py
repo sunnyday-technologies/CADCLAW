@@ -165,6 +165,34 @@ instances:
                 any(f.id == "assemble.protected_output_path" for f in report.findings)
             )
 
+    def test_build_marks_explicit_spacers_checked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = self._touch(root, "CAD/Advanced/Spacer.step")
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: spacer_round
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+instances:
+  - id: y_spacer
+    role: y_axis_spacer_6mm
+    source_path: {source.as_posix()}
+""")
+
+            report = run_assembly_build(spec, dry_run=True)
+            self.assertIn(
+                "explicit spacer placement declarations",
+                report.confidence_budget.checked,
+            )
+            self.assertNotIn(
+                "spacer requirement inference",
+                report.confidence_budget.not_checked,
+            )
+
     def test_build_blocks_generated_source_refs(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
