@@ -212,6 +212,15 @@ def _cmd_assemble_validate_spec(args: argparse.Namespace) -> int:
                 evidence={"path": manifest},
             ))
 
+    if spec.connector_metadata and not Path(spec.connector_metadata).exists():
+        findings.append(Finding(
+            id="assemble.connector_metadata_missing",
+            category="assemble",
+            severity=Severity.WARN,
+            message=f"connector metadata not found: {spec.connector_metadata}",
+            evidence={"path": spec.connector_metadata},
+        ))
+
     for root in spec.component_roots:
         if not Path(root).exists():
             findings.append(Finding(
@@ -264,6 +273,7 @@ def _cmd_assemble_validate_spec(args: argparse.Namespace) -> int:
             "protected output path validation",
             "reference asset path presence",
             "component manifest path presence",
+            "connector metadata path presence",
             "component root path presence",
             "variant declaration",
         ],
@@ -292,10 +302,105 @@ def _cmd_assemble_validate_spec(args: argparse.Namespace) -> int:
             "not_built_yet": len(spec.not_built_yet),
             "missing_release_items": missing_release_items,
             "outputs": spec.outputs.model_dump(exclude_none=True),
+            "connector_metadata": spec.connector_metadata,
             "bom": spec.bom.model_dump(exclude_none=True),
         },
     )
     report.overall = report.compute_overall()
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
+def _cmd_assemble_build(args: argparse.Namespace) -> int:
+    from cadclaw.assembly_compiler import run_assembly_build
+
+    try:
+        report = run_assembly_build(
+            args.spec,
+            connector_metadata_path=args.connector_metadata,
+            dry_run=args.dry_run,
+            write_inventory=args.write_design_inventory,
+        )
+    except Exception as exc:
+        print(f"error: assembly build failed: {exc}", file=sys.stderr)
+        return 3
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
+def _cmd_assemble_inspect_component(args: argparse.Namespace) -> int:
+    from cadclaw.assembly_compiler import inspect_component
+
+    try:
+        views = [v.strip() for v in args.views.split(",") if v.strip()]
+        report = inspect_component(
+            args.spec,
+            component_id=args.component_id,
+            source_path=args.source_path,
+            render_views=args.render_views,
+            views=views or None,
+            views_dir=args.views_dir,
+        )
+    except Exception as exc:
+        print(f"error: component inspection failed: {exc}", file=sys.stderr)
+        return 3
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
+def _cmd_assemble_render_views(args: argparse.Namespace) -> int:
+    from cadclaw.assembly_compiler import render_review_views
+
+    try:
+        report = render_review_views(
+            args.spec,
+            step_path=args.step,
+            views_dir=args.views_dir,
+        )
+    except Exception as exc:
+        print(f"error: review view rendering failed: {exc}", file=sys.stderr)
+        return 3
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
+def _cmd_assemble_check_round(args: argparse.Namespace) -> int:
+    from cadclaw.assembly_compiler import run_assembly_check_round
+
+    try:
+        report = run_assembly_check_round(
+            args.spec,
+            connector_metadata_path=args.connector_metadata,
+            dry_run=args.dry_run,
+            write_inventory=not args.no_inventory,
+            render_views=not args.no_render_views,
+            write_report=args.write_report,
+        )
+    except Exception as exc:
+        print(f"error: assembly check round failed: {exc}", file=sys.stderr)
+        return 3
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
+def _cmd_assemble_render_sequence(args: argparse.Namespace) -> int:
+    from cadclaw.assembly_compiler import run_assembly_sequence
+
+    try:
+        views = [v.strip() for v in args.views.split(",") if v.strip()]
+        report = run_assembly_sequence(
+            args.spec,
+            output_dir=args.output_dir,
+            view_names=views or None,
+            dry_run=args.dry_run,
+            render_views=not args.no_render_views,
+            rotate_final=args.rotate_final,
+            bom_csv_path=args.bom_csv,
+            write_bom=not args.no_bom,
+        )
+    except Exception as exc:
+        print(f"error: assembly sequence render failed: {exc}", file=sys.stderr)
+        return 3
     _emit_report(report, args.report_format, args.out)
     return _exit_code_for(report)
 
@@ -758,6 +863,157 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_format_args(p_validate_spec)
     p_validate_spec.set_defaults(func=_cmd_assemble_validate_spec)
+
+    p_build = asm_sub.add_parser(
+        "build",
+        help="Resolve and optionally compile an assembly spec with CadQuery.",
+    )
+    p_build.add_argument("spec")
+    p_build.add_argument(
+        "--connector-metadata",
+        default=None,
+        help="Optional connector metadata YAML for local frames and mates.",
+    )
+    p_build.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Resolve authored STEP paths without importing/exporting geometry.",
+    )
+    p_build.add_argument(
+        "--write-design-inventory",
+        action="store_true",
+        help="Write spec.outputs.design_inventory with resolved instances.",
+    )
+    _add_format_args(p_build)
+    p_build.set_defaults(func=_cmd_assemble_build)
+
+    p_inspect_component = asm_sub.add_parser(
+        "inspect-component",
+        help="Inspect one authored STEP component from an assembly spec.",
+    )
+    p_inspect_component.add_argument("spec")
+    selector = p_inspect_component.add_mutually_exclusive_group(required=True)
+    selector.add_argument(
+        "--component-id",
+        default=None,
+        help="Component id to resolve from the spec manifests.",
+    )
+    selector.add_argument(
+        "--source-path",
+        default=None,
+        help="Direct authored STEP path/source reference to resolve.",
+    )
+    p_inspect_component.add_argument(
+        "--render-views",
+        action="store_true",
+        help="Render isolated component review views.",
+    )
+    p_inspect_component.add_argument(
+        "--views",
+        default="front,side,top,iso",
+        help="Comma-separated views to render when --render-views is set.",
+    )
+    p_inspect_component.add_argument(
+        "--views-dir",
+        default=None,
+        help="Optional output directory for component review views.",
+    )
+    _add_format_args(p_inspect_component)
+    p_inspect_component.set_defaults(func=_cmd_assemble_inspect_component)
+
+    p_render_views = asm_sub.add_parser(
+        "render-views",
+        help="Render the review_views declared by an assembly spec.",
+    )
+    p_render_views.add_argument("spec")
+    p_render_views.add_argument(
+        "--step",
+        default=None,
+        help="Optional STEP path to render; defaults to spec.outputs.step.",
+    )
+    p_render_views.add_argument(
+        "--views-dir",
+        default=None,
+        help="Optional output directory; defaults to spec.outputs.views_dir.",
+    )
+    _add_format_args(p_render_views)
+    p_render_views.set_defaults(func=_cmd_assemble_render_views)
+
+    p_check_round = asm_sub.add_parser(
+        "check-round",
+        help="Build, inventory-check, optionally render views, and report one assembly round.",
+    )
+    p_check_round.add_argument("spec")
+    p_check_round.add_argument(
+        "--connector-metadata",
+        default=None,
+        help="Optional connector metadata YAML for local frames and mates.",
+    )
+    p_check_round.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Resolve paths and spec inventory without importing/exporting geometry.",
+    )
+    p_check_round.add_argument(
+        "--no-inventory",
+        action="store_true",
+        help="Do not write spec.outputs.design_inventory during the round.",
+    )
+    p_check_round.add_argument(
+        "--no-render-views",
+        action="store_true",
+        help="Skip review-view rendering even after a successful build.",
+    )
+    p_check_round.add_argument(
+        "--write-report",
+        action="store_true",
+        help="Write the round report to spec.outputs.report when declared.",
+    )
+    _add_format_args(p_check_round)
+    p_check_round.set_defaults(func=_cmd_assemble_check_round)
+
+    p_render_sequence = asm_sub.add_parser(
+        "render-sequence",
+        help="Export partial assembly STEPs, per-step review views, and BOM CSV.",
+    )
+    p_render_sequence.add_argument("spec")
+    p_render_sequence.add_argument(
+        "--output-dir",
+        default=None,
+        help="Directory for sequence STEPs, images, and manifest.",
+    )
+    p_render_sequence.add_argument(
+        "--views",
+        default="front,side,top,hero,iso",
+        help="Comma-separated review views to render per sequence step.",
+    )
+    p_render_sequence.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Resolve and report sequence/BOM without exporting STEP or PNG files.",
+    )
+    p_render_sequence.add_argument(
+        "--no-render-views",
+        action="store_true",
+        help="Export sequence STEPs without per-step PNG renders.",
+    )
+    p_render_sequence.add_argument(
+        "--rotate-final",
+        action="store_true",
+        help="Render a final rotating GIF from the completed sequence assembly.",
+    )
+    p_render_sequence.add_argument(
+        "--bom-csv",
+        default=None,
+        help="Optional BOM CSV output path; defaults to spec.bom.output_path/spec.outputs.bom.",
+    )
+    p_render_sequence.add_argument(
+        "--no-bom",
+        action="store_true",
+        help="Skip BOM CSV generation.",
+    )
+    _add_format_args(p_render_sequence)
+    p_render_sequence.set_defaults(func=_cmd_assemble_render_sequence)
 
     p_claim = sub.add_parser("claim-audit", help="Lint docs and BOM notes for claims.")
     p_claim.add_argument("--rules", default="cadclaw.yaml")

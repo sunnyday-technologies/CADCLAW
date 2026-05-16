@@ -59,9 +59,9 @@
 <text x="1279" y="232" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">4. Assembly Spec</text>
 <text x="1279" y="270" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">variant: M3-2</text>
 <text x="1279" y="294" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="1279" y="318" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">instances + transforms</text>
+<text x="1279" y="318" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">inside-out sequence</text>
 <text x="1279" y="342" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="1279" y="366" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">not_built_yet</text>
+<text x="1279" y="366" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">6mm Y spacers</text>
 <text x="1279" y="390" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <rect x="1255" y="465" width="280" height="170" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
 <rect x="1255" y="465" width="9" height="170" fill="#38bdf8" />
@@ -77,9 +77,9 @@
 <text x="874" y="507" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">6. Generated Outputs</text>
 <text x="874" y="545" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">.step assembly</text>
 <text x="874" y="569" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="874" y="593" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">design inventory JSON</text>
+<text x="874" y="593" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">sequence PNG/GIF views</text>
 <text x="874" y="617" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="874" y="641" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">BOM draft</text>
+<text x="874" y="641" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">BOM CSV + inventory</text>
 <text x="874" y="665" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <rect x="445" y="465" width="300" height="170" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
 <rect x="445" y="465" width="9" height="170" fill="#ff6b6b" />
@@ -108,5 +108,5 @@
 <text x="624" y="892" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <text x="624" y="916" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">rerun the round</text>
 <text x="624" y="940" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="58" y="964" fill="#87a4ba" font-size="15" font-family="Arial, sans-serif" font-weight="400">M3 targets: M3-1 = 1000 x 1000 x 1000 mm, M3-2 = 2000 x 1000 x 1000 mm, M3-4 = 2000 x 2000 x 1000 mm.</text>
+<text x="58" y="964" fill="#87a4ba" font-size="15" font-family="Arial, sans-serif" font-weight="400">M3-2 sequence: X gantry -&gt; Y gantries -&gt; Z plates + 6mm Y spacers -&gt; Z posts -&gt; frame completion.</text>
 </svg>

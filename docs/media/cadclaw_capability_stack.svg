@@ -50,9 +50,9 @@
 <text x="949" y="222" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">Intent Layer</text>
 <text x="949" y="260" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">assembly_spec.yaml</text>
 <text x="949" y="284" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="949" y="308" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">variants: M3-1 / M3-2 / M3-4</text>
+<text x="949" y="308" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">X -&gt; Y -&gt; Z/frame sequence</text>
 <text x="949" y="332" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="949" y="356" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">explicit outputs and assumptions</text>
+<text x="949" y="356" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">explicit spacers and assumptions</text>
 <text x="949" y="380" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <rect x="515" y="385" width="340" height="145" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
 <rect x="515" y="385" width="9" height="145" fill="#ff6b6b" />
@@ -86,7 +86,7 @@
 <text x="949" y="632" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">Builder Output Layer</text>
 <text x="949" y="670" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">configured STEP</text>
 <text x="949" y="694" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="949" y="718" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">review PNG/GIF views</text>
+<text x="949" y="718" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">per-step PNG/GIF views</text>
 <text x="949" y="742" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <text x="949" y="766" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">public BOM and confidence report</text>
 <text x="949" y="790" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>

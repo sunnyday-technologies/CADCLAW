@@ -1,20 +1,20 @@
 """
 STEP-to-STEP parity check — compare two STEP files by dim-signature
-inventory to surface divergences between (for example) a Fusion export
-and a CADQuery regen of the same design.
+inventory to surface divergences between (for example) a native CAD
+export and a scripted regeneration of the same design.
 
-Motivating bug: Fusion's visibility-toggle export. Hiding a part in the
-Fusion browser tree and re-exporting can silently drop it from the STEP
-— the file shrinks, the part count drops, and a quick eyeball of the
-render might not catch it because the assembly still looks "complete."
-`visibility_toggle_warning` flags the specific failure mode (smaller
-file but more unique signatures, i.e. a shape inventory that wandered
-in an unexpected direction).
+Motivating bug: hidden or suppressed parts during STEP export. Hiding a
+part in the native CAD assembly tree and re-exporting can silently drop
+it from the STEP — the file shrinks, the part count drops, and a quick
+eyeball of the render might not catch it because the assembly still
+looks "complete." `visibility_toggle_warning` flags the specific failure
+mode (smaller file but more unique signatures, i.e. a shape inventory
+that wandered in an unexpected direction).
 
 Usage:
     from cadclaw.parity import compare_steps, visibility_toggle_warning
 
-    report = compare_steps("fusion_export.step", "cadquery_regen.step")
+    report = compare_steps("native_export.step", "scripted_regen.step")
     if not report.passed:
         print(f"Only in A: {report.only_in_a}")
         print(f"Only in B: {report.only_in_b}")
@@ -79,7 +79,7 @@ def _inventory(step_path: str) -> Counter:
 def compare_steps(step_a: str, step_b: str) -> ParityReport:
     """Compare two STEP files by dim-signature inventory.
 
-    Intended use: Fusion export vs CADQuery regen of the same design —
+    Intended use: native CAD export vs scripted regeneration of the same design —
     surfaces missing or extra parts per side. Both files are loaded via
     `render._load_shapes` (same dedup-by-bbox behavior as `inventory`),
     then dim-signatures are counted per file. The report lists any
@@ -114,7 +114,7 @@ def compare_steps(step_a: str, step_b: str) -> ParityReport:
 
 
 def visibility_toggle_warning(old_path: str, new_path: str) -> Optional[str]:
-    """Detect the Fusion visibility-toggle export bug.
+    """Detect hidden/suppressed-part export drift.
 
     Returns a human-readable warning string if `new_path` is smaller on
     disk than `old_path` yet reports MORE unique dim-signatures —
@@ -144,7 +144,7 @@ def visibility_toggle_warning(old_path: str, new_path: str) -> Optional[str]:
             f"{os.path.basename(new_path)} is smaller "
             f"({new_size:,} B vs {old_size:,} B) but has MORE unique "
             f"dim signatures ({len(new_sigs)} vs {len(old_sigs)}). "
-            "Classic Fusion visibility-toggle footprint — inspect for "
+            "Classic hidden-part export footprint — inspect for "
             "silently-dropped part instances."
         )
 

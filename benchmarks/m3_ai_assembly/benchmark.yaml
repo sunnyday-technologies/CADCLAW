@@ -1,0 +1,59 @@
+schema_version: m3_ai_assembly_benchmark.v0.1
+benchmark_id: m3_ai_assembly
+status: prerelease_scaffold
+
+target:
+  project: M3-CRETE
+  variant: M3-2
+  target_envelope_mm: [2000.0, 1000.0, 1000.0]
+  interpretation: target envelope/class; requires physical validation
+
+tracks:
+  - id: native_cad_driver
+    label: Native CAD driver
+    primary_artifact: native-authored/exported STEP assembly
+  - id: cadclaw_spec_driver
+    label: CADCLAW spec driver
+    primary_artifact: CADCLAW-generated STEP plus spec, inventory, and report
+
+seeds:
+  assembly_spec: examples/m3_crete/m3_reference_assembly.yaml
+  component_manifest: examples/m3_crete/m3_component_manifest.yaml
+  connector_metadata: examples/m3_crete/m3_connector_metadata.yaml
+  prompt: benchmarks/m3_ai_assembly/prompts/standard_prompt.md
+
+asset_policy:
+  public_assets_included: false
+  notes:
+    - Do not redistribute local M3-CRETE STEP, image, BOM, or native CAD assets until source/license review is complete.
+    - Public fixture packages must include checksums and license/source notes for every asset.
+    - Private procurement fields and credentials must never appear in benchmark manifests.
+
+grader:
+  default_dry_run: true
+  default_render_views: false
+  required_report_schema: "0.7"
+  hard_fail_finding_ids:
+    - assemble.protected_output_path
+    - assemble.generated_geometry_blocked
+    - assemble.source_missing
+    - assemble.step_missing_for_render
+  hard_fail_categories:
+    - publish_audit
+  required_outputs:
+    - step_or_dry_run_plan
+    - design_inventory
+    - cadclaw_report
+    - review_views_for_non_dry_run
+
+scoring:
+  weights:
+    cadclaw_gate_results: 35
+    completeness_and_authored_asset_fidelity: 25
+    dimensional_topology_match: 15
+    reproducibility_and_provenance: 10
+    human_effort: 10
+    claim_hygiene_packaging: 5
+  hard_fail_notes:
+    - Secret exposure, protected-path overwrite, non-loadable STEP, or uncontrolled generated contextual geometry overrides weighted score.
+    - The early scorer is intentionally conservative and should be version-pinned with each benchmark release.

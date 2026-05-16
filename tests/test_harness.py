@@ -1432,7 +1432,7 @@ class TestStepColorExtraction(unittest.TestCase):
 # ============================================================
 class TestParity(unittest.TestCase):
     """STEP-to-STEP parity checks. Uses the L1/L2 fixtures as drop-in
-    stand-ins for "Fusion export" and "CADQuery regen" — the identity
+    stand-ins for "native CAD export" and "scripted regeneration" — the identity
     and cross-assembly cases are enough to pin the contract down."""
 
     GOOD = os.path.join(FIXTURES, "L1_good.step")
