@@ -9,6 +9,7 @@ from cadclaw.assembly_compiler import (
     render_review_views,
     run_assembly_build,
     run_assembly_check_round,
+    run_assembly_sequence,
 )
 
 
@@ -385,6 +386,93 @@ instances:
             self.assertEqual(report.overall.value, "pass")
             self.assertEqual(len(calls), 1)
             self.assertEqual(report.meta["rendered_views"][0]["view"], "front")
+
+    def test_run_assembly_sequence_exports_steps_views_and_bom(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = Path(__file__).resolve().parent / "fixtures" / "L1_good.step"
+            out_dir = root / "build" / "sequence"
+            bom = root / "build" / "bom.csv"
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+  bom: {bom.as_posix()}
+bom:
+  output_path: {bom.as_posix()}
+instances:
+  - id: x_beam
+    role: x_gantry
+    source_path: {fixture.as_posix()}
+  - id: frame
+    role: frame
+    source_path: {fixture.as_posix()}
+assembly_sequence:
+  - id: x_gantry
+    title: X Gantry
+    instance_ids: [x_beam]
+  - id: frame_context
+    title: Frame Context
+    instance_ids: [frame]
+""")
+
+            calls = []
+
+            def fake_renderer(step_path, output_path, **kwargs):
+                calls.append((step_path, output_path, kwargs))
+                Path(output_path).write_text("png", encoding="utf-8")
+                return output_path
+
+            report = run_assembly_sequence(
+                spec,
+                output_dir=out_dir,
+                view_names=["front"],
+                renderer=fake_renderer,
+            )
+            self.assertEqual(report.overall.value, "pass")
+            self.assertEqual(len(report.meta["steps"]), 2)
+            self.assertEqual(len(calls), 2)
+            self.assertTrue((out_dir / "steps" / "01_x_gantry.step").exists())
+            self.assertTrue((out_dir / "assembly_sequence_manifest.json").exists())
+            self.assertTrue(bom.exists())
+            bom_text = bom.read_text(encoding="utf-8")
+            self.assertIn("quantity,role,source_ref", bom_text)
+            self.assertIn("x_gantry", bom_text)
+
+    def test_run_assembly_sequence_dry_run_reports_sequence_without_export(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = self._touch(root, "CAD/Advanced/Thing.step")
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+instances:
+  - id: x_beam
+    role: x_gantry
+    source_path: {source.as_posix()}
+assembly_sequence:
+  - id: x_gantry
+    title: X Gantry
+    instance_ids: [x_beam]
+""")
+
+            report = run_assembly_sequence(spec, dry_run=True)
+            self.assertEqual(report.overall.value, "warn")
+            self.assertIsNone(report.meta["steps"][0]["output_step"])
 
 
 if __name__ == "__main__":

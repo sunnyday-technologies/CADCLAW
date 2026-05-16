@@ -57,6 +57,10 @@ instances:
 review_views:
   - name: hero_match
     view: hero
+assembly_sequence:
+  - id: frame_start
+    title: Frame Start
+    instance_ids: [rail_1]
 not_built_yet:
   - item: belt paths
     reason: Explicit belt path geometry is not defined yet.
@@ -83,6 +87,7 @@ class TestAssemblySpec(unittest.TestCase):
             self.assertEqual(spec.constraints[0].severity, "fail")
             self.assertEqual(spec.instances[0].transform.rotate_deg, [0.0, 90.0, 0.0])
             self.assertFalse(spec.reference_assets[0].dimensional_evidence)
+            self.assertEqual(spec.assembly_sequence[0].id, "frame_start")
         finally:
             Path(path).unlink()
 
@@ -156,6 +161,15 @@ class TestAssemblySpec(unittest.TestCase):
         finally:
             Path(path).unlink()
 
+    def test_rejects_unknown_sequence_instance(self):
+        bad = GOOD_SPEC.replace("instance_ids: [rail_1]", "instance_ids: [missing]")
+        path = self._write_tmp(bad)
+        try:
+            with self.assertRaises(ValidationError):
+                load_assembly_spec(path)
+        finally:
+            Path(path).unlink()
+
     def test_m3_reference_spec_loads(self):
         spec = load_assembly_spec("examples/m3_crete/m3_reference_assembly.yaml")
         self.assertEqual(spec.meta.project, "M3-CRETE")
@@ -166,6 +180,7 @@ class TestAssemblySpec(unittest.TestCase):
         )
         self.assertTrue(any(c.id == "no_external_x_gantry_reinforcement" for c in spec.constraints))
         self.assertGreater(len(spec.instances), 0)
+        self.assertGreater(len(spec.assembly_sequence), 0)
         self.assertGreater(len(spec.not_built_yet), 0)
         self.assertNotIn("M3-2_Assembly.step", spec.outputs.step)
 
