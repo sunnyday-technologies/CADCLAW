@@ -18,8 +18,8 @@ This should work locally, without SaaS, and should be callable from Python, CLI,
 
 CADCLAW should not merely answer "does this STEP contain the expected bounding-box signatures?" It should help a small manufacturing/open-hardware team avoid shipping a false public design:
 
-- A STEP export can silently omit hidden Fusion parts.
-- A CadQuery source script can lag behind the authoritative Fusion design.
+- A STEP export can silently omit hidden native CAD parts.
+- A CadQuery source script can lag behind the authoritative native CAD design.
 - A public BOM can contain old purchased parts after the design moved to printed parts.
 - A public claim can say "production-capable" or "validated" when the evidence only supports "candidate" or "prototype."
 - A local procurement spreadsheet can contain private order data and must never be treated as publishable BOM truth.
@@ -44,17 +44,17 @@ Challenge these CADCLAW claims and improve the toolkit until they are substantia
    - Current risk: README says this, but CADCLAW does not yet have a direct BOM-vs-CAD gate.
    - Required improvement: implement `bom_audit` as a first-class module and MCP tool.
 
-4. "MCP gives Claude direct access to CAD validation."
+4. "MCP gives an assistant direct access to CAD validation."
    - Current risk: MCP tools are only as useful as the installed Python/CadQuery/OCP environment, and errors may be opaque.
    - Required improvement: MCP should expose `doctor`, environment status, dependency versions, and safe file-scope reporting.
 
 5. "No commercial CAD software needed."
-   - Current risk: true for CadQuery/STEP validation, but not true for validating Fusion-native `.f3d` browser visibility, suppressed parts, or design history.
-   - Required improvement: clearly separate what CADCLAW can validate from STEP/CadQuery versus what requires export discipline or Fusion API integration.
+   - Current risk: true for CadQuery/STEP validation, but not true for validating native CAD browser visibility, suppressed parts, or design history.
+   - Required improvement: clearly separate what CADCLAW can validate from STEP/CadQuery versus what requires export discipline or native CAD API integration.
 
 6. "CAD via Python via prompt."
    - Current risk: vague marketing phrase.
-   - Required improvement: define exact supported workflow: prompt -> modify CadQuery script/rule file -> regenerate STEP -> run CADCLAW gates -> inspect report/render. Do not imply direct reliable Fusion editing unless a Fusion connector exists.
+   - Required improvement: define exact supported workflow: prompt -> modify CadQuery script/rule file -> regenerate STEP -> run CADCLAW gates -> inspect report/render. Do not imply direct reliable native CAD editing unless a tested connector exists.
 
 ## Why This Is Needed
 
@@ -97,7 +97,7 @@ Acceptance case from M3-CRETE:
 Add a gate that compares:
 
 - CadQuery source-generated STEP.
-- Fusion/exported STEP.
+- Native-CAD exported STEP.
 - Previous known-good STEP.
 
 It should report:
@@ -108,7 +108,7 @@ It should report:
 - Parts present in one STEP but missing from another.
 - Suspicious "smaller export despite added geometry" warnings.
 
-This protects against Fusion visibility toggles and stale CadQuery scripts.
+This protects against hidden-part STEP exports and stale CadQuery scripts.
 
 ### 3. Region-Aware Inventory
 
@@ -136,7 +136,7 @@ Support axis-aligned boxes, named anchor points, and part-center filters. Report
 
 CADCLAW should inspect CadQuery scripts for common design-release hazards:
 
-- Hard-coded output path that can clobber a Fusion export.
+- Hard-coded output path that can clobber a native CAD export.
 - Silent fallback geometry.
 - Unnamed parts.
 - Repeated magic dimensions without constants.
@@ -145,7 +145,7 @@ CADCLAW should inspect CadQuery scripts for common design-release hazards:
 
 M3-CRETE acceptance case:
 
-- `m3_2_assembly.py` should never overwrite `CAD/M3-2_Assembly.step` if that path is reserved for Fusion/exported authoritative geometry. The linter should flag that.
+- `m3_2_assembly.py` should never overwrite `CAD/M3-2_Assembly.step` if that path is reserved for native-CAD exported authoritative geometry. The linter should flag that.
 
 ### 5. Labeling Beyond Bounding Boxes
 
@@ -249,7 +249,7 @@ Example:
 
 ```text
 Checked: STEP bbox inventory, BOM JSON rules, README claims.
-Not checked: native Fusion browser visibility, actual physical deflection measurement, vendor stock availability.
+Not checked: native CAD browser visibility, actual physical deflection measurement, vendor stock availability.
 Assumption: M3-2 has three reinforced 2m X-direction members.
 ```
 
@@ -438,13 +438,13 @@ Create fixtures where:
 8. X belt described as 10mm -> fail.
 9. Clean current M3-CRETE BOM rules -> pass.
 10. Broken virtualenv path in `pyvenv.cfg` -> `cadclaw doctor` fails with actionable repair guidance.
-11. Fusion-exported STEP loses a part and shrinks unexpectedly -> parity warning.
+11. Native-CAD exported STEP loses a part and shrinks unexpectedly -> parity warning.
 12. Global wheel count is correct but all X wheels are missing and extras are elsewhere -> global inventory pass but region inventory fail.
 13. Two different parts share a bbox signature -> label ambiguity warning.
 14. README says "production-ready" without evidence tag -> claim audit warning/fail depending severity config.
 15. Local order spreadsheet is present but ignored -> publish audit pass.
 16. Local order spreadsheet is staged -> publish audit fail without printing private values.
-17. CadQuery script writes to a protected Fusion-export path -> source lint fail.
+17. CadQuery script writes to a protected native-CAD export path -> source lint fail.
 18. Missing rule file -> command suggests `cadclaw init-rules`.
 19. BOM has a printed part with approved commercial-only supplier and no self-manufacture route -> fail.
 20. BOM has a purchased item that CAD/rules say is printed -> fail.
@@ -457,7 +457,7 @@ The implementation is not done until:
 - The M3-CRETE current public BOM passes the new BOM audit with a rule file.
 - Intentional stale versions of M3-CRETE BOM fail with useful messages.
 - The MCP server exposes the new checks and can return structured JSON without dumping private file contents.
-- The README is updated to describe the exact "prompt -> CadQuery -> STEP -> CADCLAW validation" loop without implying unsupported Fusion-native editing.
+- The README is updated to describe the exact "prompt -> CadQuery -> STEP -> CADCLAW validation" loop without implying unsupported native CAD editing.
 - CI examples include both a minimal STEP inventory check and a BOM-to-CAD release gate.
 - Docs include a "What CADCLAW Does Not Prove" section.
 

@@ -142,6 +142,22 @@ class ReviewView(_Strict):
         return view
 
 
+class AssemblySequenceStep(_Strict):
+    id: str
+    title: str
+    instance_ids: List[str]
+    notes: Optional[str] = None
+
+    @field_validator("instance_ids")
+    @classmethod
+    def _check_instance_ids(cls, value: List[str]) -> List[str]:
+        if not value:
+            raise ValueError("assembly sequence step needs at least one instance_id")
+        if len(set(value)) != len(value):
+            raise ValueError("assembly sequence step contains duplicate instance_ids")
+        return value
+
+
 class NotBuiltYet(_Strict):
     item: str
     reason: str
@@ -161,6 +177,7 @@ class AssemblySpec(_Strict):
     variants: List[MachineVariant] = Field(default_factory=list)
     reference_assets: List[ReferenceAsset] = Field(default_factory=list)
     manifests: List[str] = Field(default_factory=list)
+    connector_metadata: Optional[str] = None
     component_roots: List[str] = Field(default_factory=list)
     protected_paths: List[str] = Field(default_factory=list)
     outputs: Outputs
@@ -169,6 +186,7 @@ class AssemblySpec(_Strict):
     constraints: List[AssemblyConstraint] = Field(default_factory=list)
     instances: List[Instance] = Field(default_factory=list)
     review_views: List[ReviewView] = Field(default_factory=list)
+    assembly_sequence: List[AssemblySequenceStep] = Field(default_factory=list)
     not_built_yet: List[NotBuiltYet] = Field(default_factory=list)
     validation: Dict[str, object] = Field(default_factory=dict)
 
@@ -198,6 +216,17 @@ class AssemblySpec(_Strict):
                     f"active_variant {self.active_variant!r} is not listed "
                     f"in variants"
                 )
+        known_instances = {instance.id for instance in self.instances}
+        for step in self.assembly_sequence:
+            missing = [
+                instance_id for instance_id in step.instance_ids
+                if instance_id not in known_instances
+            ]
+            if missing:
+                raise ValueError(
+                    f"assembly_sequence step {step.id!r} references unknown "
+                    f"instance ids: {missing}"
+                )
         return self
 
 
@@ -218,6 +247,7 @@ def dump_assembly_spec(spec: AssemblySpec) -> str:
 __all__ = [
     "ASSEMBLY_SPEC_VERSION",
     "AssemblyConstraint",
+    "AssemblySequenceStep",
     "AssemblySpec",
     "BomPlan",
     "Instance",

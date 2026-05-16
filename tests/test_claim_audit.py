@@ -32,7 +32,7 @@ def _rules_for_source_regex() -> RuleSet:
                 SourceRegexRuleModel(
                     pattern=r'cq\.exporters\.export\(.*"CAD/M3-2_Assembly\.step"',
                     severity="fail",
-                    message="CadQuery script writes to a Fusion-reserved output path.",
+                    message="CadQuery script writes to a native-CAD reserved output path.",
                     file_glob="tests/fixtures/claim_audit/*.py",
                 ),
             ],

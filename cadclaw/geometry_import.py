@@ -45,8 +45,8 @@ def shapes_by_dim_sig(
     """Return all solids/shells in `step_path` whose dim-signature (sorted
     3-tuple of rounded extents) matches `dim_sig`.
 
-    Many Fusion STEP exports contain each authored part twice (once in
-    the flat compound, once in a hidden assembly tree). When
+    Some STEP exports contain each authored part twice (once in the flat
+    compound, once in a hidden assembly tree). When
     `dedup_by_center=True` (default), shapes with the same rounded
     centroid are treated as duplicates and only the first is returned.
 

@@ -88,17 +88,18 @@
 <text x="674" y="639" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <text x="674" y="663" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">component manifest</text>
 <text x="674" y="687" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="674" y="711" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">M3 variants + BOM plan</text>
+<text x="674" y="711" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">gantry-first M3 sequence</text>
 <text x="674" y="735" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <rect x="1070" y="535" width="300" height="190" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
 <rect x="1070" y="535" width="9" height="190" fill="#97d700" />
 <text x="1094" y="577" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">Next Capability</text>
 <text x="1094" y="615" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">connector metadata</text>
-<text x="1094" y="639" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="1094" y="663" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">CadQuery placement compiler</text>
-<text x="1094" y="687" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="1094" y="711" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">review-view round trip</text>
-<text x="1094" y="735" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="1094" y="639" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">verification</text>
+<text x="1094" y="663" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="1094" y="687" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">BOM parity scoring</text>
+<text x="1094" y="711" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
+<text x="1094" y="735" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">review-view round trip</text>
+<text x="1094" y="759" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <rect x="360" y="805" width="880" height="120" rx="14" fill="#102b45" stroke="#183a5e" stroke-width="2" />
 <rect x="360" y="805" width="9" height="120" fill="#b8f23f" />
 <text x="384" y="847" fill="#f5f8fb" font-size="23" font-family="Arial, sans-serif" font-weight="700">Design Lesson Now Built Into The Tool</text>

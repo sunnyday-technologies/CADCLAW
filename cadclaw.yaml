@@ -17,8 +17,9 @@ meta:
 
 # Bbox-signature → human label. Labels are observational, NOT generative —
 # `nema23: [56.4, 56.4, 76.6]` says "any part with this bbox signature is a
-# NEMA23"; it does NOT generate one. The user authors geometry in Fusion /
-# Rhino; CADCLAW labels and verifies. See AGENTS.md for the full rule.
+# NEMA23"; it does NOT generate one. The user authors geometry in a
+# native CAD or STEP-capable package; CADCLAW labels and verifies.
+# See AGENTS.md for the full rule.
 #
 # A signature is the SORTED (dx, dy, dz) tuple rounded to 0.1 mm.
 # Run examples/init_rules.py to scaffold this section from a STEP file.
