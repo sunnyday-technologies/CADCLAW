@@ -227,6 +227,7 @@ The eventual tool surface should be deterministic and narrow:
 - `cadclaw assemble validate-spec`
 - `cadclaw assemble build`
 - `cadclaw assemble render-views`
+- `cadclaw assemble render-sequence`
 - `cadclaw assemble check-round`
 - `cadclaw assemble suggest-adjustment`
 
@@ -242,6 +243,9 @@ Current implementation status:
   isolated review views for orientation checks.
 - `assemble render-views` renders declared PNG review views from the generated
   STEP using the existing CADCLAW VTK renderer.
+- `assemble render-sequence` exports cumulative partial STEP assemblies,
+  renders per-step X/Y/Z/hero/iso image sets, can render a final rotating GIF,
+  and emits a public-safe CSV BOM grouped by authored STEP source and role.
 - `assemble check-round` runs one build round, verifies declared spec role
   inventory, optionally renders review views, and emits a single report.
 - `assemble suggest-adjustment` remains future work; for now adjustment advice

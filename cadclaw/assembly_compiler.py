@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import asdict, dataclass
+import csv
 import os
 from pathlib import Path
 import json
@@ -68,6 +69,18 @@ class ReviewViewOutput:
     message: Optional[str] = None
 
 
+@dataclass(frozen=True)
+class AssemblySequenceStepOutput:
+    id: str
+    title: str
+    step_index: int
+    instance_ids: List[str]
+    cumulative_instance_ids: List[str]
+    output_step: Optional[str]
+    review_views: List[ReviewViewOutput]
+    notes: Optional[str] = None
+
+
 def _shape_bbox(shape) -> List[float]:
     bb = shape.BoundingBox()
     return [
@@ -114,6 +127,16 @@ def _same_path(a: Path, b: Path) -> bool:
     return os.path.normcase(str(a.resolve(strict=False))) == os.path.normcase(
         str(b.resolve(strict=False))
     )
+
+
+def _ordered_unique(values: Iterable[str]) -> List[str]:
+    seen = set()
+    ordered: List[str] = []
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            ordered.append(value)
+    return ordered
 
 
 def _load_manifest_sources(manifest_paths: Iterable[str], spec_dir: Path) -> Dict[str, str]:
@@ -288,7 +311,13 @@ def _apply_transform(workplane, transform: Transform):
     return result.translate((tx, ty, tz))
 
 
-def _export_step(spec: AssemblySpec, spec_path: Path, plan: AssemblyBuildPlan) -> None:
+def _export_step(
+    spec: AssemblySpec,
+    spec_path: Path,
+    plan: AssemblyBuildPlan,
+    output_path: str | Path | None = None,
+    instance_ids: Iterable[str] | None = None,
+) -> Path:
     import cadquery as cq
     from cadquery import Assembly
 
@@ -296,7 +325,10 @@ def _export_step(spec: AssemblySpec, spec_path: Path, plan: AssemblyBuildPlan) -
     spec_dir = spec_path.resolve().parent
     manifest_sources = _load_manifest_sources(spec.manifests, spec_dir)
     by_id = {instance.id: instance for instance in spec.instances}
+    wanted = set(instance_ids) if instance_ids is not None else None
     for resolved in plan.instances:
+        if wanted is not None and resolved.id not in wanted:
+            continue
         if not resolved.exists:
             continue
         instance = by_id[resolved.id]
@@ -308,9 +340,12 @@ def _export_step(spec: AssemblySpec, spec_path: Path, plan: AssemblyBuildPlan) -
         placed = _apply_transform(source, instance.transform)
         assy.add(placed, name=resolved.id)
 
-    output = _resolve_output_path(spec.outputs.step)
+    output = Path(output_path) if output_path is not None else _resolve_output_path(spec.outputs.step)
+    if not output.is_absolute():
+        output = _resolve_output_path(str(output))
     output.parent.mkdir(parents=True, exist_ok=True)
     assy.save(str(output))
+    return output
 
 
 def write_design_inventory(plan: AssemblyBuildPlan, output_path: str | Path) -> None:
@@ -319,6 +354,58 @@ def write_design_inventory(plan: AssemblyBuildPlan, output_path: str | Path) -> 
     with path.open("w", encoding="utf-8", newline="\n") as f:
         json.dump(plan.to_dict(), f, indent=2)
         f.write("\n")
+
+
+def write_assembly_bom_csv(
+    plan: AssemblyBuildPlan,
+    output_path: str | Path,
+    instance_ids: Iterable[str] | None = None,
+) -> None:
+    path = Path(output_path)
+    if not path.is_absolute():
+        path = _resolve_output_path(str(path))
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    wanted = set(instance_ids) if instance_ids is not None else None
+    rows: Dict[tuple, dict] = {}
+    for instance in plan.instances:
+        if wanted is not None and instance.id not in wanted:
+            continue
+        key = (
+            instance.source_ref,
+            instance.role,
+            instance.color_label or "",
+            instance.connector_metadata,
+        )
+        row = rows.setdefault(key, {
+            "quantity": 0,
+            "role": instance.role,
+            "source_ref": instance.source_ref,
+            "resolved_path": instance.resolved_path,
+            "color_label": instance.color_label or "",
+            "connector_metadata": instance.connector_metadata,
+            "instance_ids": [],
+        })
+        row["quantity"] += 1
+        row["instance_ids"].append(instance.id)
+
+    with path.open("w", encoding="utf-8", newline="") as f:
+        fieldnames = [
+            "quantity",
+            "role",
+            "source_ref",
+            "resolved_path",
+            "color_label",
+            "connector_metadata",
+            "instance_ids",
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in sorted(rows.values(), key=lambda r: (r["role"], r["source_ref"])):
+            writer.writerow({
+                **row,
+                "instance_ids": ";".join(row["instance_ids"]),
+            })
 
 
 def inspect_component(
@@ -496,6 +583,310 @@ def inspect_component(
             "signature_histogram": signature_histogram,
             "parts": part_summaries,
             "rendered_views": [asdict(output) for output in render_outputs],
+        },
+    )
+    report.overall = report.compute_overall()
+    return report
+
+
+def _sequence_output_dir(spec: AssemblySpec, output_dir: str | Path | None) -> Path:
+    if output_dir is not None:
+        path = Path(output_dir)
+    else:
+        step_path = _resolve_output_path(spec.outputs.step)
+        path = step_path.parent / "sequence"
+    if not path.is_absolute():
+        path = _resolve_output_path(str(path))
+    return path
+
+
+def _review_views_for_names(spec: AssemblySpec, view_names: List[str]) -> List[ReviewView]:
+    by_key: Dict[str, ReviewView] = {}
+    for view in spec.review_views:
+        by_key[view.name] = view
+        by_key[view.view] = view
+
+    resolved: List[ReviewView] = []
+    for name in view_names:
+        if name in by_key:
+            view = by_key[name]
+            resolved.append(ReviewView(
+                name=name,
+                view=view.view,
+                width=view.width,
+                height=view.height,
+                azimuth=view.azimuth,
+                elevation=view.elevation,
+                notes=view.notes,
+            ))
+        else:
+            resolved.append(ReviewView(name=name, view=name, width=1400, height=900))
+    return resolved
+
+
+def run_assembly_sequence(
+    spec_path: str | Path,
+    output_dir: str | Path | None = None,
+    view_names: Optional[List[str]] = None,
+    dry_run: bool = False,
+    render_views: bool = True,
+    rotate_final: bool = False,
+    bom_csv_path: str | Path | None = None,
+    write_bom: bool = True,
+    renderer: Optional[Callable[..., str]] = None,
+    gif_renderer: Optional[Callable[..., int]] = None,
+) -> Report:
+    start = time.time()
+    spec_file = Path(spec_path)
+    spec = load_assembly_spec(spec_file)
+    out_dir = _sequence_output_dir(spec, output_dir)
+    steps_dir = out_dir / "steps"
+    views_dir = out_dir / "views"
+    final_dir = out_dir / "final"
+    view_names = view_names or ["front", "side", "top", "hero", "iso"]
+    review_views = _review_views_for_names(spec, view_names)
+
+    plan = plan_assembly_build(spec_file, dry_run=dry_run)
+    findings: List[Finding] = []
+    findings.extend(_protected_output_findings(spec, spec_file.resolve().parent))
+    findings.extend(_generation_policy_findings(plan))
+    missing = [instance for instance in plan.instances if not instance.exists]
+    for instance in missing:
+        findings.append(Finding(
+            id="assemble.source_missing",
+            category="assemble",
+            severity=Severity.FAIL,
+            message=f"{instance.id}: source STEP not found",
+            evidence={
+                "instance": instance.id,
+                "source_ref": instance.source_ref,
+                "resolved_path": instance.resolved_path,
+            },
+        ))
+
+    if not spec.assembly_sequence:
+        findings.append(Finding(
+            id="assemble.sequence_not_provided",
+            category="assemble",
+            severity=Severity.FAIL,
+            message="assembly_sequence is required to render assembly process steps",
+        ))
+
+    cumulative: List[str] = []
+    step_outputs: List[AssemblySequenceStepOutput] = []
+    blocking = any(f.severity == Severity.FAIL for f in findings)
+    if renderer is None and render_views:
+        from .render import render_step_to_png as renderer
+
+    for index, step in enumerate(spec.assembly_sequence, start=1):
+        cumulative = _ordered_unique([*cumulative, *step.instance_ids])
+        safe_id = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in step.id)
+        step_prefix = f"{index:02d}_{safe_id}"
+        step_path = steps_dir / f"{step_prefix}.step"
+        rendered: List[ReviewViewOutput] = []
+
+        if not dry_run and not blocking:
+            written_step = _export_step(
+                spec,
+                spec_file,
+                plan,
+                output_path=step_path,
+                instance_ids=cumulative,
+            )
+        else:
+            written_step = None
+
+        if render_views and written_step is not None:
+            for view in review_views:
+                output = views_dir / f"{step_prefix}_{view.name}.png"
+                try:
+                    output.parent.mkdir(parents=True, exist_ok=True)
+                    renderer(
+                        str(written_step),
+                        str(output),
+                        width=view.width,
+                        height=view.height,
+                        view=view.view,
+                        azimuth=view.azimuth,
+                        elevation=view.elevation,
+                    )
+                    rendered.append(ReviewViewOutput(
+                        name=view.name,
+                        view=view.view,
+                        output_path=_display_path(output),
+                        width=view.width,
+                        height=view.height,
+                        rendered=output.exists(),
+                    ))
+                    if not output.exists():
+                        findings.append(Finding(
+                            id="assemble.sequence_view_missing_output",
+                            category="assemble",
+                            severity=Severity.FAIL,
+                            message=f"{step.id}/{view.name}: renderer completed but no PNG was written",
+                            evidence={"output_path": _display_path(output)},
+                        ))
+                except Exception as exc:
+                    findings.append(Finding(
+                        id="assemble.sequence_view_render_failed",
+                        category="assemble",
+                        severity=Severity.FAIL,
+                        message=f"{step.id}/{view.name}: render failed: {exc}",
+                        evidence={"step": step.id, "view": view.view},
+                    ))
+                    rendered.append(ReviewViewOutput(
+                        name=view.name,
+                        view=view.view,
+                        output_path=_display_path(output),
+                        width=view.width,
+                        height=view.height,
+                        rendered=False,
+                        message=str(exc),
+                    ))
+        elif render_views:
+            findings.append(Finding(
+                id="assemble.sequence_view_render_skipped",
+                category="assemble",
+                severity=Severity.WARN,
+                message=f"{step.id}: review views skipped because STEP export did not run",
+                evidence={"step": step.id, "dry_run": dry_run, "blocking": blocking},
+            ))
+
+        step_outputs.append(AssemblySequenceStepOutput(
+            id=step.id,
+            title=step.title,
+            step_index=index,
+            instance_ids=list(step.instance_ids),
+            cumulative_instance_ids=list(cumulative),
+            output_step=_display_path(written_step) if written_step else None,
+            review_views=rendered,
+            notes=step.notes,
+        ))
+
+    bom_output = None
+    if write_bom:
+        bom_value = bom_csv_path or spec.bom.output_path or spec.outputs.bom
+        bom_output = Path(bom_value) if bom_value else out_dir / "assembly_bom.csv"
+        if not bom_output.is_absolute():
+            bom_output = _resolve_output_path(str(bom_output))
+        write_assembly_bom_csv(plan, bom_output, instance_ids=cumulative or None)
+
+    rotation_output = None
+    if rotate_final:
+        if dry_run or blocking or not cumulative:
+            findings.append(Finding(
+                id="assemble.sequence_rotation_skipped",
+                category="assemble",
+                severity=Severity.WARN,
+                message="final rotation GIF skipped because final STEP export did not run",
+                evidence={"dry_run": dry_run, "blocking": blocking},
+            ))
+        else:
+            final_dir.mkdir(parents=True, exist_ok=True)
+            final_step = final_dir / "final_sequence_assembly.step"
+            written_final = _export_step(
+                spec,
+                spec_file,
+                plan,
+                output_path=final_step,
+                instance_ids=cumulative,
+            )
+            rotation_output = final_dir / "final_rotate.gif"
+            try:
+                if gif_renderer is None:
+                    from .render import render_radial_explode_gif as gif_renderer
+                gif_renderer(
+                    str(written_final),
+                    str(rotation_output),
+                    expansion=0.0,
+                    explode_frames=1,
+                    hold_frames=1,
+                    rotate_frames=48,
+                    fps=12,
+                    width=960,
+                    height=720,
+                    view="hero",
+                    gif_width=960,
+                    gif_height=540,
+                )
+            except Exception as exc:
+                findings.append(Finding(
+                    id="assemble.sequence_rotation_failed",
+                    category="assemble",
+                    severity=Severity.FAIL,
+                    message=f"final rotation GIF failed: {exc}",
+                    evidence={"output_path": _display_path(rotation_output)},
+                ))
+
+    manifest = {
+        "schema_version": "assembly_sequence_manifest.v0.1",
+        "spec": str(spec_path),
+        "project": spec.meta.project,
+        "assembly_id": spec.meta.assembly_id,
+        "active_variant": spec.active_variant,
+        "output_dir": _display_path(out_dir),
+        "steps": [
+            {
+                **asdict(step),
+                "review_views": [asdict(view) for view in step.review_views],
+            }
+            for step in step_outputs
+        ],
+        "bom_csv": _display_path(bom_output) if bom_output else None,
+        "rotation_gif": _display_path(rotation_output) if rotation_output else None,
+    }
+    if not dry_run:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = out_dir / "assembly_sequence_manifest.json"
+        with manifest_path.open("w", encoding="utf-8", newline="\n") as f:
+            json.dump(manifest, f, indent=2)
+            f.write("\n")
+    else:
+        manifest_path = None
+
+    confidence = ConfidenceBudget(
+        checked=[
+            "assembly sequence declaration",
+            "instance source path resolution",
+            "authored STEP placement policy",
+            "BOM CSV generation" if write_bom else "BOM CSV skipped by request",
+        ],
+        not_checked=[
+            *([] if not dry_run else ["sequence STEP export"]),
+            *([] if render_views else ["sequence review rendering"]),
+            *([] if rotate_final else ["final rotation GIF"]),
+            "spacer requirement inference",
+            "website BOM parity",
+        ],
+        assumptions=list(spec.assumptions),
+    )
+    for item in spec.not_built_yet:
+        findings.append(Finding(
+            id="assemble.not_built_yet",
+            category="assemble",
+            severity=Severity.WARN,
+            message=f"{item.item}: {item.reason}",
+            evidence={
+                "item": item.item,
+                "required_for_release": item.required_for_release,
+            },
+        ))
+
+    report = Report(
+        findings=findings,
+        confidence_budget=confidence,
+        duration_ms=(time.time() - start) * 1000,
+        meta={
+            "spec": str(spec_path),
+            "project": spec.meta.project,
+            "assembly_id": spec.meta.assembly_id,
+            "active_variant": spec.active_variant,
+            "dry_run": dry_run,
+            "output_dir": _display_path(out_dir),
+            "manifest": _display_path(manifest_path) if manifest_path else None,
+            "steps": manifest["steps"],
+            "bom_csv": manifest["bom_csv"],
+            "rotation_gif": manifest["rotation_gif"],
         },
     )
     report.overall = report.compute_overall()
@@ -875,13 +1266,16 @@ def run_assembly_check_round(
 
 __all__ = [
     "AssemblyBuildPlan",
+    "AssemblySequenceStepOutput",
     "DESIGN_INVENTORY_VERSION",
     "ResolvedInstance",
     "inspect_component",
     "plan_assembly_build",
     "render_review_views",
+    "run_assembly_sequence",
     "resolve_source_path",
     "run_assembly_check_round",
     "run_assembly_build",
+    "write_assembly_bom_csv",
     "write_design_inventory",
 ]
