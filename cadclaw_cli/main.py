@@ -383,6 +383,28 @@ def _cmd_assemble_check_round(args: argparse.Namespace) -> int:
     return _exit_code_for(report)
 
 
+def _cmd_assemble_render_sequence(args: argparse.Namespace) -> int:
+    from cadclaw.assembly_compiler import run_assembly_sequence
+
+    try:
+        views = [v.strip() for v in args.views.split(",") if v.strip()]
+        report = run_assembly_sequence(
+            args.spec,
+            output_dir=args.output_dir,
+            view_names=views or None,
+            dry_run=args.dry_run,
+            render_views=not args.no_render_views,
+            rotate_final=args.rotate_final,
+            bom_csv_path=args.bom_csv,
+            write_bom=not args.no_bom,
+        )
+    except Exception as exc:
+        print(f"error: assembly sequence render failed: {exc}", file=sys.stderr)
+        return 3
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
 def _cmd_claim_audit(args: argparse.Namespace) -> int:
     from cadclaw.rules import load_rules
     rules = load_rules(args.rules)
@@ -949,6 +971,49 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_format_args(p_check_round)
     p_check_round.set_defaults(func=_cmd_assemble_check_round)
+
+    p_render_sequence = asm_sub.add_parser(
+        "render-sequence",
+        help="Export partial assembly STEPs, per-step review views, and BOM CSV.",
+    )
+    p_render_sequence.add_argument("spec")
+    p_render_sequence.add_argument(
+        "--output-dir",
+        default=None,
+        help="Directory for sequence STEPs, images, and manifest.",
+    )
+    p_render_sequence.add_argument(
+        "--views",
+        default="front,side,top,hero,iso",
+        help="Comma-separated review views to render per sequence step.",
+    )
+    p_render_sequence.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Resolve and report sequence/BOM without exporting STEP or PNG files.",
+    )
+    p_render_sequence.add_argument(
+        "--no-render-views",
+        action="store_true",
+        help="Export sequence STEPs without per-step PNG renders.",
+    )
+    p_render_sequence.add_argument(
+        "--rotate-final",
+        action="store_true",
+        help="Render a final rotating GIF from the completed sequence assembly.",
+    )
+    p_render_sequence.add_argument(
+        "--bom-csv",
+        default=None,
+        help="Optional BOM CSV output path; defaults to spec.bom.output_path/spec.outputs.bom.",
+    )
+    p_render_sequence.add_argument(
+        "--no-bom",
+        action="store_true",
+        help="Skip BOM CSV generation.",
+    )
+    _add_format_args(p_render_sequence)
+    p_render_sequence.set_defaults(func=_cmd_assemble_render_sequence)
 
     p_claim = sub.add_parser("claim-audit", help="Lint docs and BOM notes for claims.")
     p_claim.add_argument("--rules", default="cadclaw.yaml")

@@ -196,6 +196,44 @@ instances:
             self.assertEqual(code, 0)
             self.assertGreater(d["meta"]["part_count"], 0)
 
+    def test_render_sequence_dry_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            step = root / "CAD" / "Advanced" / "Thing.step"
+            step.parent.mkdir(parents=True, exist_ok=True)
+            step.write_text("placeholder", encoding="utf-8")
+            spec = root / "spec.yaml"
+            spec.write_text(
+                f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+  bom: {root.as_posix()}/build/bom.csv
+instances:
+  - id: x_beam
+    role: x_gantry
+    source_path: {step.as_posix()}
+assembly_sequence:
+  - id: x_gantry
+    title: X Gantry
+    instance_ids: [x_beam]
+""",
+                encoding="utf-8",
+            )
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = main(["assemble", "render-sequence", str(spec),
+                             "--dry-run", "--report-format", "json"])
+            d = json.loads(buf.getvalue())
+            self.assertEqual(code, 2)
+            self.assertEqual(d["overall"], "warn")
+            self.assertEqual(d["meta"]["steps"][0]["id"], "x_gantry")
+            self.assertTrue((root / "build" / "bom.csv").exists())
+
 
 class TestExitCodes(unittest.TestCase):
     def test_missing_rules_file_returns_3(self):
