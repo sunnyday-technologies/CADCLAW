@@ -108,6 +108,12 @@ not on which tool can produce the most plausible render.
    Runs CADCLAW checks immediately after assembly. Reports what passed, what
    failed, what was not checked, and what is not built yet.
 
+7. **FEA Decision Support (Future)**
+   Optional PyNiteFEA models in `FEA/` can compare static frame member sizes,
+   joint layouts, and assembly techniques after connector-valid geometry
+   exists. This is for engineering decision support and comparison, not a
+   substitute for authored CAD placement or physical validation.
+
 ## M3-CRETE First Slice
 
 Goal: approximate the reference printer frame using authored assets from:
@@ -139,11 +145,11 @@ Initial output targets:
 Current useful build:
 
 - X gantry beam and X-carriage/end plates first.
-- Authored 1000 mm C-Beam linear actuator macro assemblies as the two Y
-  gantries.
-- Y-gantry and Z-carriage plate declarations from authored plate STEP assets.
-- Explicit 6 mm Y-axis spacer declarations so the frame gap is visible in the
-  design inventory and BOM CSV.
+- Authored 1000 mm C-Beam rail datums as the two Y gantries; the full actuator
+  macro stays out until its end hardware can be placed without clipping.
+- X-to-Y and Y-to-Z handoff plate declarations from authored plate STEP assets.
+- Explicit 6 mm side-rail/post frame spacer declarations so the frame clearance
+  is visible in the design inventory and BOM CSV.
 - Four C-Beam Z posts and the remaining 1000 mm frame extrusions placed after
   the moving gantry stackup.
 
@@ -201,13 +207,48 @@ validated performance.
   structure; 1000 mm stock is the shipping-constrained standard length; C
   openings face inward; X-gantry reinforcement stays internal/below wheel path.
 - **Build inside-out when spacing depends on motion.** For M3-2, the X gantry
-  plates attach to the Y gantries; the Y gantry ends attach to Z-carriage
+  end plates are the X-to-Y handoff; the Y gantry ends attach to Z-carriage
   plates; the Z posts and frame then accommodate that stackup. The assembly
   sequence is therefore a spacing strategy, not just a presentation order.
-- **Spacer thickness must be explicit.** Current user guidance sets the Y-axis
-  spacer at 6 mm for the CADCLAW reference round. If the production part is a
-  rectangular plate rather than the currently provided 6 mm spacer STEP, the
-  final authored STEP/BOM binding must be frozen before release.
+- **Spacer placement must be explicit.** Current user guidance sets the
+  side-rail/post frame spacer at 6 mm. That spacer moves the frame outward to
+  accommodate the gantry; it is not inserted between the moving gantry plate
+  and the Z post. In the current design the spacer is also the motor mount, so
+  the final ZPMM STEP/BOM binding must be frozen before release.
+- **Plate family selection is part of the tolerance stack.** The X-to-Y
+  handoff plates and Y-to-Z/Z-post carriage plates use the smaller V-Slot
+  20-80 gantry plate asset, inspected as roughly 127 x 88 x 3 mm. The
+  125 x 125 x 6 mm C-Beam XLarge plate must not be substituted into those
+  interfaces.
+- **V-slot handoff stackup is now a declared validation gate.** CADCLAW checks
+  declared V-slot/C-Beam handoffs for the repeated pattern: current gantry end
+  face, 3 mm gantry plate with its thin axis aligned to the handoff axis, a
+  declared running clearance, then the next axis. This is general to V-slot
+  style assemblies and should fail early when a plate is embedded in a rail
+  body or rotated onto the wrong plane.
+- **Static frame joints need a different gate than motion clearances.** The
+  frame should not be made "valid" by adding clearance. C-Beam/post joints
+  need flush adjacency and bearing overlap for rigidity; visible gaps should
+  fail unless an authored connector or spacer STEP is explicitly placed.
+- **FEA belongs after geometry validity.** A PyNiteFEA helper can later compare
+  4080, 2080, or 2040 static frame-member options and joint techniques, but it
+  should consume the already-declared assembly topology. Gantry extrusions stay
+  C-Beam unless a separate authored reinforcement spec says otherwise.
+- **Rendered review is not validation.** A clipping error in the M3 reference
+  sequence exposed that `validation.run_checks: [interference]` was declared
+  but not executed by `assemble check-round`. The assembly compiler now runs an
+  instance-level solid interference gate and reports `interference.clip`
+  findings with instance IDs and suggested clear shifts.
+- **Assembly should be gated, not compiled straight through.** Each cumulative
+  step should be exported, checked, rendered for review, and then either marked
+  `pass` or stopped with explicit repair suggestions. Later steps should not be
+  rendered on top of a failed datum.
+- **Repair suggestions need assembly context.** The raw boolean overlap can
+  compute a minimum clear shift, but the suggested target should respect the
+  build step and role semantics. For example, an X plate embedded in an X beam
+  should report "move the plate off the beam face"; a later frame/post element
+  added around an already accepted gantry should usually move to accommodate the
+  accepted gantry datum.
 
 ## Implementation Checklist
 
@@ -229,9 +270,32 @@ validated performance.
 - [x] Validation wrapper for generated assembly rounds.
 - [x] Initial CLI tools for LLM operation.
 - [x] Gantry-first M3-2 assembly sequence: X gantry, Y gantries, Z carriage
-      plates/spacers, Z posts, then frame completion.
-- [x] Explicit 6 mm Y-axis spacer declarations in the M3 reference spec and
-      BOM CSV path.
+      plates, Z posts, then frame completion with 6 mm frame spacers.
+- [x] Explicit 6 mm side-rail/post frame spacer declarations in the M3
+      reference spec and BOM CSV path.
+- [x] Correct smaller 3 mm gantry plate assignment for Y-gantry and Z-post
+      carriage interfaces.
+- [x] Instance-level interference validation wired into assembly check rounds
+      and per-step sequence reports.
+- [x] Gated `render-sequence` behavior that stops at the first declared
+      validation failure by default.
+- [x] Per-step manifest status and repair suggestions for human checkpoint
+      review.
+- [x] Role-aware/context-aware interference repair target selection.
+- [x] V-slot handoff stackup validation gate with explicit 3 mm plate and
+      declared running clearance.
+- [x] Static frame adjacency validation gate for flush C-Beam/post joints and
+      structural bearing overlap.
+- [x] Resolve the M3-2 side-rail/post gap exposed by static frame adjacency
+      for the reference round: posts are placed on the 6 mm frame-spacer datum,
+      and generated no-hole spacer placeholders bridge post-to-side-rail joints.
+- [x] Generate user-approved no-hole flat spacer plate STEP assets for the
+      M3 reference round, including `M3_6mm_frame_shim_4080.step` inspected as
+      6 x 40 x 80 mm. Local ZPMM 3MF assets remain the intended motor-mount /
+      spacer source, but CADCLAW needs a STEP export before it can replace the
+      placeholder in the assembly spec.
+- [ ] Add optional `FEA/` PyNiteFEA integration for static frame member and
+      joint-technique comparison after connector-valid geometry exists.
 
 ## LLM Tool Surface
 
@@ -245,6 +309,8 @@ The eventual tool surface should be deterministic and narrow:
 - `cadclaw assemble render-sequence`
 - `cadclaw assemble check-round`
 - `cadclaw assemble suggest-adjustment`
+- future `cadclaw fea compare-frame` or equivalent helper once the `FEA/`
+  PyNiteFEA workflow exists
 
 The LLM should edit specs and connector metadata, not freehand arbitrary
 CadQuery scripts.
@@ -259,10 +325,16 @@ Current implementation status:
 - `assemble render-views` renders declared PNG review views from the generated
   STEP using the existing CADCLAW VTK renderer.
 - `assemble render-sequence` exports cumulative partial STEP assemblies,
-  renders per-step X/Y/Z/hero/iso image sets, can render a final rotating GIF,
-  and emits a public-safe CSV BOM grouped by authored STEP source and role.
+  renders per-step X/Y/Z/hero/iso image sets, runs per-step instance-level
+  interference, V-slot handoff stackup, and static frame adjacency checks when
+  requested, stops on the first failed validation by default, records per-step
+  validation status and repair suggestions in the sequence manifest, can render
+  a final rotating GIF after all gates pass, and emits a public-safe CSV BOM
+  grouped by authored STEP source and role.
 - `assemble check-round` runs one build round, verifies declared spec role
-  inventory, optionally renders review views, and emits a single report.
+  inventory, runs declared instance-level interference, V-slot handoff stackup,
+  and static frame adjacency checks, optionally renders review views, and emits
+  a single report.
 - `assemble suggest-adjustment` remains future work; for now adjustment advice
   comes from existing CADCLAW findings such as `interference.clip`.
 
@@ -274,7 +346,12 @@ Current implementation status:
   reliable instead of image-guided guessing?
 - Which M3-CRETE dimensions are authoritative for M3-1/M3-2/M3-4: outer frame,
   target build envelope, or product class names?
-- Which authored STEP should be the final public 6 mm rectangular Y-axis spacer
-  plate if it differs from the provided `Aluminum Spacer 6mm.step` asset?
+- Which exported STEP should be the final public ZPMM motor-mount/spacer asset
+  that replaces the generated 6 mm no-hole frame spacer placeholders?
+- Which spacer/motor-mount instances need top-only, bottom-only, mirrored, or
+  endcap geometry once the final ZPMM STEP is available?
+- Which frame-member options should the future FEA comparison include first:
+  4080 baseline, 2080 static rails, 2040 static rails, or 2040 reinforcement
+  members around C-Beam gantries?
 - Which reference assets can be redistributed publicly?
 - How strict should release validation be about `not_built_yet` findings?

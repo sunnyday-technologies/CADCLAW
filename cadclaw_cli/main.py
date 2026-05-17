@@ -397,6 +397,7 @@ def _cmd_assemble_render_sequence(args: argparse.Namespace) -> int:
             rotate_final=args.rotate_final,
             bom_csv_path=args.bom_csv,
             write_bom=not args.no_bom,
+            stop_on_validation_fail=not args.continue_on_validation_fail,
         )
     except Exception as exc:
         print(f"error: assembly sequence render failed: {exc}", file=sys.stderr)
@@ -1011,6 +1012,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-bom",
         action="store_true",
         help="Skip BOM CSV generation.",
+    )
+    p_render_sequence.add_argument(
+        "--continue-on-validation-fail",
+        action="store_true",
+        help=(
+            "Keep exporting later sequence steps after a declared validation "
+            "gate fails. Default is to stop at the first failing step."
+        ),
     )
     _add_format_args(p_render_sequence)
     p_render_sequence.set_defaults(func=_cmd_assemble_render_sequence)

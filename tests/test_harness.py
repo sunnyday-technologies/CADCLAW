@@ -129,6 +129,18 @@ class TestInterferenceFixVector(unittest.TestCase):
         self.assertAlmostEqual(shift, 2.5, places=3)
         self.assertGreater(shift, 0.0)
 
+    def test_suggest_clear_shift_handles_contained_thin_plate(self):
+        from cadclaw.interference import _suggest_clear_shift
+        # A 3mm plate fully embedded inside an 80mm-wide beam needs to move
+        # past the beam face, not merely by its own 3mm overlap thickness.
+        bb_plate = (-63.5, -1.5, -44.0, 63.5, 1.5, 44.0)
+        bb_beam = (-500.0, -40.0, -20.0, 500.0, 40.0, 20.0)
+        axis, shift, overlap = _suggest_clear_shift(
+            bb_plate, bb_beam, clearance_mm=1.0)
+        self.assertEqual(axis, "y")
+        self.assertAlmostEqual(overlap[1], 3.0, places=3)
+        self.assertAlmostEqual(abs(shift), 42.5, places=3)
+
     def test_format_shift_suggestion_canonical_string(self):
         from cadclaw.interference import Clip
         from cadclaw.harness import _format_shift_suggestion
@@ -189,13 +201,11 @@ class TestInterferenceFixVector(unittest.TestCase):
         self.assertNotEqual(c.suggest_shift_mm, 0.0,
                             "Solid clip implies non-zero suggested shift")
         self.assertEqual(c.clearance_mm, 1.5)
-        # Suggested shift magnitude = overlap_on_axis + clearance
+        # Suggested shift magnitude is at least overlap + clearance. For
+        # containment it may be larger because A has to move past B's face.
         idx = {"x": 0, "y": 1, "z": 2}[c.suggest_axis]
-        self.assertAlmostEqual(
-            abs(c.suggest_shift_mm),
-            c.overlap_dims[idx] + 1.5,
-            places=3,
-        )
+        self.assertGreaterEqual(abs(c.suggest_shift_mm),
+                                c.overlap_dims[idx] + 1.5)
         # bbox_a and bbox_b are populated 6-tuples
         self.assertEqual(len(c.bbox_a), 6)
         self.assertEqual(len(c.bbox_b), 6)

@@ -6,6 +6,7 @@ build/
 .venv/
 .uv-cache/
 *.step
+!examples/m3_crete/generated/*.step
 *.stl
 .DS_Store
 Thumbs.db

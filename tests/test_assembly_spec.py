@@ -184,14 +184,29 @@ class TestAssemblySpec(unittest.TestCase):
         self.assertGreater(len(spec.not_built_yet), 0)
         self.assertNotIn("M3-2_Assembly.step", spec.outputs.step)
         roles = {instance.role for instance in spec.instances}
-        self.assertIn("y_gantry_actuator", roles)
-        self.assertIn("y_axis_spacer_6mm", roles)
+        self.assertIn("y_gantry_beam", roles)
+        self.assertNotIn("y_gantry_actuator", roles)
+        self.assertIn("frame_side_spacer_6mm", roles)
+        plate_instances = [
+            instance for instance in spec.instances
+            if instance.role in {"x_gantry_plate", "z_carriage_plate"}
+        ]
+        self.assertEqual(len(plate_instances), 6)
+        for instance in plate_instances:
+            self.assertEqual(
+                instance.source_path,
+                "CAD/Components/Plates/V-Slot Gantry Plate 20-80mm.step",
+            )
+            self.assertNotEqual(
+                instance.component_id,
+                "advanced_plates_c_beam_gantry_plate_xlarge",
+            )
         self.assertEqual(
             [step.id for step in spec.assembly_sequence],
             [
                 "x_gantry",
                 "y_gantry",
-                "z_carriages_and_y_spacers",
+                "z_carriages",
                 "z_posts",
                 "frame_completion",
             ],
