@@ -3,8 +3,8 @@ assumptions:
   - Frames are first-pass local references for LLM/CADCLAW placement, not certified mating definitions.
   - Extrusion origins are centered on the authored STEP asset unless later inspection proves otherwise.
   - Gantry plate frames need human review against rendered views before release use.
-  - Y gantry, smaller V-Slot gantry plate, and 6mm spacer frames are first-pass
-    references from CADCLAW inspect-component bbox centers.
+  - Y gantry, smaller V-Slot gantry plate, and 6mm side-rail/post frame spacer
+    frames are first-pass references from CADCLAW inspect-component bbox centers.
 
 components:
   - id: vslot_20x80_1000
@@ -95,15 +95,24 @@ components:
         origin_mm: [0.0, 0.0, 3.0]
         tags: [gantry_plate, needs_verification]
 
-  - id: aluminum_spacer_6mm
-    source_path: CAD/Advanced/Shims and Spacers/Aluminum Spacer 6mm.step
-    notes: Provided 6mm spacer STEP used to make Y-axis spacer declarations explicit.
+  - id: m3_frame_shim_4080_6mm
+    source_path: examples/m3_crete/generated/M3_6mm_frame_shim_4080.step
+    notes: Generated no-hole 6mm frame shim placeholder used at side-rail/post joints until the authored ZPMM motor-mount/spacer STEP is supplied; not part of the moving gantry stack.
     frames:
       - id: spacer_center
         kind: reference
-        origin_mm: [0.0, 0.0, 3.0]
-        z_axis: [0.0, 0.0, 1.0]
-        tags: [spacer, y_axis, 6mm, needs_verification]
+        origin_mm: [0.0, 0.0, 0.0]
+        tags: [spacer, frame_side, side_rail_post, 6mm, placeholder, needs_zpmm_step]
+      - id: post_face
+        kind: mount_face
+        origin_mm: [0.0, -3.0, 0.0]
+        y_axis: [0.0, -1.0, 0.0]
+        tags: [spacer, frame_side, post_face, 6mm, placeholder]
+      - id: side_rail_face
+        kind: mount_face
+        origin_mm: [0.0, 3.0, 0.0]
+        y_axis: [0.0, 1.0, 0.0]
+        tags: [spacer, frame_side, side_rail_face, 6mm, placeholder]
 
 mates:
   - id: top_front_splice_reference

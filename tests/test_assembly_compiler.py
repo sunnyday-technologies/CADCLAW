@@ -188,8 +188,8 @@ outputs:
   step: {root.as_posix()}/build/out.step
   views_dir: {root.as_posix()}/build/views
 instances:
-  - id: y_spacer
-    role: y_axis_spacer_6mm
+  - id: frame_spacer
+    role: frame_side_spacer_6mm
     source_path: {source.as_posix()}
 """)
 

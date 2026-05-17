@@ -258,7 +258,7 @@ def auto_assembly_loop() -> None:
         Box("manifest", 850, 190, 300, 160, "3. Component Manifest",
             ["id + source_path", "bbox signatures", "generation_policy"], accent=GREEN),
         Box("spec", 1255, 190, 280, 160, "4. Assembly Spec",
-            ["variant: M3-2", "inside-out sequence", "6mm Y spacers"], accent=WARN),
+            ["variant: M3-2", "inside-out sequence", "6mm frame spacers"], accent=WARN),
         Box("compiler", 1255, 465, 280, 170, "5. CadQuery Compiler",
             ["import authored STEP", "place / rotate / pattern", "stock-only generation"], accent=BLUE),
         Box("outputs", 850, 465, 300, 170, "6. Generated Outputs",
@@ -287,7 +287,7 @@ def auto_assembly_loop() -> None:
         "General LLM-operable CadQuery harness, with M3-CRETE as the first proving project",
         boxes,
         arrows,
-        "M3-2 sequence: X gantry -> Y gantries -> Z plates + 6mm Y spacers -> Z posts -> frame completion.",
+        "M3-2 sequence: X gantry -> Y gantries -> Z plates -> Z posts -> side-rail/post spacers -> frame completion.",
     )
 
 

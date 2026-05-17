@@ -61,7 +61,7 @@
 <text x="1279" y="294" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <text x="1279" y="318" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">inside-out sequence</text>
 <text x="1279" y="342" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="1279" y="366" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">6mm Y spacers</text>
+<text x="1279" y="366" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">6mm frame spacers</text>
 <text x="1279" y="390" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <rect x="1255" y="465" width="280" height="170" rx="14" fill="#0b1828" stroke="#183a5e" stroke-width="2" />
 <rect x="1255" y="465" width="9" height="170" fill="#38bdf8" />
@@ -108,5 +108,5 @@
 <text x="624" y="892" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
 <text x="624" y="916" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400">rerun the round</text>
 <text x="624" y="940" fill="#c9d8e5" font-size="18" font-family="Arial, sans-serif" font-weight="400"></text>
-<text x="58" y="964" fill="#87a4ba" font-size="15" font-family="Arial, sans-serif" font-weight="400">M3-2 sequence: X gantry -&gt; Y gantries -&gt; Z plates + 6mm Y spacers -&gt; Z posts -&gt; frame completion.</text>
+<text x="58" y="964" fill="#87a4ba" font-size="15" font-family="Arial, sans-serif" font-weight="400">M3-2 sequence: X gantry -&gt; Y gantries -&gt; Z plates -&gt; Z posts -&gt; side-rail/post spacers -&gt; frame completion.</text>
 </svg>

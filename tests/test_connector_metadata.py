@@ -96,7 +96,14 @@ class TestConnectorMetadata(unittest.TestCase):
         self.assertGreaterEqual(len(metadata.components), 6)
         self.assertTrue(any(c.id == "cbeam_40x80_1000" for c in metadata.components))
         self.assertTrue(any(c.id == "cbeam_linear_actuator_1000" for c in metadata.components))
-        self.assertTrue(any(c.id == "aluminum_spacer_6mm" for c in metadata.components))
+        spacer = next(c for c in metadata.components if c.id == "m3_frame_shim_4080_6mm")
+        self.assertEqual(
+            spacer.source_path,
+            "examples/m3_crete/generated/M3_6mm_frame_shim_4080.step",
+        )
+        tags = {tag for frame in spacer.frames for tag in frame.tags}
+        self.assertIn("frame_side", tags)
+        self.assertNotIn("y_axis", tags)
 
 
 if __name__ == "__main__":

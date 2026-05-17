@@ -187,6 +187,17 @@ class TestAssemblySpec(unittest.TestCase):
         self.assertIn("y_gantry_beam", roles)
         self.assertNotIn("y_gantry_actuator", roles)
         self.assertIn("frame_side_spacer_6mm", roles)
+        self.assertNotIn("y_axis_spacer_6mm", roles)
+        frame_spacers = [
+            instance for instance in spec.instances
+            if instance.role == "frame_side_spacer_6mm"
+        ]
+        self.assertEqual(len(frame_spacers), 8)
+        for instance in frame_spacers:
+            self.assertEqual(
+                instance.source_path,
+                "examples/m3_crete/generated/M3_6mm_frame_shim_4080.step",
+            )
         plate_instances = [
             instance for instance in spec.instances
             if instance.role in {"x_gantry_plate", "z_carriage_plate"}
@@ -201,6 +212,17 @@ class TestAssemblySpec(unittest.TestCase):
                 instance.component_id,
                 "advanced_plates_c_beam_gantry_plate_xlarge",
             )
+        vslot_stackup = spec.validation["vslot_stackup"]
+        self.assertEqual(vslot_stackup["target_spacer_mm"], 6.0)
+        self.assertTrue(
+            any(
+                handoff["id"] == "y_to_z_front_left"
+                and "spacer_instance" not in handoff
+                and handoff["plate_gap_mm"] == 1.0
+                and handoff["next_gap_mm"] == 2.0
+                for handoff in vslot_stackup["handoffs"]
+            )
+        )
         self.assertEqual(
             [step.id for step in spec.assembly_sequence],
             [
