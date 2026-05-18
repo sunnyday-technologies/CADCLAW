@@ -181,12 +181,18 @@ _DEP_HINTS = {
     "PIL": "pip install Pillow",
     "yaml": "pip install pyyaml",
     "pydantic": "pip install 'pydantic>=2.5'",
+    "Pynite": "pip install PyniteFEA  # core only, not the [all] extra",
 }
+
+# Optional deps: a missing one is a WARN, not a FAIL — only the gate that
+# needs it is unavailable. `Pynite` backs the cadclaw.fea kinematics gate.
+_OPTIONAL_DEPS = {"Pynite"}
 
 
 def probe_dependencies() -> List[Finding]:
     out: List[Finding] = []
-    for mod_name in ["cadquery", "OCP", "vtk", "PIL", "yaml", "pydantic"]:
+    for mod_name in ["cadquery", "OCP", "vtk", "PIL", "yaml", "pydantic",
+                     "Pynite"]:
         try:
             mod = importlib.import_module(mod_name)
             version = getattr(mod, "__version__", None) or getattr(mod, "VERSION", "?")
@@ -200,13 +206,17 @@ def probe_dependencies() -> List[Finding]:
                 evidence={"module": mod_name, "version": str(version)},
             ))
         except ImportError as e:
+            optional = mod_name in _OPTIONAL_DEPS
             out.append(Finding(
-                id="doctor.dep_missing",
+                id="doctor.optional_dep_missing" if optional
+                   else "doctor.dep_missing",
                 category="doctor",
-                severity=Severity.FAIL,
-                message=f"{mod_name} import failed: {e}",
+                severity=Severity.WARN if optional else Severity.FAIL,
+                message=(f"{mod_name} not installed — "
+                         + ("the cadclaw.fea kinematics gate is unavailable"
+                            if optional else f"import failed: {e}")),
                 suggested_fix=_DEP_HINTS.get(mod_name, f"pip install {mod_name}"),
-                evidence={"module": mod_name},
+                evidence={"module": mod_name, "optional": optional},
             ))
     return out
 

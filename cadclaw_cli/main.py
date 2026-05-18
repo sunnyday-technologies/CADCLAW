@@ -815,6 +815,97 @@ def _cmd_inspect_cluster(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_fea_joint_adequacy(args: argparse.Namespace) -> int:
+    from cadclaw.fea import (
+        LoadCase,
+        evaluate_joint_adequacy,
+        m3_2_frame,
+        m3_xgantry_frame,
+    )
+    from cadclaw.fea.joint_adequacy import joint_adequacy_report, write_joint_csv
+
+    builders = {"m3-xgantry": m3_xgantry_frame, "m3-2-frame": m3_2_frame}
+    frame = builders[args.frame]()
+    load_case = None
+    if args.point_load:
+        load_case = LoadCase(
+            name="custom",
+            self_weight=not args.no_self_weight,
+            gravity_dir="FY",
+        )
+        for raw in args.point_load:
+            try:
+                node_id, direction, value = raw.split(":", 2)
+                direction = direction.upper()
+                value_n = float(value)
+            except ValueError:
+                print(
+                    "error: --point-load must be NODE:DIRECTION:VALUE_N, "
+                    f"got {raw!r}",
+                    file=sys.stderr,
+                )
+                return 3
+            if node_id not in frame.nodes:
+                print(
+                    f"error: --point-load references unknown node {node_id!r}",
+                    file=sys.stderr,
+                )
+                return 3
+            if direction not in {"FX", "FY", "FZ", "MX", "MY", "MZ"}:
+                print(
+                    f"error: --point-load direction {direction!r} is invalid",
+                    file=sys.stderr,
+                )
+                return 3
+            load_case.add_point_load(node_id, direction, value_n)
+    try:
+        result = evaluate_joint_adequacy(
+            frame,
+            load_case=load_case,
+            load_n=args.load_n,
+            safety_factor=args.safety_factor,
+            deflection_limit_mm=args.deflection_limit,
+            self_weight=not args.no_self_weight,
+        )
+    except ImportError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+    if args.csv:
+        write_joint_csv(result.rows, args.csv)
+        print(f"wrote {args.csv}", file=sys.stderr)
+    if args.member_csv:
+        from cadclaw.fea import write_member_demand_csv
+
+        if result.solver_result is None or not result.solver_result.converged:
+            print("warning: member CSV skipped because FEA did not converge",
+                  file=sys.stderr)
+        else:
+            write_member_demand_csv(frame, result.solver_result, args.member_csv)
+            print(f"wrote {args.member_csv}", file=sys.stderr)
+    if args.plots_dir:
+        from cadclaw.fea import render_member_maps
+
+        if result.solver_result is None or not result.solver_result.converged:
+            print("warning: FEA plots skipped because FEA did not converge",
+                  file=sys.stderr)
+        else:
+            try:
+                stress_path, strain_path = render_member_maps(
+                    frame,
+                    result.solver_result,
+                    args.plots_dir,
+                    title_prefix=args.frame,
+                )
+            except ImportError as exc:
+                print(f"warning: FEA plots skipped: {exc}", file=sys.stderr)
+            else:
+                print(f"wrote {stress_path}", file=sys.stderr)
+                print(f"wrote {strain_path}", file=sys.stderr)
+    report = joint_adequacy_report(result)
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="cadclaw",
@@ -1046,6 +1137,53 @@ def build_parser() -> argparse.ArgumentParser:
                      help="comma-separated list of gates to skip.")
     _add_format_args(p_h)
     p_h.set_defaults(func=_cmd_harness)
+
+    p_fea = sub.add_parser(
+        "fea", help="Structural frame FEA gates (PyniteFEA backend).")
+    fea_sub = p_fea.add_subparsers(
+        dest="fea_command", required=True, metavar="<gate>")
+
+    p_ja = fea_sub.add_parser(
+        "joint-adequacy",
+        help="Evaluate aluminium extrusion adequacy at frame joints.",
+        description=(
+            "Run the kinematics_joint_adequacy gate: a single static load "
+            "case on a frame model, evaluating extrusion bending capacity "
+            "and deflection at each joint. Phase 1 uses the built-in "
+            "M3-CRETE X-gantry and M3-2 full-frame models; STEP extraction "
+            "and the kinematic travel sweep are Phase 2."
+        ),
+    )
+    p_ja.add_argument("--frame", default="m3-xgantry",
+                      choices=["m3-xgantry", "m3-2-frame"],
+                      help="Frame model to analyze.")
+    p_ja.add_argument("--load-n", type=float, default=49.0,
+                      help="Printhead load in newtons (default 49 = 5 kg).")
+    p_ja.add_argument("--safety-factor", type=float, default=1.65,
+                      help="Safety factor on extrusion yield (default 1.65).")
+    p_ja.add_argument("--deflection-limit", type=float, default=0.5,
+                      help="Deflection limit in mm (default 0.5).")
+    p_ja.add_argument("--no-self-weight", action="store_true",
+                      help="Exclude member self-weight from the load case.")
+    p_ja.add_argument(
+        "--point-load",
+        action="append",
+        default=None,
+        metavar="NODE:DIRECTION:VALUE_N",
+        help=(
+            "Add a custom nodal load, for example L_F_top:FX:50 for a "
+            "50 N lateral corner load. Repeat for multiple loads. When "
+            "provided, --load-n is ignored."
+        ),
+    )
+    p_ja.add_argument("--csv", default=None,
+                      help="Write the per-joint table to this CSV path.")
+    p_ja.add_argument("--member-csv", default=None,
+                      help="Write per-member stress/strain envelopes to CSV.")
+    p_ja.add_argument("--plots-dir", default=None,
+                      help="Write stress and strain PNG maps to this directory.")
+    _add_format_args(p_ja)
+    p_ja.set_defaults(func=_cmd_fea_joint_adequacy)
 
     p_inspect = sub.add_parser(
         "inspect",
