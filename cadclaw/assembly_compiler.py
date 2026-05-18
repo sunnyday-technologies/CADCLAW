@@ -35,7 +35,7 @@ class ResolvedInstance:
     source_ref: str
     resolved_path: str
     exists: bool
-    transform: Dict[str, List[float]]
+    transform: Dict[str, object]
     color_label: Optional[str] = None
     connector_metadata: str = "not_checked"
 
@@ -337,7 +337,16 @@ def plan_assembly_build(
 def _apply_transform(workplane, transform: Transform):
     rx, ry, rz = transform.rotate_deg
     tx, ty, tz = transform.translate_mm
+    ox, oy, oz = transform.source_origin_mm
     result = workplane
+    if ox or oy or oz:
+        result = result.translate((-ox, -oy, -oz))
+    if transform.scale != 1.0:
+        import cadquery as cq
+
+        result = cq.Workplane("XY").newObject([
+            shape.scale(transform.scale) for shape in result.vals()
+        ])
     if rx:
         result = result.rotate((0, 0, 0), (1, 0, 0), rx)
     if ry:
@@ -372,7 +381,13 @@ def _apply_transform_to_point(
     x, y, z = [float(value) for value in point]
     rx, ry, rz = transform.rotate_deg
     tx, ty, tz = transform.translate_mm
-    rotated = _rotate_point((x, y, z), "x", rx)
+    ox, oy, oz = transform.source_origin_mm
+    scaled = (
+        (x - ox) * transform.scale,
+        (y - oy) * transform.scale,
+        (z - oz) * transform.scale,
+    )
+    rotated = _rotate_point(scaled, "x", rx)
     rotated = _rotate_point(rotated, "y", ry)
     rotated = _rotate_point(rotated, "z", rz)
     return (rotated[0] + tx, rotated[1] + ty, rotated[2] + tz)

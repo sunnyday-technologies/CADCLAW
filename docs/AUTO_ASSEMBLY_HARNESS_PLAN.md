@@ -234,12 +234,11 @@ validated performance.
   4080, 2080, or 2040 static frame-member options and joint techniques, but it
   should consume the already-declared assembly topology. Gantry extrusions stay
   C-Beam unless a separate authored reinforcement spec says otherwise.
-- **Authored STEP exports still need sanity checks before placement.** The
-  first `ZPMM.step` export loaded successfully, but inspected as a single
-  61 x 800 x 970 mm part. Its proportions look like a plausible 6.1 x 80 x
-  97 mm motor-mount/spacer exported at 10x scale. CADCLAW should keep it as a
-  candidate asset until the units are corrected or a scale-normalization policy
-  is explicitly approved.
+- **Authored STEP exports still need unit sanity checks before placement.**
+  The resized `ZPMM.step` export now loads as 6.1 x 80 x 97 mm, matching user
+  guidance that the intended printed thickness is 6.1 mm. CADCLAW still
+  declares `source_origin_mm` so the in-place CAD export is recentered before
+  rotation and placement.
 - **Rendered review is not validation.** A clipping error in the M3 reference
   sequence exposed that `validation.run_checks: [interference]` was declared
   but not executed by `assemble check-round`. The assembly compiler now runs an
@@ -294,19 +293,19 @@ validated performance.
       structural bearing overlap.
 - [x] Resolve the M3-2 side-rail/post gap exposed by static frame adjacency
       for the reference round: posts are placed on the 6 mm frame-spacer datum,
-      and generated no-hole spacer placeholders bridge post-to-side-rail joints.
+      and resized native-scale ZPMM motor-mount/spacer instances bridge
+      post-to-side-rail joints.
 - [x] Generate user-approved no-hole flat spacer plate STEP assets for the
       M3 reference round, including `M3_6mm_frame_shim_4080.step` inspected as
-      6 x 40 x 80 mm. Local ZPMM 3MF assets remain the intended motor-mount /
-      spacer source, but CADCLAW needs a STEP export before it can replace the
-      placeholder in the assembly spec.
+      6 x 40 x 80 mm. This remains a simple fallback fixture; the active M3
+      reference spec now uses the authored ZPMM STEP instead.
 - [x] Inspect exported `ZPMM.step` candidate and render isolated review views.
-      The file is authored and loadable, but currently appears to be exported
-      at 10x scale, so it remains metadata-only and is not placed in the
-      reference assembly yet.
-- [ ] Replace generated frame shim placeholders with the authored ZPMM
-      motor-mount/spacer STEP after the export passes unit scale, origin, and
-      bbox sanity checks.
+      The resized file is authored and loadable; the inspected native bbox is
+      6.1 x 80 x 97 mm, with a user-confirmed intended printed thickness of
+      6.1 mm.
+- [x] Replace generated frame shim placeholders with the authored ZPMM
+      motor-mount/spacer STEP using native millimeter scale and explicit
+      source-origin recentering.
 - [ ] Add optional `FEA/` PyNiteFEA integration for static frame member and
       joint-technique comparison after connector-valid geometry exists.
 
@@ -359,9 +358,9 @@ Current implementation status:
   reliable instead of image-guided guessing?
 - Which M3-CRETE dimensions are authoritative for M3-1/M3-2/M3-4: outer frame,
   target build envelope, or product class names?
-- Should `ZPMM.step` be re-exported at the intended millimeter scale, or should
-  CADCLAW gain an explicit, audited scale-normalization path for CAD exports
-  that are known to be off by a fixed unit factor?
+- Should public fixtures include the resized native-scale `ZPMM.step` directly,
+  or should CADCLAW also keep the generated no-hole shim as a small fallback
+  test asset?
 - Which spacer/motor-mount instances need top-only, bottom-only, mirrored, or
   endcap geometry once the final ZPMM STEP is available?
 - Which frame-member options should the future FEA comparison include first:

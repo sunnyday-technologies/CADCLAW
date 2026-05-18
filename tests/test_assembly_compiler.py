@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from cadclaw.assembly_compiler import (
+    _apply_transform,
     inspect_component,
     plan_assembly_build,
     render_review_views,
@@ -11,6 +12,7 @@ from cadclaw.assembly_compiler import (
     run_assembly_check_round,
     run_assembly_sequence,
 )
+from cadclaw.assembly_spec import Transform
 
 
 class TestAssemblyCompiler(unittest.TestCase):
@@ -35,6 +37,26 @@ class TestAssemblyCompiler(unittest.TestCase):
         box = cq.Workplane("XY").box(*dims)
         cq.exporters.export(box, str(path))
         return path
+
+    def test_transform_supports_explicit_scale_and_source_origin(self):
+        import cadquery as cq
+
+        source = cq.Workplane("XY").box(10, 20, 30).translate((5, 10, 15))
+        transform = Transform.model_validate({
+            "translate_mm": [100.0, 200.0, 300.0],
+            "rotate_deg": [90.0, 0.0, 0.0],
+            "scale": 0.1,
+            "source_origin_mm": [5.0, 10.0, 15.0],
+        })
+
+        placed = _apply_transform(source, transform).val()
+        bb = placed.BoundingBox()
+        self.assertAlmostEqual(bb.xlen, 1.0, places=6)
+        self.assertAlmostEqual(bb.ylen, 3.0, places=6)
+        self.assertAlmostEqual(bb.zlen, 2.0, places=6)
+        self.assertAlmostEqual((bb.xmin + bb.xmax) / 2.0, 100.0, places=6)
+        self.assertAlmostEqual((bb.ymin + bb.ymax) / 2.0, 200.0, places=6)
+        self.assertAlmostEqual((bb.zmin + bb.zmax) / 2.0, 300.0, places=6)
 
     def test_plan_resolves_direct_and_manifest_sources(self):
         with tempfile.TemporaryDirectory() as tmp:

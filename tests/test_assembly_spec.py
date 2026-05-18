@@ -194,11 +194,10 @@ class TestAssemblySpec(unittest.TestCase):
         ]
         self.assertEqual(len(frame_spacers), 8)
         for instance in frame_spacers:
-            self.assertEqual(
-                instance.source_path,
-                "examples/m3_crete/generated/M3_6mm_frame_shim_4080.step",
-            )
-            self.assertNotEqual(instance.source_path, "ZPMM.step")
+            self.assertEqual(instance.source_path, "ZPMM.step")
+            self.assertEqual(instance.transform.scale, 1.0)
+            self.assertEqual(instance.transform.source_origin_mm, [1316.785, 2283.831, 3.05])
+            self.assertEqual(instance.transform.rotate_deg, [90.0, 0.0, 0.0])
         plate_instances = [
             instance for instance in spec.instances
             if instance.role in {"x_gantry_plate", "z_carriage_plate"}
