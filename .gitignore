@@ -11,5 +11,14 @@ build/
 .DS_Store
 Thumbs.db
 .claude/
+.pytest_cache/
 docs/media/*.png
 !docs/media/cadclaw_*.png
+
+# Local scratch and non-shippable assets (renders, branding, fonts).
+# Kept out of the repo: third-party fonts carry their own licences, and
+# branding/render scratch is not part of the package.
+fusion_test/
+media/
+docs/fonts/
+docs/media/*.gif
