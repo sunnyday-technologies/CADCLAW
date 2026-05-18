@@ -1,6 +1,6 @@
 # CADCLAW Auto-Assembly Harness Plan
 
-Last updated: 2026-05-16
+Last updated: 2026-05-18
 
 Purpose: define and track a general CADCLAW assembly harness that lets an
 LLM or human assemble a STEP-based machine with CadQuery, using authored
@@ -234,6 +234,12 @@ validated performance.
   4080, 2080, or 2040 static frame-member options and joint techniques, but it
   should consume the already-declared assembly topology. Gantry extrusions stay
   C-Beam unless a separate authored reinforcement spec says otherwise.
+- **Authored STEP exports still need sanity checks before placement.** The
+  first `ZPMM.step` export loaded successfully, but inspected as a single
+  61 x 800 x 970 mm part. Its proportions look like a plausible 6.1 x 80 x
+  97 mm motor-mount/spacer exported at 10x scale. CADCLAW should keep it as a
+  candidate asset until the units are corrected or a scale-normalization policy
+  is explicitly approved.
 - **Rendered review is not validation.** A clipping error in the M3 reference
   sequence exposed that `validation.run_checks: [interference]` was declared
   but not executed by `assemble check-round`. The assembly compiler now runs an
@@ -294,6 +300,13 @@ validated performance.
       6 x 40 x 80 mm. Local ZPMM 3MF assets remain the intended motor-mount /
       spacer source, but CADCLAW needs a STEP export before it can replace the
       placeholder in the assembly spec.
+- [x] Inspect exported `ZPMM.step` candidate and render isolated review views.
+      The file is authored and loadable, but currently appears to be exported
+      at 10x scale, so it remains metadata-only and is not placed in the
+      reference assembly yet.
+- [ ] Replace generated frame shim placeholders with the authored ZPMM
+      motor-mount/spacer STEP after the export passes unit scale, origin, and
+      bbox sanity checks.
 - [ ] Add optional `FEA/` PyNiteFEA integration for static frame member and
       joint-technique comparison after connector-valid geometry exists.
 
@@ -346,8 +359,9 @@ Current implementation status:
   reliable instead of image-guided guessing?
 - Which M3-CRETE dimensions are authoritative for M3-1/M3-2/M3-4: outer frame,
   target build envelope, or product class names?
-- Which exported STEP should be the final public ZPMM motor-mount/spacer asset
-  that replaces the generated 6 mm no-hole frame spacer placeholders?
+- Should `ZPMM.step` be re-exported at the intended millimeter scale, or should
+  CADCLAW gain an explicit, audited scale-normalization path for CAD exports
+  that are known to be off by a fixed unit factor?
 - Which spacer/motor-mount instances need top-only, bottom-only, mirrored, or
   endcap geometry once the final ZPMM STEP is available?
 - Which frame-member options should the future FEA comparison include first:

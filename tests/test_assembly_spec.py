@@ -198,6 +198,7 @@ class TestAssemblySpec(unittest.TestCase):
                 instance.source_path,
                 "examples/m3_crete/generated/M3_6mm_frame_shim_4080.step",
             )
+            self.assertNotEqual(instance.source_path, "ZPMM.step")
         plate_instances = [
             instance for instance in spec.instances
             if instance.role in {"x_gantry_plate", "z_carriage_plate"}

@@ -104,6 +104,11 @@ class TestConnectorMetadata(unittest.TestCase):
         tags = {tag for frame in spacer.frames for tag in frame.tags}
         self.assertIn("frame_side", tags)
         self.assertNotIn("y_axis", tags)
+        zpmm = next(c for c in metadata.components if c.id == "zpmm_motor_mount_spacer_candidate")
+        self.assertEqual(zpmm.source_path, "ZPMM.step")
+        zpmm_tags = {tag for frame in zpmm.frames for tag in frame.tags}
+        self.assertIn("authored_step", zpmm_tags)
+        self.assertIn("scale_review_required", zpmm_tags)
 
 
 if __name__ == "__main__":
