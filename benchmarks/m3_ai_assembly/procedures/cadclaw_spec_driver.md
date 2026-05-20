@@ -42,8 +42,9 @@ Expected current status:
 
 - CADCLAW gates pass for the placed reference geometry.
 - The placed reference geometry includes the latest fixture constraints:
-  inward Y C-Beam channels, 2080 lower Y rails, an open bottom in X, ZPMM top
-  spacer/motor-mounts, lower flat frame spacers, and a 2040 top center spreader
-  with its 40 mm side vertical and top face flush with the top frame.
+  inward Y C-Beam channels, X and Y C-Beams with the 80 mm side vertical,
+  internal 2040 X-gantry inserts, 2080 lower Y rails, an open bottom in X,
+  ZPMM top spacer/motor-mounts, lower flat frame spacers, and a 2040 top center
+  spreader with its 40 mm side vertical and top face flush with the top frame.
 - The report remains `WARN` until declared `not_built_yet` subsystems are
   either modeled from authored STEP assets or explicitly scoped out of the run.

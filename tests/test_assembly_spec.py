@@ -392,6 +392,13 @@ class TestAssemblySpec(unittest.TestCase):
                 for item in bbox_alignment["checks"]
             )
         )
+        self.assertTrue(
+            any(
+                item["id"] == "x_gantry_left_80mm_vertical"
+                and item["expected_size_mm"] == 80.0
+                for item in bbox_alignment["checks"]
+            )
+        )
         self.assertEqual(
             [step.id for step in spec.assembly_sequence],
             [
@@ -404,6 +411,7 @@ class TestAssemblySpec(unittest.TestCase):
             ],
         )
         steps = {step.id: step for step in spec.assembly_sequence}
+        self.assertIn("x_gantry_insert_left_2040", steps["x_gantry"].instance_ids)
         self.assertIn("x_left_y_neg_lower_wheel", steps["x_gantry"].instance_ids)
         self.assertIn("x_carriage_front_left_lower_wheel", steps["x_carriage"].instance_ids)
         self.assertIn("z_front_left_outer_lower_wheel", steps["z_carriages"].instance_ids)

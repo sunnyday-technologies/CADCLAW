@@ -12,6 +12,7 @@ target:
     - lower Y static frame rails are 2080 V-slot
     - top center spreader is 2040 V-slot with 40 mm side vertical and top face level with top frame
     - Y-gantry C-Beams place the 80 mm dimension vertically and open channels face inward
+    - X-gantry C-Beams place the 80 mm dimension vertically and include one internal 2040 insert per 1000 mm C-Beam segment
     - X-to-Y plates and X-carriage plates use C-Beam Gantry Plate XLarge; Y-to-Z plates use V-Slot 20-80
     - Solid V Wheel STEP instances are placed at modeled X-to-Y, X-carriage, and Y-to-Z carriage interfaces; four wheels per gantry plate align to authored plate holes with a 7 mm spacer/washer standoff
     - CADCLAW model BOM is compared against, not written over, the M3 interactive BOM

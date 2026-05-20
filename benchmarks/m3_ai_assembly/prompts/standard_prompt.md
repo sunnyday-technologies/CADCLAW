@@ -34,6 +34,9 @@ Current M3-2 fixture constraints:
   smaller V-Slot 20-80 gantry plates.
 - Y-gantry C-Beams place their 80 mm dimension vertically and open channels
   face inward toward the printer volume.
+- X-gantry C-Beams also place their 80 mm dimension vertically. Each 1000 mm
+  X C-Beam segment contains one authored 1000 mm 2040 V-slot insert inside
+  the open channel.
 - The frame is open at the bottom in the X direction; do not add bottom X
   frame rails unless the benchmark spec changes.
 - Lower Y-direction static frame rails are 2080 V-slot, not C-Beam.

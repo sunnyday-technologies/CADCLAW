@@ -8,7 +8,7 @@ individual CAD checks against the M3 printer.
 
 ## Current M3 Reference Size
 
-`examples/m3_crete/m3_reference_assembly.yaml` currently declares 67 placed
+`examples/m3_crete/m3_reference_assembly.yaml` currently declares 69 placed
 instances:
 
 | Role | Count |
@@ -22,13 +22,14 @@ instances:
 | `top_frame_rail_y` | 2 |
 | `bottom_frame_rail_y_2080` | 2 |
 | `x_gantry_beam` | 2 |
+| `x_gantry_insert_2040` | 2 |
 | `x_gantry_plate` | 2 |
 | `x_carriage_plate` | 2 |
 | `y_gantry_beam` | 2 |
 | `top_center_spreader_plate` | 2 |
 | `top_center_spreader_2040` | 1 |
 
-Those 67 placements come from only 8 unique STEP source files:
+Those 69 placements come from only 8 unique STEP source files:
 
 | STEP source | Placements |
 |---|---:|
@@ -38,8 +39,8 @@ Those 67 placements come from only 8 unique STEP source files:
 | `CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP` | 4 |
 | `ZPMM.step` | 4 |
 | `examples/m3_crete/generated/M3_6mm_frame_shim_4080.step` | 4 |
+| `CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step` | 3 |
 | `CAD/Components/V-Slot/V-Slot 20x80x1000 Linear Rail.step` | 2 |
-| `CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step` | 1 |
 
 ## Declared Checks
 
@@ -66,27 +67,27 @@ run configuration before release scoring.
 ## Measured Redundancy
 
 Before this branch, `assemble check-round` reloaded and transformed the same
-67 placed shapes once per shape-consuming validation gate:
+69 placed shapes once per shape-consuming validation gate:
 
-- 6 shape-consuming gates x 67 placements = 402 transformed shape loads.
-- 1 STEP export x 67 placements = 67 additional loads.
-- Total current check-round geometry load pressure: 469 instance-loads.
+- 6 shape-consuming gates x 69 placements = 414 transformed shape loads.
+- 1 STEP export x 69 placements = 69 additional loads.
+- Total current check-round geometry load pressure: 483 instance-loads.
 
 The same pattern is more expensive in `render-sequence` because validation is
 cumulative at each step:
 
 | Step | Cumulative Instances |
 |---|---:|
-| `02_x_carriage` | 22 |
-| `03_y_gantry` | 24 |
-| `04_z_carriages` | 44 |
-| `05_z_posts` | 48 |
-| `06_frame_completion` | 67 |
+| `02_x_carriage` | 24 |
+| `03_y_gantry` | 26 |
+| `04_z_carriages` | 46 |
+| `05_z_posts` | 50 |
+| `06_frame_completion` | 69 |
 
-With six shape-consuming gates, those cumulative validations account for 1,230
+With six shape-consuming gates, those cumulative validations account for 1,290
 shape loads for steps 02-06, before counting STEP exports. Including the
-earlier `01_x_gantry` step brings the total to 1,302 validation shape loads and
-217 export loads.
+earlier `01_x_gantry` step brings the total to 1,374 validation shape loads and
+229 export loads.
 
 ## Current Branch Improvement
 
@@ -94,21 +95,21 @@ This branch adds a per-run `GeometryShapeCache` for transformed instance
 shapes used by validation gates. For `check-round`, all full-assembly
 shape-consuming gates now reuse the same transformed shape set:
 
-- Validation shape loads drop from 402 to 67.
-- Including the required final STEP export, load pressure drops from 469 to
-  134.
+- Validation shape loads drop from 414 to 69.
+- Including the required final STEP export, load pressure drops from 483 to
+  138.
 - The report metadata includes `meta.geometry_cache` with request, hit, miss,
   loaded-instance, and cached-set counts.
 
 For `render-sequence`, the cache is per sequence run and keyed by cumulative
 instance set. It avoids reloading the same cumulative step for every gate:
 
-- Validation shape loads drop from 1,302 to 217.
-- Including cumulative STEP exports, load pressure drops from 1,519 to 434.
+- Validation shape loads drop from 1,374 to 229.
+- Including cumulative STEP exports, load pressure drops from 1,603 to 458.
 
 ## Remaining Efficiency Candidates
 
-- **Source-level caching:** Only 8 unique STEP files back the current 67
+- **Source-level caching:** Only 8 unique STEP files back the current 69
   placements. A future source cache could import each STEP once, then clone and
   transform copies. This is the next largest improvement, but it needs care to
   avoid mutating shared CadQuery/OCC shapes.

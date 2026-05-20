@@ -105,7 +105,7 @@ components:
 
   - id: vslot_2040_1000
     source_path: CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step
-    notes: Active top center spreader for the M3-2 reference; placed with the 40mm side vertical and the top face level with the top frame members.
+    notes: Active 2040 stock for the M3-2 reference; one instance is the top center spreader and two instances are internal X-gantry C-Beam inserts.
     frames:
       - id: negative_z_end
         kind: extrusion_end

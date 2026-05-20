@@ -90,6 +90,7 @@ class TestRuleLoader(unittest.TestCase):
         self.assertEqual(by_id[79].expected_label, "flat_frame_spacer_6mm")
         self.assertEqual(by_id[86].expected_label, "vslot_2080_1000")
         self.assertEqual(by_id[87].expected_label, "vslot_2040_1000")
+        self.assertEqual(by_id[87].expected_design_qty, 3)
 
     def test_label_sig_helpers(self):
         path = self._write_tmp(GOOD_YAML)

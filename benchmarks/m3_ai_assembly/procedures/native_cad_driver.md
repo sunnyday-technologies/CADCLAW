@@ -42,6 +42,8 @@ Current M3-2 fixture constraints to verify before export:
   face level with the top frame.
 - Y-gantry C-Beams place the 80 mm dimension vertically and open channels face
   inward.
+- X-gantry C-Beams place the 80 mm dimension vertically and include one
+  internal 2040 insert per 1000 mm C-Beam segment.
 - X-to-Y plates and X-carriage plates are C-Beam Gantry Plate XLarge;
   Y-to-Z/Z-post carriage plates are V-Slot 20-80.
 - Top spacer/motor-mount locations use ZPMM; lower spacer locations use the

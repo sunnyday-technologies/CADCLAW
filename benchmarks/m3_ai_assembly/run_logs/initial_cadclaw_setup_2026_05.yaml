@@ -194,9 +194,9 @@ outputs:
   run_summary_json: null
 
 summary:
-  attempt_count: 7
-  retry_count: 6
-  correction_count: 14
+  attempt_count: 8
+  retry_count: 7
+  correction_count: 17
   human_intervention_count: 7
   major_corrections:
     - X gantry plates moved from inside the rail body to flat end-face placement.
@@ -208,6 +208,9 @@ summary:
     - Top center spreader changed to 2040 V-slot, 40 mm side vertical and top face flush.
     - Y-gantry C-Beams rotated so 80 mm dimension is vertical and open channels face inward.
     - X-axis printhead carriage plates and wheels added.
+    - X-gantry C-Beams rotated so the 80 mm dimension is vertical, matching the Y gantries.
+    - Two authored 1000 mm 2040 insert extrusions added inside the X C-Beam open channels.
+    - X-carriage wheels moved inward so they sit between the carriage plates and the X-gantry rail slots.
   blockers:
     - Dedicated printhead/tooling STEP was not found in the local asset search.
     - Two M3-2 x-motor STEP files inspected as assembly-scale exports, not small reusable motor or mount components.
