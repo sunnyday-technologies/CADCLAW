@@ -22,8 +22,11 @@ printer performance.
   normalized report.
 - `scripts/score_report.py` converts a normalized CADCLAW report into an
   early benchmark score.
+- `scripts/package_testkit.py` builds a public-safe ZIP containing only text
+  seeds, prompts, scripts, and docs.
 - `assets/checksums.txt` is intentionally empty until redistributable assets
   are approved.
+- `assets/source_notes.md` records current source/provenance guidance.
 - `results/.gitkeep` reserves the local result-output directory.
 
 ## Asset Policy
@@ -50,3 +53,14 @@ python benchmarks\m3_ai_assembly\scripts\score_report.py `
 
 Dry-run reports are expected to warn until connector frames, belts, motors,
 drive assemblies, and tooling interfaces are fully specified and verified.
+
+## Package
+
+```powershell
+python benchmarks\m3_ai_assembly\scripts\package_testkit.py `
+  --out build\m3_ai_assembly_testkit.zip
+```
+
+The package script does not include local STEP, image, native CAD, or BOM
+assets. Add those only after the asset allowlist, source notes, and checksums
+are ready for public redistribution.

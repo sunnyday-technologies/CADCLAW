@@ -20,12 +20,17 @@ seeds:
   assembly_spec: examples/m3_crete/m3_reference_assembly.yaml
   component_manifest: examples/m3_crete/m3_component_manifest.yaml
   connector_metadata: examples/m3_crete/m3_connector_metadata.yaml
+  testkit_assets: examples/m3_crete/m3_testkit_assets.yaml
+  bom_audit_rules: examples/m3_crete/m3_bom_audit.yaml
   prompt: benchmarks/m3_ai_assembly/prompts/standard_prompt.md
 
 asset_policy:
   public_assets_included: false
+  source_notes: benchmarks/m3_ai_assembly/assets/source_notes.md
+  checksums: benchmarks/m3_ai_assembly/assets/checksums.txt
   notes:
     - Do not redistribute local M3-CRETE STEP, image, BOM, or native CAD assets until source/license review is complete.
+    - Use examples/m3_crete/m3_testkit_assets.yaml as the narrow allowlist; do not publish the full local OpenBuilds-derived component catalog.
     - Public fixture packages must include checksums and license/source notes for every asset.
     - Private procurement fields and credentials must never appear in benchmark manifests.
 
