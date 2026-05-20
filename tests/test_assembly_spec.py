@@ -198,12 +198,24 @@ class TestAssemblySpec(unittest.TestCase):
             self.assertEqual(instance.transform.scale, 1.0)
             self.assertEqual(instance.transform.source_origin_mm, [1316.785, 2283.831, 3.05])
             self.assertEqual(instance.transform.rotate_deg, [90.0, 0.0, 0.0])
-        plate_instances = [
+        x_plate_instances = [
             instance for instance in spec.instances
-            if instance.role in {"x_gantry_plate", "z_carriage_plate"}
+            if instance.role == "x_gantry_plate"
         ]
-        self.assertEqual(len(plate_instances), 6)
-        for instance in plate_instances:
+        self.assertEqual(len(x_plate_instances), 2)
+        for instance in x_plate_instances:
+            self.assertEqual(
+                instance.source_path,
+                "CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP",
+            )
+            self.assertEqual(instance.transform.source_origin_mm, [0.0, 0.0, 3.0])
+            self.assertEqual(instance.transform.rotate_deg, [0.0, 90.0, 0.0])
+        z_plate_instances = [
+            instance for instance in spec.instances
+            if instance.role == "z_carriage_plate"
+        ]
+        self.assertEqual(len(z_plate_instances), 4)
+        for instance in z_plate_instances:
             self.assertEqual(
                 instance.source_path,
                 "CAD/Components/Plates/V-Slot Gantry Plate 20-80mm.step",
@@ -214,6 +226,13 @@ class TestAssemblySpec(unittest.TestCase):
             )
         vslot_stackup = spec.validation["vslot_stackup"]
         self.assertEqual(vslot_stackup["target_spacer_mm"], 6.0)
+        self.assertTrue(
+            any(
+                handoff["id"] == "x_to_y_left"
+                and handoff["plate_thickness_mm"] == 6.0
+                for handoff in vslot_stackup["handoffs"]
+            )
+        )
         self.assertTrue(
             any(
                 handoff["id"] == "y_to_z_front_left"

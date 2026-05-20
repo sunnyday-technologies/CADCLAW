@@ -34,12 +34,11 @@ used to create it.
 Initial local sources:
 
 - Reference image: `../M3-CRETE/docs/M3-CRETE_render.jpg`.
-- Component roots:
-  - `../M3-CRETE/CAD/Advanced`
-  - `../M3-CRETE/CAD/Components`
+- Minimal test-kit asset declaration:
+  `examples/m3_crete/m3_testkit_assets.yaml`.
 - CADCLAW assembly spec seed:
   `examples/m3_crete/m3_reference_assembly.yaml`.
-- CADCLAW component manifest seed:
+- CADCLAW broad component manifest, for internal discovery only:
   `examples/m3_crete/m3_component_manifest.yaml`.
 - Public BOM source, if included in a run:
   `../M3-CRETE/bom/data.json`.
@@ -47,6 +46,13 @@ Initial local sources:
 The reference image is for topology, proportions, and human review only. Exact
 dimensions must come from the target spec, authored STEP assets, or validated
 measurements.
+
+The shared benchmark/dev-kit package should include only the STEP files listed
+in `m3_testkit_assets.yaml`, plus license/source notes. The full local
+OpenBuilds-derived `Advanced` and `Components` directories are useful for
+discovery but should not be treated as the public input package. Cite the
+upstream OpenBuilds STEP Parts Library for provenance rather than vendoring
+unused catalog files.
 
 Protected authoritative exports must not be overwritten:
 
@@ -168,7 +174,8 @@ benchmarks/m3_ai_assembly/
     checksums.txt
   seeds/
     m3_reference_assembly.yaml
-    m3_component_manifest.yaml
+    m3_testkit_assets.yaml
+    m3_connector_metadata.yaml
   rules/
     cadclaw.yaml
   scripts/
@@ -249,4 +256,5 @@ manufacturing constraints.
 - `docs/AUTO_ASSEMBLY_HARNESS_PLAN.md`
 - `docs/M3_CONFIGURATOR_PLAN.md`
 - `examples/m3_crete/m3_reference_assembly.yaml`
+- `examples/m3_crete/m3_testkit_assets.yaml`
 - `examples/m3_crete/m3_component_manifest.yaml`

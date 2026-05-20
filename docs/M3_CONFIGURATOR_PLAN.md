@@ -32,12 +32,13 @@ CADCLAW v0.9.0 now provides a usable validation base:
 - A local Python 3.11 CADCLAW runtime with CadQuery/OCP/VTK.
 - M3-CRETE field-test knowledge around native CAD export omissions, STEP parity, output-path clobbering, BOM drift, and unsafe parametric plate generation.
 
-M3-CRETE CAD component libraries are present:
+M3-CRETE CAD component libraries are present for discovery:
 
 - `CAD/Components`: V-Slot rails in multiple profiles and lengths, NEMA 23 motors, NEMA 23 motor plates, V-Slot gantry plates, tee nuts, brackets, pulleys, idlers, wheels, spacers, bearings.
 - `CAD/Advanced`: C-Beam and Open Rail stock, C-Beam actuator assemblies, C-Beam plates, NEMA 17/NEMA 23 actuator assemblies, screws, spacers, couplings, wheels, electronics.
-- `CAD/Advanced/Assemblies` appears to contain prebuilt actuator assemblies; useful as references or optional macro-components, but not as the only source of configurable machines.
-- Directory comparison on 2026-05-15 found `Components` is not simply replicated in `Advanced`: 68 `Components` STEP files, 76 `Advanced` STEP files, no exact normalized filename overlap, no exact SHA-256 file duplicates, and only 6 `Components` files with matching `Advanced` bbox-signature sets. Default first-pass manifest scope should be `Advanced` because of the macro assemblies; include `Components` explicitly when lower-level V-Slot/NEMA23/tee-nut assets are needed.
+- `CAD/Advanced/Assemblies` appears to contain prebuilt actuator assemblies; useful as references or optional macro-components, but not as the only source of configurable machines. For the current M3-2 reference, the C-Beam linear actuator macro is not part of the minimal test kit; the Y gantry uses explicit C-Beam rail placement.
+- Directory comparison on 2026-05-15 found `Components` is not simply replicated in `Advanced`: 68 `Components` STEP files, 76 `Advanced` STEP files, no exact normalized filename overlap, no exact SHA-256 file duplicates, and only 6 `Components` files with matching `Advanced` bbox-signature sets. Keep the broad manifest for internal discovery, but the public benchmark/dev-kit should use the narrower allowlist in `examples/m3_crete/m3_testkit_assets.yaml`.
+- The active M3-2 reference now uses the 125 x 125 x 6 mm C-Beam Gantry Plate XLarge for the two X-axis gantry plates, the smaller 3 mm V-Slot 20-80 gantry plates for Y-to-Z/Z-post carriage interfaces, the standard Solid V Wheel as the wheel reference, and the authored `ZPMM.step` motor-mount/spacer instead of the generated 6 mm shim.
 
 M3-CRETE BOM data exists separately:
 
@@ -128,11 +129,11 @@ Every generated assembly should immediately run:
 
 ## Next-Session First Pass
 
-1. Build `m3_component_manifest.yaml` from both M3 CAD component directories.
+1. Maintain `m3_component_manifest.yaml` for broad discovery, then derive the public test-kit allowlist.
 
 - Start by listing all STEP files.
 - Run CADCLAW inspect/signature extraction for each.
-- First pass may scan `CAD/Advanced` only, because `Advanced/Assemblies` carries prebuilt actuator macro-components. Treat `CAD/Components` as a supplemental lower-level library, not a duplicate cache.
+- First pass may scan broad local directories for discovery, but benchmark/test-kit inputs should be reduced to the declared STEP files in `examples/m3_crete/m3_testkit_assets.yaml`. Treat `CAD/Components` as a supplemental lower-level library, not a duplicate cache.
 - Mark files as `part`, `assembly`, or `macro_assembly`.
 - Bind obvious public BOM ids where possible; leave ambiguous bindings as `needs_user_mapping`.
 

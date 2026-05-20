@@ -216,16 +216,16 @@ validated performance.
   and the Z post. In the current design the spacer is also the motor mount, so
   the final ZPMM STEP/BOM binding must be frozen before release.
 - **Plate family selection is part of the tolerance stack.** The X-to-Y
-  handoff plates and Y-to-Z/Z-post carriage plates use the smaller V-Slot
-  20-80 gantry plate asset, inspected as roughly 127 x 88 x 3 mm. The
-  125 x 125 x 6 mm C-Beam XLarge plate must not be substituted into those
-  interfaces.
+  handoff uses the 125 x 125 x 6 mm C-Beam Gantry Plate XLarge asset, 2x
+  total. The Y-to-Z/Z-post carriage interfaces use the smaller V-Slot 20-80
+  gantry plate asset, inspected as roughly 127 x 88 x 3 mm. Substituting one
+  plate family into the other interface should fail the reference spec.
 - **V-slot handoff stackup is now a declared validation gate.** CADCLAW checks
   declared V-slot/C-Beam handoffs for the repeated pattern: current gantry end
-  face, 3 mm gantry plate with its thin axis aligned to the handoff axis, a
-  declared running clearance, then the next axis. This is general to V-slot
-  style assemblies and should fail early when a plate is embedded in a rail
-  body or rotated onto the wrong plane.
+  face, declared gantry plate thickness with its thin axis aligned to the
+  handoff axis, a declared running clearance, then the next axis. This is
+  general to V-slot style assemblies and should fail early when a plate is
+  embedded in a rail body or rotated onto the wrong plane.
 - **Static frame joints need a different gate than motion clearances.** The
   frame should not be made "valid" by adding clearance. C-Beam/post joints
   need flush adjacency and bearing overlap for rigidity; visible gaps should
@@ -278,8 +278,9 @@ validated performance.
       plates, Z posts, then frame completion with 6 mm frame spacers.
 - [x] Explicit 6 mm side-rail/post frame spacer declarations in the M3
       reference spec and BOM CSV path.
-- [x] Correct smaller 3 mm gantry plate assignment for Y-gantry and Z-post
-      carriage interfaces.
+- [x] Correct plate-family assignment by handoff: X-to-Y uses 2x C-Beam
+      Gantry Plate XLarge, while Y-to-Z/Z-post carriage interfaces use the
+      smaller 3 mm V-Slot 20-80 plate.
 - [x] Instance-level interference validation wired into assembly check rounds
       and per-step sequence reports.
 - [x] Gated `render-sequence` behavior that stops at the first declared
@@ -358,9 +359,9 @@ Current implementation status:
   reliable instead of image-guided guessing?
 - Which M3-CRETE dimensions are authoritative for M3-1/M3-2/M3-4: outer frame,
   target build envelope, or product class names?
-- Should public fixtures include the resized native-scale `ZPMM.step` directly,
-  or should CADCLAW also keep the generated no-hole shim as a small fallback
-  test asset?
+- Public fixtures should include the resized native-scale `ZPMM.step` directly
+  when licensing/source notes permit; the generated no-hole shim is superseded
+  for the active M3 reference and should stay out of the minimal test kit.
 - Which spacer/motor-mount instances need top-only, bottom-only, mirrored, or
   endcap geometry once the final ZPMM STEP is available?
 - Which frame-member options should the future FEA comparison include first:

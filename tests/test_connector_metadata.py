@@ -95,15 +95,17 @@ class TestConnectorMetadata(unittest.TestCase):
         metadata = load_connector_metadata("examples/m3_crete/m3_connector_metadata.yaml")
         self.assertGreaterEqual(len(metadata.components), 6)
         self.assertTrue(any(c.id == "cbeam_40x80_1000" for c in metadata.components))
-        self.assertTrue(any(c.id == "cbeam_linear_actuator_1000" for c in metadata.components))
-        spacer = next(c for c in metadata.components if c.id == "m3_frame_shim_4080_6mm")
+        self.assertFalse(any(c.id == "cbeam_linear_actuator_1000" for c in metadata.components))
+        self.assertFalse(any(c.id == "m3_frame_shim_4080_6mm" for c in metadata.components))
+        xlarge = next(c for c in metadata.components if c.id == "cbeam_gantry_plate_xlarge")
         self.assertEqual(
-            spacer.source_path,
-            "examples/m3_crete/generated/M3_6mm_frame_shim_4080.step",
+            xlarge.source_path,
+            "CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP",
         )
-        tags = {tag for frame in spacer.frames for tag in frame.tags}
-        self.assertIn("frame_side", tags)
-        self.assertNotIn("y_axis", tags)
+        wheel = next(c for c in metadata.components if c.id == "solid_v_wheel_standard")
+        self.assertEqual(wheel.source_path, "CAD/Components/Wheels/Solid V Wheel.step")
+        rail_2080 = next(c for c in metadata.components if c.id == "vslot_2080_1200")
+        self.assertEqual(rail_2080.source_path, "CAD/Custom/2080_1200mm.step")
         zpmm = next(c for c in metadata.components if c.id == "zpmm_motor_mount_spacer")
         self.assertEqual(zpmm.source_path, "ZPMM.step")
         zpmm_tags = {tag for frame in zpmm.frames for tag in frame.tags}
