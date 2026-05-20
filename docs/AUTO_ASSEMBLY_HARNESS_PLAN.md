@@ -245,6 +245,10 @@ validated performance.
   frame should not be made "valid" by adding clearance. C-Beam/post joints
   need flush adjacency and bearing overlap for rigidity; visible gaps should
   fail unless an authored connector or spacer STEP is explicitly placed.
+- **Datum-level flushness also matters.** The M3-2 top-center 2040 spreader is
+  oriented with its 40 mm side vertical and its top face level with the top
+  frame members. CADCLAW now treats that as a bbox-alignment datum check, not
+  only a visual preference.
 - **FEA belongs after geometry validity.** A PyNiteFEA helper can later compare
   4080, 2080, or 2040 static frame-member options and joint techniques, but it
   should consume the already-declared assembly topology. Gantry extrusions stay

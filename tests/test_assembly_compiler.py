@@ -845,6 +845,128 @@ instances:
             self.assertEqual(finding.evidence["instance"], "y_left")
             self.assertAlmostEqual(finding.evidence["angle_deg"], 180.0, places=3)
 
+    def test_check_round_runs_bbox_alignment_gate(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spreader = self._export_box_step(
+                root / "CAD" / "spreader.step", dims=(10.0, 100.0, 40.0)
+            )
+            top_rail = self._export_box_step(
+                root / "CAD" / "top_rail.step", dims=(10.0, 100.0, 80.0)
+            )
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+validation:
+  run_checks: [bbox_alignment]
+  bbox_alignment:
+    tolerance_mm: 0.1
+    checks:
+      - id: spreader_vertical
+        instance: spreader
+        axis: z
+        expected_size_mm: 40.0
+      - id: spreader_top_flush
+        instance: spreader
+        axis: z
+        side: positive
+        reference_instance: top_rail
+        reference_side: positive
+instances:
+  - id: spreader
+    role: spreader
+    source_path: {spreader.as_posix()}
+  - id: top_rail
+    role: frame
+    source_path: {top_rail.as_posix()}
+    transform:
+      translate_mm: [0.0, 0.0, -20.0]
+""")
+
+            report = run_assembly_check_round(
+                spec,
+                dry_run=False,
+                render_views=False,
+                write_inventory=False,
+            )
+            self.assertFalse(
+                any(f.id.startswith("bbox_alignment.") for f in report.findings)
+            )
+            self.assertTrue(report.meta["validation"]["bbox_alignment"]["checked"])
+            self.assertIn("bbox alignment", report.confidence_budget.checked)
+
+    def test_check_round_flags_bbox_alignment_mismatch(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spreader = self._export_box_step(
+                root / "CAD" / "spreader.step", dims=(10.0, 100.0, 20.0)
+            )
+            top_rail = self._export_box_step(
+                root / "CAD" / "top_rail.step", dims=(10.0, 100.0, 80.0)
+            )
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+validation:
+  run_checks: [bbox_alignment]
+  bbox_alignment:
+    tolerance_mm: 0.1
+    checks:
+      - id: spreader_vertical
+        instance: spreader
+        axis: z
+        expected_size_mm: 40.0
+      - id: spreader_top_flush
+        instance: spreader
+        axis: z
+        side: positive
+        reference_instance: top_rail
+        reference_side: positive
+instances:
+  - id: spreader
+    role: spreader
+    source_path: {spreader.as_posix()}
+  - id: top_rail
+    role: frame
+    source_path: {top_rail.as_posix()}
+    transform:
+      translate_mm: [0.0, 0.0, -20.0]
+""")
+
+            report = run_assembly_check_round(
+                spec,
+                dry_run=False,
+                render_views=False,
+                write_inventory=False,
+            )
+            self.assertEqual(report.overall.value, "fail")
+            self.assertTrue(
+                any(f.id == "bbox_alignment.size_mismatch" for f in report.findings)
+            )
+            self.assertTrue(
+                any(f.id == "bbox_alignment.face_mismatch" for f in report.findings)
+            )
+
     def test_check_round_runs_declared_frame_adjacency_gate(self):
         try:
             import cadquery  # noqa: F401

@@ -1695,6 +1695,186 @@ def _run_open_channel_orientation(
     }
 
 
+def _run_bbox_alignment(
+    spec: AssemblySpec,
+    spec_path: Path,
+    plan: AssemblyBuildPlan,
+    instance_ids: Iterable[str] | None = None,
+) -> tuple[List[Finding], dict]:
+    config = _validation_section(spec, "bbox_alignment")
+    checks_raw = config.get("checks", [])
+    findings: List[Finding] = []
+    if not isinstance(checks_raw, list):
+        findings.append(Finding(
+            id="bbox_alignment.config_invalid",
+            category="assemble",
+            severity=Severity.FAIL,
+            message="validation.bbox_alignment.checks must be a list",
+        ))
+        return findings, {"checked": False, "reason": "config_invalid"}
+
+    records, shape_findings = _placed_instance_shapes(
+        spec, spec_path, plan, instance_ids=instance_ids
+    )
+    findings.extend(shape_findings)
+    bboxes = {record.id: _bbox_tuple(record.shape) for record in records}
+    included = set(instance_ids) if instance_ids is not None else None
+    tolerance = _as_float(config.get("tolerance_mm"), 0.5)
+    checked: List[str] = []
+    partial: List[str] = []
+    skipped: List[str] = []
+
+    for index, raw in enumerate(checks_raw, start=1):
+        check_id = _handoff_id(raw, index)
+        if not isinstance(raw, dict):
+            findings.append(Finding(
+                id="bbox_alignment.check_invalid",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{check_id}: bbox alignment check must be a mapping",
+            ))
+            continue
+
+        instance_id = str(raw.get("instance", "")).strip()
+        axis = str(raw.get("axis", "")).lower()
+        axis_idx = _axis_index(axis)
+        if not instance_id or axis_idx is None:
+            findings.append(Finding(
+                id="bbox_alignment.check_invalid",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{check_id}: requires instance and axis",
+                evidence={"check": check_id},
+            ))
+            continue
+
+        reference_id = str(raw.get("reference_instance", "")).strip()
+        if included is not None and (
+            instance_id not in included or (reference_id and reference_id not in included)
+        ):
+            partial.append(check_id)
+            continue
+        bbox = bboxes.get(instance_id)
+        if bbox is None:
+            skipped.append(check_id)
+            findings.append(Finding(
+                id="bbox_alignment.instance_missing",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{check_id}: instance {instance_id!r} not found",
+                evidence={"check": check_id, "instance": instance_id},
+            ))
+            continue
+
+        checked.append(check_id)
+        expected_size_raw = raw.get("expected_size_mm")
+        if isinstance(expected_size_raw, (int, float)):
+            expected_size = float(expected_size_raw)
+            actual_size = _bbox_axis_len(bbox, axis_idx)
+            delta = actual_size - expected_size
+            if abs(delta) > tolerance:
+                findings.append(Finding(
+                    id="bbox_alignment.size_mismatch",
+                    category="assemble",
+                    severity=Severity.FAIL,
+                    message=(
+                        f"{check_id}: {instance_id} {_axis_label(axis_idx).upper()} "
+                        f"size is {actual_size:.3f} mm, expected {expected_size:.3f} mm"
+                    ),
+                    suggested_fix=(
+                        f"Rotate or replace {instance_id} so its "
+                        f"{expected_size:g} mm dimension is aligned to "
+                        f"global {_axis_label(axis_idx).upper()}."
+                    ),
+                    evidence={
+                        "check": check_id,
+                        "instance": instance_id,
+                        "axis": _axis_label(axis_idx),
+                        "actual_size_mm": round(actual_size, 3),
+                        "expected_size_mm": expected_size,
+                        "delta_mm": round(delta, 3),
+                        "tolerance_mm": tolerance,
+                    },
+                ))
+
+        if reference_id:
+            side = _side_value(raw.get("side"))
+            reference_side = _side_value(raw.get("reference_side"))
+            if not side or not reference_side:
+                findings.append(Finding(
+                    id="bbox_alignment.check_invalid",
+                    category="assemble",
+                    severity=Severity.FAIL,
+                    message=(
+                        f"{check_id}: reference checks require side and "
+                        "reference_side"
+                    ),
+                    evidence={"check": check_id},
+                ))
+                continue
+            reference_bbox = bboxes.get(reference_id)
+            if reference_bbox is None:
+                skipped.append(check_id)
+                findings.append(Finding(
+                    id="bbox_alignment.reference_missing",
+                    category="assemble",
+                    severity=Severity.FAIL,
+                    message=f"{check_id}: reference instance {reference_id!r} not found",
+                    evidence={"check": check_id, "reference_instance": reference_id},
+                ))
+                continue
+            face = (
+                _bbox_axis_max(bbox, axis_idx)
+                if side == "positive" else _bbox_axis_min(bbox, axis_idx)
+            )
+            reference_face = (
+                _bbox_axis_max(reference_bbox, axis_idx)
+                if reference_side == "positive"
+                else _bbox_axis_min(reference_bbox, axis_idx)
+            )
+            expected_offset = _as_float(raw.get("expected_offset_mm"), 0.0)
+            delta = face - reference_face - expected_offset
+            if abs(delta) > tolerance:
+                shift = -delta
+                sign = "+" if shift >= 0 else "-"
+                findings.append(Finding(
+                    id="bbox_alignment.face_mismatch",
+                    category="assemble",
+                    severity=Severity.FAIL,
+                    message=(
+                        f"{check_id}: {instance_id} {_side_label(side, axis)} face "
+                        f"is offset {delta:.3f} mm from {reference_id} "
+                        f"{_side_label(reference_side, axis)} face"
+                    ),
+                    suggested_fix=(
+                        f"Shift {instance_id} {sign}{_axis_label(axis_idx).upper()} "
+                        f"by {abs(shift):.3f} mm or update the declared datum."
+                    ),
+                    evidence={
+                        "check": check_id,
+                        "instance": instance_id,
+                        "reference_instance": reference_id,
+                        "axis": _axis_label(axis_idx),
+                        "side": side,
+                        "reference_side": reference_side,
+                        "actual_face_mm": round(face, 3),
+                        "reference_face_mm": round(reference_face, 3),
+                        "expected_offset_mm": expected_offset,
+                        "delta_mm": round(delta, 3),
+                        "tolerance_mm": tolerance,
+                    },
+                ))
+
+    return findings, {
+        "checked": True,
+        "checked_checks": checked,
+        "partial_checks": sorted(set(partial)),
+        "skipped_checks": skipped,
+        "instance_ids": list(instance_ids) if instance_ids is not None else None,
+        "tolerance_mm": tolerance,
+    }
+
+
 def _run_spec_interference(
     spec: AssemblySpec,
     spec_path: Path,
@@ -2130,6 +2310,7 @@ def run_assembly_sequence(
     validate_frame_adjacency = "frame_adjacency" in requested_checks
     validate_hole_alignment = "hole_alignment" in requested_checks
     validate_open_channel = "open_channel_orientation" in requested_checks
+    validate_bbox_alignment = "bbox_alignment" in requested_checks
 
     plan = plan_assembly_build(spec_file, dry_run=dry_run)
     findings: List[Finding] = []
@@ -2174,6 +2355,9 @@ def run_assembly_sequence(
     )
     sequence_open_channel_checked = (
         validate_open_channel and not dry_run and not blocking
+    )
+    sequence_bbox_alignment_checked = (
+        validate_bbox_alignment and not dry_run and not blocking
     )
     sequence_blocked_at: Optional[str] = None
     if renderer is None and render_views:
@@ -2299,6 +2483,29 @@ def run_assembly_sequence(
         if sequence_open_channel_checked:
             validation_ran = True
             step_findings, _step_meta = _run_open_channel_orientation(
+                spec,
+                spec_file,
+                plan,
+                instance_ids=cumulative,
+            )
+            tagged_findings = [
+                _with_sequence_step(finding, step.id)
+                for finding in step_findings
+            ]
+            findings.extend(tagged_findings)
+            step_failed = step_failed or any(
+                finding.severity == Severity.FAIL
+                for finding in tagged_findings
+            )
+            repair_suggestions.extend(
+                finding.suggested_fix
+                for finding in tagged_findings
+                if finding.severity == Severity.FAIL and finding.suggested_fix
+            )
+            validation_status = "fail" if step_failed else "pass"
+        if sequence_bbox_alignment_checked:
+            validation_ran = True
+            step_findings, _step_meta = _run_bbox_alignment(
                 spec,
                 spec_file,
                 plan,
@@ -2538,6 +2745,10 @@ def run_assembly_sequence(
                 ["sequence C-Beam open-channel orientation"]
                 if sequence_open_channel_checked else []
             ),
+            *(
+                ["sequence bbox alignment"]
+                if sequence_bbox_alignment_checked else []
+            ),
             "BOM CSV generation" if write_bom else "BOM CSV skipped by request",
             *([] if not final_step_output else ["final sequence STEP export"]),
             *(
@@ -2574,6 +2785,11 @@ def run_assembly_sequence(
                 [] if sequence_open_channel_checked
                 else ["sequence C-Beam open-channel orientation"]
                 if validate_open_channel else []
+            ),
+            *(
+                [] if sequence_bbox_alignment_checked
+                else ["sequence bbox alignment"]
+                if validate_bbox_alignment else []
             ),
             *(
                 [] if _has_explicit_spacers(spec)
@@ -3044,6 +3260,26 @@ def run_assembly_check_round(
             findings.extend(channel_findings)
             validation_meta["open_channel_orientation"] = channel_meta
 
+    if "bbox_alignment" in requested_checks:
+        if dry_run:
+            validation_meta["bbox_alignment"] = {
+                "checked": False,
+                "reason": "dry_run",
+            }
+        elif build_report.overall == Severity.FAIL:
+            validation_meta["bbox_alignment"] = {
+                "checked": False,
+                "reason": "build_failed",
+            }
+        else:
+            bbox_findings, bbox_meta = _run_bbox_alignment(
+                spec,
+                spec_file,
+                _get_geometry_plan(),
+            )
+            findings.extend(bbox_findings)
+            validation_meta["bbox_alignment"] = bbox_meta
+
     render_report: Optional[Report] = None
     render_skipped_reason: Optional[str] = None
     if render_views:
@@ -3121,6 +3357,16 @@ def run_assembly_check_round(
         label = f"C-Beam open-channel orientation ({reason})"
         if label not in confidence.not_checked:
             confidence.not_checked.append(label)
+    if validation_meta.get("bbox_alignment", {}).get("checked"):
+        if "bbox alignment" not in confidence.checked:
+            confidence.checked.append("bbox alignment")
+    elif "bbox_alignment" in requested_checks:
+        reason = validation_meta.get("bbox_alignment", {}).get(
+            "reason", "not_run"
+        )
+        label = f"bbox alignment ({reason})"
+        if label not in confidence.not_checked:
+            confidence.not_checked.append(label)
     for check_name in sorted(
         requested_checks - {
             "inventory",
@@ -3129,6 +3375,7 @@ def run_assembly_check_round(
             "frame_adjacency",
             "hole_alignment",
             "open_channel_orientation",
+            "bbox_alignment",
         }
     ):
         label = f"{check_name} (not yet wired for assembly specs)"

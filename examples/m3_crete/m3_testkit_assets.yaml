@@ -30,7 +30,7 @@ active_reference_assets:
     generated_by_cadclaw: false
   - id: vslot_2040_1000
     source_path: CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step
-    use: Top center spreader extrusion.
+    use: Top center spreader extrusion, placed with the 40mm side vertical and top face level with the top frame.
     current_reference_quantity: 1
     generated_by_cadclaw: false
   - id: cbeam_gantry_plate_xlarge

@@ -233,6 +233,8 @@ class TestAssemblySpec(unittest.TestCase):
             spreaders[0].source_path,
             "CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step",
         )
+        self.assertEqual(spreaders[0].transform.rotate_deg, [90.0, 0.0, 0.0])
+        self.assertEqual(spreaders[0].transform.translate_mm, [REDACTED])
         spreader_plates = [
             instance for instance in spec.instances
             if instance.role == "top_center_spreader_plate"
@@ -275,6 +277,7 @@ class TestAssemblySpec(unittest.TestCase):
         )
         self.assertIn("hole_alignment", spec.validation["run_checks"])
         self.assertIn("open_channel_orientation", spec.validation["run_checks"])
+        self.assertIn("bbox_alignment", spec.validation["run_checks"])
         hole_alignment = spec.validation["hole_alignment"]
         self.assertTrue(
             any(
@@ -306,6 +309,22 @@ class TestAssemblySpec(unittest.TestCase):
                 item["id"] == "right_y_gantry_channel_inward"
                 and item["expected_global_axis"] == [-1.0, 0.0, 0.0]
                 for item in orientation["requirements"]
+            )
+        )
+        bbox_alignment = spec.validation["bbox_alignment"]
+        self.assertTrue(
+            any(
+                item["id"] == "top_center_spreader_40mm_vertical"
+                and item["expected_size_mm"] == 40.0
+                for item in bbox_alignment["checks"]
+            )
+        )
+        self.assertTrue(
+            any(
+                item["id"] == "top_center_spreader_top_flush"
+                and item["reference_instance"] == "top_left_side_rail"
+                and item["reference_side"] == "positive"
+                for item in bbox_alignment["checks"]
             )
         )
         self.assertEqual(
