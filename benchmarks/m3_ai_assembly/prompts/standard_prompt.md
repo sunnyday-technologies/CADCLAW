@@ -23,6 +23,28 @@ Rules:
 - Produce a non-authoritative STEP assembly, design inventory, validation
   report, and review views.
 
+Current M3-2 fixture constraints:
+
+- Build inside-out: place the X gantry and end plates first, then the Y
+  gantries, then Y-to-Z/Z-post carriage plates, then the Z posts and frame
+  members around that motion stack.
+- X-to-Y uses two C-Beam Gantry Plate XLarge assets, one at each X gantry end.
+  Y-to-Z/Z-post interfaces use the smaller V-Slot 20-80 gantry plates.
+- Y-gantry C-Beam open channels face inward toward the printer volume.
+- The frame is open at the bottom in the X direction; do not add bottom X
+  frame rails unless the benchmark spec changes.
+- Lower Y-direction static frame rails are 2080 V-slot, not C-Beam.
+- The top center spreader is a 2040 V-slot extrusion. Place it with the 40 mm
+  side vertical and the top surface level with the surrounding top frame
+  members.
+- The top center spreader uses two V-Slot 20-80 gantry plates as mounting
+  bracket/spacer stock.
+- Top side-rail/post spacer locations use the authored ZPMM motor-mount/spacer
+  STEP. Lower side-rail/post spacer locations use a simple 6 x 40 x 80 mm flat
+  spacer.
+- CADCLAW's model-derived BOM is an overcheck artifact. Compare it against the
+  M3 interactive BOM, but do not overwrite the M3-owned public BOM.
+
 Known incomplete areas in the current seed:
 
 - Connector frames need rendered-view and CAD inspection verification.

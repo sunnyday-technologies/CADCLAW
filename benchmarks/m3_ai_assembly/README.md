@@ -63,6 +63,11 @@ python benchmarks\m3_ai_assembly\scripts\package_testkit.py `
   --out build\m3_ai_assembly_testkit.zip
 ```
 
+The current ZIP is a text-only benchmark/dev-kit scaffold: prompts,
+procedures, rules, specs, scoring scripts, and documentation. It is ready as
+the prompt-execution package for local testing when paired with the local
+allowlisted STEP assets referenced in `examples/m3_crete/m3_testkit_assets.yaml`.
+
 The package script does not include local STEP, image, native CAD, or BOM
-assets. Add those only after the asset allowlist, source notes, and checksums
-are ready for public redistribution.
+assets. Add those to a public release package only after the asset allowlist,
+source notes, and checksums are ready for redistribution.

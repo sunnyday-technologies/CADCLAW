@@ -7,6 +7,13 @@ target:
   variant: M3-2
   target_envelope_mm: [2000.0, 1000.0, 1000.0]
   interpretation: target envelope/class; requires physical validation
+  fixture_constraints:
+    - open bottom frame in X direction; no bottom X rails
+    - lower Y static frame rails are 2080 V-slot
+    - top center spreader is 2040 V-slot with 40 mm side vertical and top face level with top frame
+    - Y-gantry C-Beam open channels face inward
+    - X-to-Y plates use C-Beam Gantry Plate XLarge; Y-to-Z plates use V-Slot 20-80
+    - CADCLAW model BOM is compared against, not written over, the M3 interactive BOM
 
 tracks:
   - id: native_cad_driver

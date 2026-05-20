@@ -10,12 +10,17 @@ Inputs:
 - Prompt: `benchmarks/m3_ai_assembly/prompts/standard_prompt.md`
 - Benchmark contract: `benchmarks/m3_ai_assembly/benchmark.yaml`
 - Minimal STEP asset allowlist: `examples/m3_crete/m3_testkit_assets.yaml`
+- Seed assembly spec for target constraints and CADCLAW grading:
+  `examples/m3_crete/m3_reference_assembly.yaml`
+- Connector metadata for intended local frames:
+  `examples/m3_crete/m3_connector_metadata.yaml`
 - Reference topology image, if redistributed for the run.
 
 Procedure:
 
 1. Prepare a fresh native CAD project/workspace.
-2. Provide only the approved test-kit assets and the shared prompt.
+2. Provide only the approved test-kit assets, the shared prompt, and the seed
+   constraint files listed above.
 3. Instruct the AI driver to place authored parts and export a non-authoritative
    STEP assembly. It must not modify or overwrite authoritative M3-CRETE native
    CAD exports.
@@ -28,6 +33,18 @@ Procedure:
    CADCLAW-spec-driver track.
 7. Record the exact native CAD tool version, AI driver, prompt id, elapsed
    time, manual interventions, failed attempts, and exported-file checksums.
+
+Current M3-2 fixture constraints to verify before export:
+
+- No bottom X-direction frame rails in the open-frame design.
+- Lower Y-direction static frame rails are 2080 V-slot.
+- The top center spreader is 2040 V-slot with the 40 mm side vertical and top
+  face level with the top frame.
+- Y-gantry C-Beam open channels face inward.
+- X-to-Y plates are C-Beam Gantry Plate XLarge; Y-to-Z/Z-post carriage plates
+  are V-Slot 20-80.
+- Top spacer/motor-mount locations use ZPMM; lower spacer locations use the
+  simple flat 6 x 40 x 80 mm spacer.
 
 Run log requirements:
 
