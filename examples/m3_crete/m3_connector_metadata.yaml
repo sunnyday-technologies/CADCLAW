@@ -6,7 +6,8 @@ assumptions:
   - Y gantry, XLarge X-axis gantry plate, smaller V-Slot Y-to-Z gantry plate,
     ZPMM side-rail/post motor-mount spacer, simple lower flat spacer, and
     2040/2080 frame-member frames are first-pass references from CADCLAW
-    inspect-component bbox centers.
+    inspect-component bbox centers. Solid V Wheel frames are included for
+    placement visibility at the modeled carriage interfaces.
 
 components:
   - id: vslot_20x80_1000
@@ -77,27 +78,12 @@ components:
 
   - id: solid_v_wheel_standard
     source_path: CAD/Components/Wheels/Solid V Wheel.step
-    notes: Standard solid V-wheel reference for M3. Inspected envelope is effectively the same as the Delrin V Wheel asset; mini V-wheels are smaller but are not the M3 reference wheel.
+    notes: Standard solid V-wheel reference for M3. Inspected envelope is 10.2 x 23.9 x 23.9 mm. The current reference places 24 wheels at modeled carriage interfaces; the remaining full-BOM wheels belong to the not-yet-selected printhead/tooling carriage.
     frames:
       - id: wheel_center
         kind: reference
         origin_mm: [0.0, 0.0, 0.0]
         tags: [wheel, v_wheel, standard, solid, needs_verification]
-
-  - id: vslot_2080_1200
-    source_path: CAD/Custom/2080_1200mm.step
-    notes: Retained lower Y-frame member candidate; intended to replace a C-Beam member where lower cost/weight is acceptable after validation.
-    frames:
-      - id: negative_z_end
-        kind: extrusion_end
-        origin_mm: [0.0, 0.0, 0.0]
-        z_axis: [0.0, 0.0, -1.0]
-        tags: [rail_end, lower_y_frame, future_option, needs_verification]
-      - id: positive_z_end
-        kind: extrusion_end
-        origin_mm: [0.0, 0.0, 1200.0]
-        z_axis: [0.0, 0.0, 1.0]
-        tags: [rail_end, lower_y_frame, future_option, needs_verification]
 
   - id: vslot_2080_1000
     source_path: CAD/Components/V-Slot/V-Slot 20x80x1000 Linear Rail.step

@@ -14,9 +14,10 @@ Boundary:
   parity drift so M3 can decide whether the public BOM should become lighter,
   heavier, more accurate, or more conservative.
 
-The current CADCLAW reference assembly contains only the placed frame and
-gantry datum assets. It does not yet model belts, motors, wheels, fasteners,
-or printhead/tooling. For that reason, the current BOM parity rule file
+The current CADCLAW reference assembly contains the placed frame, gantry datum,
+plate, spacer, and 24 visible Solid V Wheel assets. It does not yet model
+belts, motors, fasteners, or printhead/tooling. For that reason, the current
+BOM parity rule file
 intentionally checks only the placed STEP signatures:
 
 - `cbeam_4080_1000`: 14 design pieces, checked against BOM id `67` with one
@@ -34,6 +35,10 @@ intentionally checks only the placed STEP signatures:
   id `75`.
 - `flat_frame_spacer_6mm`: 4 simple 6 x 40 x 80mm lower frame spacers, checked
   against BOM id `79`.
+- `solid_v_wheel_standard`: 24 placed Solid V Wheel STEP instances at the
+  modeled X-to-Y and Y-to-Z carriage interfaces, checked against BOM id `17`.
+  The M3-owned interactive BOM remains at 32 total wheels because the remaining
+  8 belong to the not-yet-selected printhead/tooling carriage interface.
 
 Run:
 
@@ -64,6 +69,8 @@ Known gaps from the current parity report:
   four instances, and should not describe a motor mount.
 - New/updated BOM ids `86` and `87` should carry the 2080 lower Y rails and
   2040 top center spreader, respectively.
+- BOM id `17` can remain 32 total wheels while CADCLAW's current reference
+  design count is 24 until the printhead/tooling carriage is modeled.
 
 Passing this narrow parity check will require either updating the M3-owned
 interactive BOM to match the current authored CAD placement or revising the

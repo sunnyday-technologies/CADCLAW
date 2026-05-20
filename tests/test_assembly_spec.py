@@ -266,6 +266,17 @@ class TestAssemblySpec(unittest.TestCase):
                 instance.component_id,
                 "advanced_plates_c_beam_gantry_plate_xlarge",
             )
+        wheel_instances = [
+            instance for instance in spec.instances
+            if instance.role == "v_wheel"
+        ]
+        self.assertEqual(len(wheel_instances), 24)
+        for instance in wheel_instances:
+            self.assertEqual(
+                instance.source_path,
+                "CAD/Components/Wheels/Solid V Wheel.step",
+            )
+        self.assertEqual(spec.validation["expected_inventory"]["v_wheel"], 24)
         vslot_stackup = spec.validation["vslot_stackup"]
         self.assertEqual(vslot_stackup["target_spacer_mm"], 6.0)
         self.assertTrue(
@@ -337,6 +348,9 @@ class TestAssemblySpec(unittest.TestCase):
                 "frame_completion",
             ],
         )
+        steps = {step.id: step for step in spec.assembly_sequence}
+        self.assertIn("x_left_y_neg_lower_wheel", steps["x_gantry"].instance_ids)
+        self.assertIn("z_front_left_outer_lower_wheel", steps["z_carriages"].instance_ids)
 
 
 if __name__ == "__main__":

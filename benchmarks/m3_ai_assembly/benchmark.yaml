@@ -13,6 +13,7 @@ target:
     - top center spreader is 2040 V-slot with 40 mm side vertical and top face level with top frame
     - Y-gantry C-Beam open channels face inward
     - X-to-Y plates use C-Beam Gantry Plate XLarge; Y-to-Z plates use V-Slot 20-80
+    - Solid V Wheel STEP instances are placed at modeled X-to-Y and Y-to-Z carriage interfaces; remaining printhead/tooling carriage wheels stay incomplete until that interface is selected
     - CADCLAW model BOM is compared against, not written over, the M3 interactive BOM
 
 tracks:

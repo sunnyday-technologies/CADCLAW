@@ -5,7 +5,7 @@ meta:
   description: >
     BOM-vs-CAD parity rules for the current CADCLAW M3-2 reference assembly.
     These rules intentionally bind only the placed STEP assets in the current
-    reference round; unplaced belts, motors, fasteners, wheels, printhead
+    reference round; unplaced belts, motors, fasteners, printhead
     tooling, and small fasteners remain outside this narrow check.
 
 labels:
@@ -16,6 +16,7 @@ labels:
   flat_frame_spacer_6mm: [6.0, 40.0, 80.0]
   vslot_gantry_plate_20_80: [3.0, 88.0, 127.0]
   cbeam_gantry_plate_xlarge: [6.0, 125.0, 125.0]
+  solid_v_wheel_standard: [10.2, 23.9, 23.9]
 
 bom_audit:
   warn_on_unmapped: false
@@ -23,6 +24,15 @@ bom_audit:
   ignore_labels:
     - other
   rules:
+    - id: 17
+      expected_label: solid_v_wheel_standard
+      expected_qty: 32
+      expected_design_qty: 24
+      expected_mfg_type: buy
+      required_terms:
+        - Polycarbonate
+        - 32 total
+
     - id: 67
       expected_label: cbeam_4080_1000
       expected_qty: 15

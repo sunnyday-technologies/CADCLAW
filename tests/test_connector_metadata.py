@@ -104,8 +104,7 @@ class TestConnectorMetadata(unittest.TestCase):
         )
         wheel = next(c for c in metadata.components if c.id == "solid_v_wheel_standard")
         self.assertEqual(wheel.source_path, "CAD/Components/Wheels/Solid V Wheel.step")
-        rail_2080 = next(c for c in metadata.components if c.id == "vslot_2080_1200")
-        self.assertEqual(rail_2080.source_path, "CAD/Custom/2080_1200mm.step")
+        self.assertFalse(any(c.id == "vslot_2080_1200" for c in metadata.components))
         active_2080 = next(c for c in metadata.components if c.id == "vslot_2080_1000")
         self.assertEqual(
             active_2080.source_path,

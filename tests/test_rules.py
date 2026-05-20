@@ -78,8 +78,11 @@ class TestRuleLoader(unittest.TestCase):
         self.assertIn("vslot_2040_1000", rules.labels)
         self.assertIn("zpmm_motor_mount_spacer", rules.labels)
         self.assertIn("flat_frame_spacer_6mm", rules.labels)
-        self.assertEqual(len(rules.bom_audit.rules), 7)
+        self.assertIn("solid_v_wheel_standard", rules.labels)
+        self.assertEqual(len(rules.bom_audit.rules), 8)
         by_id = {rule.id: rule for rule in rules.bom_audit.rules}
+        self.assertEqual(by_id[17].expected_label, "solid_v_wheel_standard")
+        self.assertEqual(by_id[17].expected_design_qty, 24)
         self.assertEqual(by_id[67].expected_design_qty, 14)
         self.assertEqual(by_id[67].spare_qty, 1)
         self.assertEqual(by_id[75].expected_label, "zpmm_motor_mount_spacer")

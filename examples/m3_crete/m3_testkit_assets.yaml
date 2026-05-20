@@ -53,17 +53,11 @@ active_reference_assets:
     use: Simple 6 x 40 x 80mm lower Y-rail frame spacer; no holes or contextual bolt pattern.
     current_reference_quantity: 4
     generated_by_cadclaw: true
-
-retained_reference_or_future_assets:
   - id: solid_v_wheel_standard
     source_path: CAD/Components/Wheels/Solid V Wheel.step
-    use: Standard M3 V-wheel reference. The Delrin standard wheel has the same practical envelope; mini V-wheels are smaller but are not the M3 reference.
-  - id: vslot_2080_1200
-    source_path: CAD/Custom/2080_1200mm.step
-    use: Retained custom-length 2080 candidate for future variants; active M3-2 reference uses the 1000mm 2080 stock file.
-  - id: vslot_2040_1200
-    source_path: CAD/Custom/2040_1200mm.step
-    use: Retained custom-length 2040 candidate for future variants; active M3-2 top center spreader uses the 1000mm 2040 stock file.
+    use: Standard M3 V-wheel reference placed at the modeled X-to-Y and Y-to-Z carriage interfaces; full BOM carries 32 wheels after the printhead/tooling carriage is selected.
+    current_reference_quantity: 24
+    generated_by_cadclaw: false
 
 excluded_from_minimal_testkit:
   - source_path: CAD/Advanced/Assemblies/C-Beam Linear Actuator 1000mm.step

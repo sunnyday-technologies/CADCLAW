@@ -39,6 +39,10 @@ Current M3-2 fixture constraints:
   members.
 - The top center spreader uses two V-Slot 20-80 gantry plates as mounting
   bracket/spacer stock.
+- Place authored Solid V Wheel STEP instances at the modeled X-to-Y and Y-to-Z
+  carriage interfaces so wheel-slot and wheel-hole location choices are visible
+  in review renders. Keep the remaining printhead/tooling carriage wheel set
+  explicit as incomplete until that interface is selected.
 - Top side-rail/post spacer locations use the authored ZPMM motor-mount/spacer
   STEP. Lower side-rail/post spacer locations use a simple 6 x 40 x 80 mm flat
   spacer.
@@ -52,6 +56,8 @@ Known incomplete areas in the current seed:
 - Motors and motor plates require authored assets and connector metadata.
 - Y gantries are represented by placed authored C-Beam rail datums in the
   current seed; Z drive assemblies still need connector-backed placement.
+- 24 Solid V Wheel instances are placed in the current seed. The full BOM
+  carries 32 wheels once the printhead/tooling carriage is selected.
 - The current seed checks authored-hole alignment for the Y-gantry to
   Z-carriage plate interfaces.
 - Printhead/tooling interface has not been selected for this round.
