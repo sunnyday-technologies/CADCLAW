@@ -38,6 +38,28 @@ class TestAssemblyCompiler(unittest.TestCase):
         cq.exporters.export(box, str(path))
         return path
 
+    def _export_y_hole_plate_step(
+        self,
+        path: Path,
+        points=None,
+        dims=(40.0, 3.0, 40.0),
+        hole_diameter: float = 5.0,
+    ) -> Path:
+        import cadquery as cq
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        points = points or [(-10.0, -10.0), (10.0, 10.0)]
+        plate = (
+            cq.Workplane("XY")
+            .box(*dims)
+            .faces(">Y")
+            .workplane()
+            .pushPoints(points)
+            .hole(hole_diameter)
+        )
+        cq.exporters.export(plate, str(path))
+        return path
+
     def test_transform_supports_explicit_scale_and_source_origin(self):
         import cadquery as cq
 
@@ -606,6 +628,119 @@ instances:
             )
             self.assertFalse(
                 any(f.id.startswith("vslot_stackup.") for f in report.findings)
+            )
+
+    def test_check_round_runs_declared_hole_alignment_gate(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rail = self._export_y_hole_plate_step(root / "CAD" / "rail.step")
+            plate = self._export_y_hole_plate_step(root / "CAD" / "plate.step")
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+validation:
+  run_checks: [hole_alignment]
+  hole_alignment:
+    max_error_mm: 0.25
+    min_matches: 2
+    radius_min_mm: 2.0
+    radius_max_mm: 3.0
+    groups:
+      - id: y_to_z_mount_holes
+        from_instance: y_rail
+        to_instance: z_plate
+        axis: y
+instances:
+  - id: y_rail
+    role: y_gantry_beam
+    source_path: {rail.as_posix()}
+  - id: z_plate
+    role: z_carriage_plate
+    source_path: {plate.as_posix()}
+    transform:
+      translate_mm: [0.0, 12.0, 0.0]
+""")
+
+            report = run_assembly_check_round(
+                spec,
+                dry_run=False,
+                render_views=False,
+                write_inventory=False,
+            )
+            self.assertFalse(
+                any(f.id.startswith("hole_alignment.") for f in report.findings)
+            )
+            self.assertTrue(report.meta["validation"]["hole_alignment"]["checked"])
+            self.assertIn("authored hole alignment", report.confidence_budget.checked)
+
+    def test_check_round_flags_hole_alignment_mismatch(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rail = self._export_y_hole_plate_step(root / "CAD" / "rail.step")
+            plate = self._export_y_hole_plate_step(root / "CAD" / "plate.step")
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+validation:
+  run_checks: [hole_alignment]
+  hole_alignment:
+    max_error_mm: 0.25
+    min_matches: 2
+    radius_min_mm: 2.0
+    radius_max_mm: 3.0
+    groups:
+      - id: y_to_z_mount_holes
+        from_instance: y_rail
+        to_instance: z_plate
+        axis: y
+instances:
+  - id: y_rail
+    role: y_gantry_beam
+    source_path: {rail.as_posix()}
+  - id: z_plate
+    role: z_carriage_plate
+    source_path: {plate.as_posix()}
+    transform:
+      translate_mm: [2.0, 12.0, 0.0]
+""")
+
+            report = run_assembly_check_round(
+                spec,
+                dry_run=False,
+                render_views=False,
+                write_inventory=False,
+            )
+            self.assertEqual(report.overall.value, "fail")
+            finding = next(
+                f for f in report.findings
+                if f.id == "hole_alignment.insufficient_matches"
+            )
+            self.assertEqual(finding.evidence["from_feature_count"], 2)
+            self.assertEqual(finding.evidence["to_feature_count"], 2)
+            self.assertAlmostEqual(
+                finding.evidence["closest_pair"]["error_mm"],
+                2.0,
+                places=3,
             )
 
     def test_check_round_runs_declared_frame_adjacency_gate(self):

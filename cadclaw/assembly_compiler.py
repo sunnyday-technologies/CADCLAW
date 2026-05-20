@@ -93,6 +93,15 @@ class PlacedInstanceShape:
 
 
 @dataclass(frozen=True)
+class CylindricalFeature:
+    instance_id: str
+    source_ref: str
+    center_mm: Tuple[float, float, float]
+    axis: Tuple[float, float, float]
+    radius_mm: float
+
+
+@dataclass(frozen=True)
 class InterferenceRepair:
     target_id: str
     axis: str
@@ -695,6 +704,281 @@ def _candidate_spacer_values(raw: object) -> List[float]:
     if isinstance(raw, (list, tuple)):
         return [float(value) for value in raw if isinstance(value, (int, float))]
     return []
+
+
+def _axis_unit_vector(axis_index: int) -> Tuple[float, float, float]:
+    if axis_index == 0:
+        return (1.0, 0.0, 0.0)
+    if axis_index == 1:
+        return (0.0, 1.0, 0.0)
+    return (0.0, 0.0, 1.0)
+
+
+def _axis_parallel(
+    vector: Tuple[float, float, float],
+    axis_index: int,
+    tolerance_deg: float,
+) -> bool:
+    target = _axis_unit_vector(axis_index)
+    dot = abs(
+        vector[0] * target[0] + vector[1] * target[1] + vector[2] * target[2]
+    )
+    return dot >= math.cos(math.radians(tolerance_deg))
+
+
+def _planar_point(
+    point: Tuple[float, float, float],
+    axis_index: int,
+) -> Tuple[float, float]:
+    if axis_index == 0:
+        return (point[1], point[2])
+    if axis_index == 1:
+        return (point[0], point[2])
+    return (point[0], point[1])
+
+
+def _planar_distance(
+    a: Tuple[float, float, float],
+    b: Tuple[float, float, float],
+    axis_index: int,
+) -> float:
+    a2 = _planar_point(a, axis_index)
+    b2 = _planar_point(b, axis_index)
+    return math.hypot(a2[0] - b2[0], a2[1] - b2[1])
+
+
+def _cylindrical_features(
+    record: PlacedInstanceShape,
+    axis_index: int,
+    axis_tolerance_deg: float,
+    radius_min: float,
+    radius_max: float,
+) -> List[CylindricalFeature]:
+    from OCP.BRepAdaptor import BRepAdaptor_Surface
+    from OCP.GeomAbs import GeomAbs_Cylinder
+
+    features: List[CylindricalFeature] = []
+    for face in record.shape.Faces():
+        try:
+            surface = BRepAdaptor_Surface(face.wrapped, True)
+            if surface.GetType() != GeomAbs_Cylinder:
+                continue
+            cylinder = surface.Cylinder()
+            radius = float(cylinder.Radius())
+            if radius < radius_min or radius > radius_max:
+                continue
+            axis = cylinder.Axis()
+            direction = axis.Direction()
+            vector = (
+                float(direction.X()),
+                float(direction.Y()),
+                float(direction.Z()),
+            )
+            if not _axis_parallel(vector, axis_index, axis_tolerance_deg):
+                continue
+            location = axis.Location()
+            features.append(CylindricalFeature(
+                instance_id=record.id,
+                source_ref=record.source_ref,
+                center_mm=(
+                    float(location.X()),
+                    float(location.Y()),
+                    float(location.Z()),
+                ),
+                axis=vector,
+                radius_mm=radius,
+            ))
+        except Exception:
+            continue
+    return features
+
+
+def _match_cylindrical_features(
+    from_features: List[CylindricalFeature],
+    to_features: List[CylindricalFeature],
+    axis_index: int,
+    max_error_mm: float,
+    radius_tolerance_mm: float,
+) -> Tuple[List[dict], Optional[dict]]:
+    candidates: List[tuple[float, int, int]] = []
+    for from_index, from_feature in enumerate(from_features):
+        for to_index, to_feature in enumerate(to_features):
+            if abs(from_feature.radius_mm - to_feature.radius_mm) > radius_tolerance_mm:
+                continue
+            error = _planar_distance(
+                from_feature.center_mm,
+                to_feature.center_mm,
+                axis_index,
+            )
+            candidates.append((error, from_index, to_index))
+
+    matches: List[dict] = []
+    used_from: set[int] = set()
+    used_to: set[int] = set()
+    closest: Optional[dict] = None
+    for error, from_index, to_index in sorted(candidates, key=lambda item: item[0]):
+        if closest is None:
+            closest = {
+                "from_center_mm": [
+                    round(value, 3) for value in from_features[from_index].center_mm
+                ],
+                "to_center_mm": [
+                    round(value, 3) for value in to_features[to_index].center_mm
+                ],
+                "error_mm": round(error, 3),
+            }
+        if error > max_error_mm:
+            continue
+        if from_index in used_from or to_index in used_to:
+            continue
+        used_from.add(from_index)
+        used_to.add(to_index)
+        matches.append({
+            "from_center_mm": [
+                round(value, 3) for value in from_features[from_index].center_mm
+            ],
+            "to_center_mm": [
+                round(value, 3) for value in to_features[to_index].center_mm
+            ],
+            "error_mm": round(error, 3),
+            "radius_mm": round(from_features[from_index].radius_mm, 3),
+        })
+    return matches, closest
+
+
+def _run_hole_alignment(
+    spec: AssemblySpec,
+    spec_path: Path,
+    plan: AssemblyBuildPlan,
+    instance_ids: Iterable[str] | None = None,
+) -> tuple[List[Finding], dict]:
+    config = _validation_section(spec, "hole_alignment")
+    groups_raw = config.get("groups", config.get("pairs", []))
+    findings: List[Finding] = []
+    if not isinstance(groups_raw, list):
+        findings.append(Finding(
+            id="hole_alignment.config_invalid",
+            category="assemble",
+            severity=Severity.FAIL,
+            message="validation.hole_alignment.groups must be a list",
+        ))
+        return findings, {"checked": False, "reason": "config_invalid"}
+
+    records, shape_findings = _placed_instance_shapes(
+        spec, spec_path, plan, instance_ids=instance_ids
+    )
+    findings.extend(shape_findings)
+    by_id = {record.id: record for record in records}
+
+    default_max_error = _as_float(config.get("max_error_mm"), 0.75)
+    default_min_matches = int(config.get("min_matches", 1))
+    default_radius_min = _as_float(config.get("radius_min_mm"), 1.0)
+    default_radius_max = _as_float(config.get("radius_max_mm"), 10.0)
+    default_radius_tol = _as_float(config.get("radius_tolerance_mm"), 0.35)
+    default_axis_tol = _as_float(config.get("axis_tolerance_deg"), 5.0)
+
+    checked_groups: List[str] = []
+    partial_groups: List[str] = []
+    skipped_groups: List[str] = []
+    feature_counts: Dict[str, int] = {}
+
+    for index, raw in enumerate(groups_raw, start=1):
+        group_id = _handoff_id(raw, index)
+        if not isinstance(raw, dict):
+            findings.append(Finding(
+                id="hole_alignment.group_invalid",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{group_id}: group entry must be a mapping",
+            ))
+            continue
+
+        from_id = _handoff_instance(raw, "from_instance", "current_instance")
+        to_id = _handoff_instance(raw, "to_instance", "plate_instance", "next_instance")
+        axis = str(raw.get("axis", raw.get("handoff_axis", ""))).lower()
+        axis_idx = _axis_index(axis)
+        if not from_id or not to_id or axis_idx is None:
+            findings.append(Finding(
+                id="hole_alignment.group_invalid",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=(
+                    f"{group_id}: requires from_instance, to_instance, and axis"
+                ),
+                evidence={"group": group_id},
+            ))
+            continue
+
+        if from_id not in by_id or to_id not in by_id:
+            if instance_ids is not None:
+                partial_groups.append(group_id)
+            else:
+                skipped_groups.append(group_id)
+            continue
+
+        checked_groups.append(group_id)
+        max_error = _as_float(raw.get("max_error_mm"), default_max_error)
+        min_matches = int(raw.get("min_matches", default_min_matches))
+        radius_min = _as_float(raw.get("radius_min_mm"), default_radius_min)
+        radius_max = _as_float(raw.get("radius_max_mm"), default_radius_max)
+        radius_tol = _as_float(raw.get("radius_tolerance_mm"), default_radius_tol)
+        axis_tol = _as_float(raw.get("axis_tolerance_deg"), default_axis_tol)
+
+        from_features = _cylindrical_features(
+            by_id[from_id], axis_idx, axis_tol, radius_min, radius_max
+        )
+        to_features = _cylindrical_features(
+            by_id[to_id], axis_idx, axis_tol, radius_min, radius_max
+        )
+        feature_counts[from_id] = len(from_features)
+        feature_counts[to_id] = len(to_features)
+        matches, closest = _match_cylindrical_features(
+            from_features,
+            to_features,
+            axis_idx,
+            max_error,
+            radius_tol,
+        )
+        if len(matches) < min_matches:
+            findings.append(Finding(
+                id="hole_alignment.insufficient_matches",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=(
+                    f"{group_id}: only {len(matches)} authored cylindrical "
+                    f"feature matches found between {from_id} and {to_id}; "
+                    f"expected at least {min_matches}"
+                ),
+                suggested_fix=(
+                    f"Move or rotate {to_id} until its authored holes align "
+                    f"with {from_id} in the plane perpendicular to "
+                    f"{axis.upper()}."
+                ),
+                evidence={
+                    "group": group_id,
+                    "from_instance": from_id,
+                    "to_instance": to_id,
+                    "axis": axis,
+                    "max_error_mm": max_error,
+                    "min_matches": min_matches,
+                    "from_feature_count": len(from_features),
+                    "to_feature_count": len(to_features),
+                    "closest_pair": closest,
+                    "matches": matches[:10],
+                },
+            ))
+
+    return findings, {
+        "checked": True,
+        "checked_groups": checked_groups,
+        "partial_groups": sorted(set(partial_groups)),
+        "skipped_groups": skipped_groups,
+        "feature_counts": feature_counts,
+        "max_error_mm": default_max_error,
+        "min_matches": default_min_matches,
+        "radius_min_mm": default_radius_min,
+        "radius_max_mm": default_radius_max,
+    }
 
 
 def _run_vslot_stackup(
@@ -1689,6 +1973,7 @@ def run_assembly_sequence(
     validate_interference = "interference" in requested_checks
     validate_vslot_stackup = "vslot_stackup" in requested_checks
     validate_frame_adjacency = "frame_adjacency" in requested_checks
+    validate_hole_alignment = "hole_alignment" in requested_checks
 
     plan = plan_assembly_build(spec_file, dry_run=dry_run)
     findings: List[Finding] = []
@@ -1727,6 +2012,9 @@ def run_assembly_sequence(
     )
     sequence_frame_adjacency_checked = (
         validate_frame_adjacency and not dry_run and not blocking
+    )
+    sequence_hole_alignment_checked = (
+        validate_hole_alignment and not dry_run and not blocking
     )
     sequence_blocked_at: Optional[str] = None
     if renderer is None and render_views:
@@ -1806,6 +2094,29 @@ def run_assembly_sequence(
         if sequence_frame_adjacency_checked:
             validation_ran = True
             step_findings, _step_meta = _run_frame_adjacency(
+                spec,
+                spec_file,
+                plan,
+                instance_ids=cumulative,
+            )
+            tagged_findings = [
+                _with_sequence_step(finding, step.id)
+                for finding in step_findings
+            ]
+            findings.extend(tagged_findings)
+            step_failed = step_failed or any(
+                finding.severity == Severity.FAIL
+                for finding in tagged_findings
+            )
+            repair_suggestions.extend(
+                finding.suggested_fix
+                for finding in tagged_findings
+                if finding.severity == Severity.FAIL and finding.suggested_fix
+            )
+            validation_status = "fail" if step_failed else "pass"
+        if sequence_hole_alignment_checked:
+            validation_ran = True
+            step_findings, _step_meta = _run_hole_alignment(
                 spec,
                 spec_file,
                 plan,
@@ -2027,6 +2338,10 @@ def run_assembly_sequence(
                 ["sequence static frame adjacency"]
                 if sequence_frame_adjacency_checked else []
             ),
+            *(
+                ["sequence authored hole alignment"]
+                if sequence_hole_alignment_checked else []
+            ),
             "BOM CSV generation" if write_bom else "BOM CSV skipped by request",
             *(
                 ["explicit spacer placement declarations"]
@@ -2051,6 +2366,11 @@ def run_assembly_sequence(
                 [] if sequence_frame_adjacency_checked
                 else ["sequence static frame adjacency"]
                 if validate_frame_adjacency else []
+            ),
+            *(
+                [] if sequence_hole_alignment_checked
+                else ["sequence authored hole alignment"]
+                if validate_hole_alignment else []
             ),
             *(
                 [] if _has_explicit_spacers(spec)
@@ -2480,6 +2800,26 @@ def run_assembly_check_round(
             findings.extend(frame_findings)
             validation_meta["frame_adjacency"] = frame_meta
 
+    if "hole_alignment" in requested_checks:
+        if dry_run:
+            validation_meta["hole_alignment"] = {
+                "checked": False,
+                "reason": "dry_run",
+            }
+        elif build_report.overall == Severity.FAIL:
+            validation_meta["hole_alignment"] = {
+                "checked": False,
+                "reason": "build_failed",
+            }
+        else:
+            hole_findings, hole_meta = _run_hole_alignment(
+                spec,
+                spec_file,
+                _get_geometry_plan(),
+            )
+            findings.extend(hole_findings)
+            validation_meta["hole_alignment"] = hole_meta
+
     render_report: Optional[Report] = None
     render_skipped_reason: Optional[str] = None
     if render_views:
@@ -2539,12 +2879,21 @@ def run_assembly_check_round(
         label = f"static frame adjacency ({reason})"
         if label not in confidence.not_checked:
             confidence.not_checked.append(label)
+    if validation_meta.get("hole_alignment", {}).get("checked"):
+        if "authored hole alignment" not in confidence.checked:
+            confidence.checked.append("authored hole alignment")
+    elif "hole_alignment" in requested_checks:
+        reason = validation_meta.get("hole_alignment", {}).get("reason", "not_run")
+        label = f"authored hole alignment ({reason})"
+        if label not in confidence.not_checked:
+            confidence.not_checked.append(label)
     for check_name in sorted(
         requested_checks - {
             "inventory",
             "interference",
             "vslot_stackup",
             "frame_adjacency",
+            "hole_alignment",
         }
     ):
         label = f"{check_name} (not yet wired for assembly specs)"

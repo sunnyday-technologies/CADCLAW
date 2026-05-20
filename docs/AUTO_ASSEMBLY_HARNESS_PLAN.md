@@ -226,6 +226,11 @@ validated performance.
   handoff axis, a declared running clearance, then the next axis. This is
   general to V-slot style assemblies and should fail early when a plate is
   embedded in a rail body or rotated onto the wrong plane.
+- **Authored-hole alignment is now a declared validation gate.** CADCLAW can
+  read cylindrical features from placed STEP assets and compare hole centers
+  in the plane perpendicular to the handoff axis. This catches the Y-gantry to
+  Z-carriage mounting-hole alignment issue without generating bolt patterns or
+  treating nominal public specs as assembly evidence.
 - **Static frame joints need a different gate than motion clearances.** The
   frame should not be made "valid" by adding clearance. C-Beam/post joints
   need flush adjacency and bearing overlap for rigidity; visible gaps should
@@ -292,6 +297,8 @@ validated performance.
       declared running clearance.
 - [x] Static frame adjacency validation gate for flush C-Beam/post joints and
       structural bearing overlap.
+- [x] Authored cylindrical-feature alignment gate for Y-gantry to Z-carriage
+      hole checks in the M3 reference sequence.
 - [x] Resolve the M3-2 side-rail/post gap exposed by static frame adjacency
       for the reference round: posts are placed on the 6 mm frame-spacer datum,
       and resized native-scale ZPMM motor-mount/spacer instances bridge
@@ -339,15 +346,15 @@ Current implementation status:
   STEP using the existing CADCLAW VTK renderer.
 - `assemble render-sequence` exports cumulative partial STEP assemblies,
   renders per-step X/Y/Z/hero/iso image sets, runs per-step instance-level
-  interference, V-slot handoff stackup, and static frame adjacency checks when
-  requested, stops on the first failed validation by default, records per-step
-  validation status and repair suggestions in the sequence manifest, can render
-  a final rotating GIF after all gates pass, and emits a public-safe CSV BOM
-  grouped by authored STEP source and role.
+  interference, V-slot handoff stackup, static frame adjacency, and authored
+  hole-alignment checks when requested, stops on the first failed validation by
+  default, records per-step validation status and repair suggestions in the
+  sequence manifest, can render a final rotating GIF after all gates pass, and
+  emits a public-safe CSV BOM grouped by authored STEP source and role.
 - `assemble check-round` runs one build round, verifies declared spec role
-  inventory, runs declared instance-level interference, V-slot handoff stackup,
-  and static frame adjacency checks, optionally renders review views, and emits
-  a single report.
+  inventory, runs declared instance-level interference, V-slot handoff
+  stackup, static frame adjacency, and authored hole-alignment checks,
+  optionally renders review views, and emits a single report.
 - `assemble suggest-adjustment` remains future work; for now adjustment advice
   comes from existing CADCLAW findings such as `interference.clip`.
 

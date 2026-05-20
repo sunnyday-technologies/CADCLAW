@@ -109,6 +109,7 @@ Minimum gates:
 - Interference checks with configured clearance.
 - Floating-part and adjacency checks for placed assemblies.
 - Dimensional checks for target envelope and major axis spans.
+- Authored-hole alignment checks for declared connector/handoff groups.
 - Orientation/color/material checks where metadata exists.
 - BOM-vs-CAD audit when the public BOM is included.
 - Parity/protected-path checks to prevent clobbering authoritative native CAD

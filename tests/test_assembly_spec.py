@@ -233,6 +233,16 @@ class TestAssemblySpec(unittest.TestCase):
                 for handoff in vslot_stackup["handoffs"]
             )
         )
+        self.assertIn("hole_alignment", spec.validation["run_checks"])
+        hole_alignment = spec.validation["hole_alignment"]
+        self.assertTrue(
+            any(
+                group["id"] == "y_to_z_front_left_holes"
+                and group["from_instance"] == "y_gantry_left"
+                and group["to_instance"] == "z_carriage_plate_front_left"
+                for group in hole_alignment["groups"]
+            )
+        )
         self.assertTrue(
             any(
                 handoff["id"] == "y_to_z_front_left"

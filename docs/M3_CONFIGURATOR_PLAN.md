@@ -122,6 +122,8 @@ Every generated assembly should immediately run:
 - Interference and floating-part checks.
 - Orientation and color/material checks where metadata exists.
 - Dimensional checks for frame envelope and axis travel.
+- Authored cylindrical-feature alignment for critical mounting-hole handoffs,
+  without generating bolt patterns.
 - Kinematic sanity checks for beam deflection, motor torque, belt tension; these remain decision support, not certification.
 - BOM-vs-CAD audit against the selected BOM.
 - Claim-audit for any generated public copy.
