@@ -1,0 +1,60 @@
+schema_version: "0.9"
+
+meta:
+  project: M3-CRETE
+  description: >
+    BOM-vs-CAD parity rules for the current CADCLAW M3-2 reference assembly.
+    These rules intentionally bind only the placed STEP assets in the current
+    reference round; unplaced belts, motors, fasteners, wheels, printhead
+    tooling, and 2040 reinforcement inserts remain outside this narrow check.
+
+labels:
+  cbeam_4080_1000: [40.0, 80.0, 1000.0]
+  zpmm_motor_mount_spacer: [6.1, 80.0, 97.0]
+  vslot_gantry_plate_20_80: [3.0, 88.0, 127.0]
+  cbeam_gantry_plate_xlarge: [6.0, 125.0, 125.0]
+
+bom_audit:
+  warn_on_unmapped: false
+  warn_on_mojibake: true
+  ignore_labels:
+    - other
+  rules:
+    - id: 67
+      expected_label: cbeam_4080_1000
+      expected_qty: 18
+      expected_design_qty: 17
+      spare_qty: 1
+      expected_mfg_type: buy
+      required_terms:
+        - 17 reference pieces
+        - 1 spare
+
+    - id: 84
+      expected_label: cbeam_gantry_plate_xlarge
+      expected_qty: 2
+      expected_design_qty: 2
+      expected_mfg_type: buy
+      required_terms:
+        - X-axis
+
+    - id: 69
+      expected_label: vslot_gantry_plate_20_80
+      expected_qty: 4
+      expected_design_qty: 4
+      expected_mfg_type: buy
+      required_terms:
+        - V-Slot 20-80
+      forbidden_terms:
+        - 125x125
+
+    - id: 79
+      expected_label: zpmm_motor_mount_spacer
+      expected_qty: 8
+      expected_design_qty: 8
+      expected_mfg_type: print
+      required_terms:
+        - 6mm
+        - motor mount
+      forbidden_terms:
+        - 4mm

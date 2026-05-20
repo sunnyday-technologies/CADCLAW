@@ -71,6 +71,16 @@ class TestRuleLoader(unittest.TestCase):
         finally:
             os.unlink(path)
 
+    def test_m3_bom_audit_rules_load(self):
+        rules = load_rules("examples/m3_crete/m3_bom_audit.yaml")
+        self.assertIn("cbeam_4080_1000", rules.labels)
+        self.assertIn("zpmm_motor_mount_spacer", rules.labels)
+        self.assertEqual(len(rules.bom_audit.rules), 4)
+        by_id = {rule.id: rule for rule in rules.bom_audit.rules}
+        self.assertEqual(by_id[67].expected_design_qty, 17)
+        self.assertEqual(by_id[67].spare_qty, 1)
+        self.assertEqual(by_id[79].expected_label, "zpmm_motor_mount_spacer")
+
     def test_label_sig_helpers(self):
         path = self._write_tmp(GOOD_YAML)
         try:
