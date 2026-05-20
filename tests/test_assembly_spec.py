@@ -237,6 +237,24 @@ class TestAssemblySpec(unittest.TestCase):
         )
         self.assertEqual(spreaders[0].transform.rotate_deg, [90.0, 0.0, 0.0])
         self.assertEqual(spreaders[0].transform.translate_mm, [REDACTED])
+        top_frame_inserts = [
+            instance for instance in spec.instances
+            if instance.role == "top_frame_insert_2040"
+        ]
+        self.assertEqual(len(top_frame_inserts), 2)
+        for instance in top_frame_inserts:
+            self.assertEqual(
+                instance.source_path,
+                "CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step",
+            )
+            self.assertEqual(instance.transform.rotate_deg, [90.0, 0.0, 90.0])
+            self.assertEqual(instance.transform.translate_mm[0], -500.0)
+        x_gantry_inserts = [
+            instance for instance in spec.instances
+            if instance.role == "x_gantry_insert_2040"
+        ]
+        self.assertEqual(len(x_gantry_inserts), 1)
+        self.assertEqual(x_gantry_inserts[0].transform.translate_mm, [REDACTED])
         spreader_plates = [
             instance for instance in spec.instances
             if instance.role == "top_center_spreader_plate"
@@ -419,7 +437,8 @@ class TestAssemblySpec(unittest.TestCase):
             ],
         )
         steps = {step.id: step for step in spec.assembly_sequence}
-        self.assertIn("x_gantry_insert_left_2040", steps["x_gantry"].instance_ids)
+        self.assertIn("x_gantry_insert_center_2040", steps["x_gantry"].instance_ids)
+        self.assertIn("top_front_insert_2040", steps["frame_completion"].instance_ids)
         self.assertIn("x_left_y_neg_lower_wheel", steps["x_gantry"].instance_ids)
         self.assertIn("x_carriage_front_left_lower_wheel", steps["x_carriage"].instance_ids)
         self.assertIn("z_front_left_outer_lower_wheel", steps["z_carriages"].instance_ids)

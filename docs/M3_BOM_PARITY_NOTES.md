@@ -25,9 +25,9 @@ intentionally checks only the placed STEP signatures:
   counted as C-Beam.
 - `vslot_2080_1000`: 2 lower Y-direction static frame rails, checked against
   new/updated BOM id `86`.
-- `vslot_2040_1000`: 3 design pieces, checked against new/updated BOM id
-  `87`: one top center spreader extrusion plus two internal X-gantry C-Beam
-  inserts.
+- `vslot_2040_1000`: 4 design pieces, checked against new/updated BOM id
+  `87`: one top center spreader extrusion, one centered X-gantry splice
+  insert, and two centered top X-frame splice inserts.
 - `cbeam_gantry_plate_xlarge`: 4 X-axis plates, checked against BOM id `84`:
   2 X-to-Y handoff plates at the X gantry ends plus 2 X-carriage plates for
   the printhead carriage.
@@ -74,7 +74,7 @@ Known gaps from the current parity report:
 - BOM id `79` should carry the simple 6 x 40 x 80mm lower flat spacer, with
   four instances, and should not describe a motor mount.
 - New/updated BOM ids `86` and `87` should carry the 2080 lower Y rails and
-  the three 2040 pieces: top center spreader plus two X-gantry inserts.
+  the four 2040 pieces: top center spreader plus three centered splice inserts.
 - BOM id `17` should remain 32 total wheels and should match the current
   CADCLAW reference design count.
 

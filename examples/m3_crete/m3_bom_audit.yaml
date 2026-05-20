@@ -97,10 +97,10 @@ bom_audit:
 
     - id: 87
       expected_label: vslot_2040_1000
-      expected_qty: 3
-      expected_design_qty: 3
+      expected_qty: 4
+      expected_design_qty: 4
       expected_mfg_type: buy
       required_terms:
         - "2040"
         - top center spreader
-        - X gantry inserts
+        - splice inserts

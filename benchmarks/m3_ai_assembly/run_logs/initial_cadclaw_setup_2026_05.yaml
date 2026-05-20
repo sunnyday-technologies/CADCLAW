@@ -209,7 +209,7 @@ summary:
     - Y-gantry C-Beams rotated so 80 mm dimension is vertical and open channels face inward.
     - X-axis printhead carriage plates and wheels added.
     - X-gantry C-Beams rotated so the 80 mm dimension is vertical, matching the Y gantries.
-    - Two authored 1000 mm 2040 insert extrusions added inside the X C-Beam open channels.
+    - Authored 1000 mm 2040 splice inserts added as centered reinforcement for the 2 m X-gantry run and both 2 m top X-frame runs.
     - X-carriage wheels moved inward so they sit between the carriage plates and the X-gantry rail slots.
   blockers:
     - Dedicated printhead/tooling STEP was not found in the local asset search.

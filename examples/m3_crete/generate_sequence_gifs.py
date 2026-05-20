@@ -217,8 +217,8 @@ def build_explode_gif(final_step: Path, output_gif: Path) -> dict:
         gif_height=540,
         gif_colors=64,
         separate_nested=True,
-        nested_separation_mm=80.0,
-        nested_lift_mm=45.0,
+        nested_separation_mm=0.0,
+        nested_lift_mm=-180.0,
         nested_reveal_color=COLOR_PRINTED,
     )
     return {"output": str(output_gif), "frames": frame_count, "fps": 8}

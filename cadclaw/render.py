@@ -648,19 +648,83 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
             and inner[2] >= outer[2] - tol and inner[5] <= outer[5] + tol
         )
 
+    def _bbox_lengths(bbox):
+        return (bbox[3] - bbox[0], bbox[4] - bbox[1], bbox[5] - bbox[2])
+
+    def _long_axis(bbox):
+        lengths = _bbox_lengths(bbox)
+        return max(range(3), key=lambda axis: lengths[axis])
+
+    def _cross_section_contained(inner, outer, long_axis, tol):
+        axes = [axis for axis in range(3) if axis != long_axis]
+        return all(
+            inner[axis] >= outer[axis] - tol
+            and inner[axis + 3] <= outer[axis + 3] + tol
+            for axis in axes
+        )
+
+    def _interval_coverage(intervals, start, end, tol):
+        if not intervals:
+            return 0.0
+        clipped = []
+        for lo, hi in intervals:
+            clipped_lo = max(start, lo)
+            clipped_hi = min(end, hi)
+            if clipped_hi > clipped_lo + tol:
+                clipped.append((clipped_lo, clipped_hi))
+        if not clipped:
+            return 0.0
+        clipped.sort()
+        merged = [clipped[0]]
+        for lo, hi in clipped[1:]:
+            last_lo, last_hi = merged[-1]
+            if lo <= last_hi + tol:
+                merged[-1] = (last_lo, max(last_hi, hi))
+            else:
+                merged.append((lo, hi))
+        return sum(hi - lo for lo, hi in merged)
+
+    def _bbox_splice_nested(inner_index, volumes, tol):
+        inner = shape_bboxes[inner_index]
+        lengths = _bbox_lengths(inner)
+        long_axis = _long_axis(inner)
+        long_len = lengths[long_axis]
+        cross_lengths = [lengths[axis] for axis in range(3) if axis != long_axis]
+        if long_len < 400.0 or max(cross_lengths) > 50.0:
+            return False
+        intervals = []
+        for outer_index, outer in enumerate(shape_bboxes):
+            if inner_index == outer_index or volumes[inner_index] >= volumes[outer_index]:
+                continue
+            if _long_axis(outer) != long_axis:
+                continue
+            if not _cross_section_contained(inner, outer, long_axis, tol):
+                continue
+            intervals.append((outer[long_axis], outer[long_axis + 3]))
+        covered = _interval_coverage(
+            intervals,
+            inner[long_axis],
+            inner[long_axis + 3],
+            tol,
+        )
+        return covered >= long_len - tol
+
     shape_bboxes = [_shape_bbox(shape) for shape in shapes]
     nested_offsets = [(0.0, 0.0, 0.0) for _ in shapes]
     nested_indexes = set()
     if separate_nested:
         volumes = [_bbox_volume(bbox) for bbox in shape_bboxes]
         for inner_index, inner_bbox in enumerate(shape_bboxes):
+            nested = _bbox_splice_nested(inner_index, volumes, nested_containment_tol_mm)
             for outer_index, outer_bbox in enumerate(shape_bboxes):
                 if inner_index == outer_index or volumes[inner_index] >= volumes[outer_index]:
                     continue
                 if _bbox_contained(inner_bbox, outer_bbox, nested_containment_tol_mm):
-                    nested_offsets[inner_index] = (0.0, nested_separation_mm, nested_lift_mm)
-                    nested_indexes.add(inner_index)
+                    nested = True
                     break
+            if nested:
+                nested_offsets[inner_index] = (0.0, nested_separation_mm, nested_lift_mm)
+                nested_indexes.add(inner_index)
 
     part_entries = []  # list of (actor, radial_offset_vector, nested_offset_vector)
     renderer = vtk.vtkRenderer()

@@ -8,7 +8,7 @@ individual CAD checks against the M3 printer.
 
 ## Current M3 Reference Size
 
-`examples/m3_crete/m3_reference_assembly.yaml` currently declares 69 placed
+`examples/m3_crete/m3_reference_assembly.yaml` currently declares 70 placed
 instances:
 
 | Role | Count |
@@ -20,16 +20,17 @@ instances:
 | `frame_side_motor_mount_spacer_6mm` | 4 |
 | `frame_side_flat_spacer_6mm` | 4 |
 | `top_frame_rail_y` | 2 |
+| `top_frame_insert_2040` | 2 |
 | `bottom_frame_rail_y_2080` | 2 |
 | `x_gantry_beam` | 2 |
-| `x_gantry_insert_2040` | 2 |
 | `x_gantry_plate` | 2 |
 | `x_carriage_plate` | 2 |
 | `y_gantry_beam` | 2 |
 | `top_center_spreader_plate` | 2 |
+| `x_gantry_insert_2040` | 1 |
 | `top_center_spreader_2040` | 1 |
 
-Those 69 placements come from only 8 unique STEP source files:
+Those 70 placements come from only 8 unique STEP source files:
 
 | STEP source | Placements |
 |---|---:|
@@ -39,7 +40,7 @@ Those 69 placements come from only 8 unique STEP source files:
 | `CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP` | 4 |
 | `ZPMM.step` | 4 |
 | `examples/m3_crete/generated/M3_6mm_frame_shim_4080.step` | 4 |
-| `CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step` | 3 |
+| `CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step` | 4 |
 | `CAD/Components/V-Slot/V-Slot 20x80x1000 Linear Rail.step` | 2 |
 
 ## Declared Checks
