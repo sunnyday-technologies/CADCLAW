@@ -222,8 +222,10 @@ class TestAssemblySpec(unittest.TestCase):
             )
         y_left = next(instance for instance in spec.instances if instance.id == "y_gantry_left")
         y_right = next(instance for instance in spec.instances if instance.id == "y_gantry_right")
-        self.assertEqual(y_left.transform.rotate_deg, [0.0, -90.0, -90.0])
-        self.assertEqual(y_right.transform.rotate_deg, [0.0, 90.0, 90.0])
+        self.assertEqual(y_left.transform.translate_mm, [REDACTED])
+        self.assertEqual(y_left.transform.rotate_deg, [-90.0, 0.0, 0.0])
+        self.assertEqual(y_right.transform.translate_mm, [REDACTED])
+        self.assertEqual(y_right.transform.rotate_deg, [-90.0, 0.0, 180.0])
         spreaders = [
             instance for instance in spec.instances
             if instance.role == "top_center_spreader_2040"
@@ -240,6 +242,8 @@ class TestAssemblySpec(unittest.TestCase):
             if instance.role == "top_center_spreader_plate"
         ]
         self.assertEqual(len(spreader_plates), 2)
+        for instance in spreader_plates:
+            self.assertEqual(instance.transform.translate_mm[2], 960.0)
         x_plate_instances = [
             instance for instance in spec.instances
             if instance.role == "x_gantry_plate"
@@ -252,6 +256,18 @@ class TestAssemblySpec(unittest.TestCase):
             )
             self.assertEqual(instance.transform.source_origin_mm, [0.0, 0.0, 3.0])
             self.assertEqual(instance.transform.rotate_deg, [0.0, 90.0, 0.0])
+        x_carriage_instances = [
+            instance for instance in spec.instances
+            if instance.role == "x_carriage_plate"
+        ]
+        self.assertEqual(len(x_carriage_instances), 2)
+        for instance in x_carriage_instances:
+            self.assertEqual(
+                instance.source_path,
+                "CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP",
+            )
+            self.assertEqual(instance.transform.source_origin_mm, [0.0, 0.0, 3.0])
+            self.assertEqual(instance.transform.rotate_deg, [90.0, 0.0, 0.0])
         z_plate_instances = [
             instance for instance in spec.instances
             if instance.role == "z_carriage_plate"
@@ -270,13 +286,14 @@ class TestAssemblySpec(unittest.TestCase):
             instance for instance in spec.instances
             if instance.role == "v_wheel"
         ]
-        self.assertEqual(len(wheel_instances), 24)
+        self.assertEqual(len(wheel_instances), 32)
         for instance in wheel_instances:
             self.assertEqual(
                 instance.source_path,
                 "CAD/Components/Wheels/Solid V Wheel.step",
             )
-        self.assertEqual(spec.validation["expected_inventory"]["v_wheel"], 24)
+        self.assertEqual(spec.validation["expected_inventory"]["v_wheel"], 32)
+        self.assertEqual(spec.validation["expected_inventory"]["x_carriage_plate"], 2)
         vslot_stackup = spec.validation["vslot_stackup"]
         self.assertEqual(vslot_stackup["target_spacer_mm"], 6.0)
         self.assertTrue(
@@ -320,10 +337,19 @@ class TestAssemblySpec(unittest.TestCase):
                 for group in wheel_alignment["groups"]
             )
         )
+        self.assertTrue(
+            any(
+                group["id"] == "x_carriage_front_plate_wheels"
+                and group["plate_instance"] == "x_carriage_plate_front"
+                and len(group["wheel_instances"]) == 4
+                for group in wheel_alignment["groups"]
+            )
+        )
         orientation = spec.validation["open_channel_orientation"]
         self.assertTrue(
             any(
                 item["id"] == "left_y_gantry_channel_inward"
+                and item["local_open_axis"] == [1.0, 0.0, 0.0]
                 and item["expected_global_axis"] == [1.0, 0.0, 0.0]
                 for item in orientation["requirements"]
             )
@@ -331,6 +357,7 @@ class TestAssemblySpec(unittest.TestCase):
         self.assertTrue(
             any(
                 item["id"] == "right_y_gantry_channel_inward"
+                and item["local_open_axis"] == [1.0, 0.0, 0.0]
                 and item["expected_global_axis"] == [-1.0, 0.0, 0.0]
                 for item in orientation["requirements"]
             )
@@ -351,10 +378,25 @@ class TestAssemblySpec(unittest.TestCase):
                 for item in bbox_alignment["checks"]
             )
         )
+        self.assertTrue(
+            any(
+                item["id"] == "top_center_spreader_plate_front_top_offset"
+                and item["expected_offset_mm"] == 4.0
+                for item in bbox_alignment["checks"]
+            )
+        )
+        self.assertTrue(
+            any(
+                item["id"] == "y_gantry_left_80mm_vertical"
+                and item["expected_size_mm"] == 80.0
+                for item in bbox_alignment["checks"]
+            )
+        )
         self.assertEqual(
             [step.id for step in spec.assembly_sequence],
             [
                 "x_gantry",
+                "x_carriage",
                 "y_gantry",
                 "z_carriages",
                 "z_posts",
@@ -363,6 +405,7 @@ class TestAssemblySpec(unittest.TestCase):
         )
         steps = {step.id: step for step in spec.assembly_sequence}
         self.assertIn("x_left_y_neg_lower_wheel", steps["x_gantry"].instance_ids)
+        self.assertIn("x_carriage_front_left_lower_wheel", steps["x_carriage"].instance_ids)
         self.assertIn("z_front_left_outer_lower_wheel", steps["z_carriages"].instance_ids)
 
 

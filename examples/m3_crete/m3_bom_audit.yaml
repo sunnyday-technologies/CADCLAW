@@ -27,7 +27,7 @@ bom_audit:
     - id: 17
       expected_label: solid_v_wheel_standard
       expected_qty: 32
-      expected_design_qty: 24
+      expected_design_qty: 32
       expected_mfg_type: buy
       required_terms:
         - Polycarbonate
@@ -45,11 +45,12 @@ bom_audit:
 
     - id: 84
       expected_label: cbeam_gantry_plate_xlarge
-      expected_qty: 2
-      expected_design_qty: 2
+      expected_qty: 4
+      expected_design_qty: 4
       expected_mfg_type: buy
       required_terms:
         - X-axis
+        - 4 total
 
     - id: 69
       expected_label: vslot_gantry_plate_20_80

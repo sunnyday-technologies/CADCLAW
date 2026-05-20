@@ -214,8 +214,9 @@ validated performance.
   limit switches, leveling feet, external X-gantry reinforcement, HEPA filters,
   LED lighting, or carbon-fiber bars unless the project spec explicitly changes.
 - **M3-2 design-specific constraints matter.** 4080 C-Beam is the primary
-  structure; 1000 mm stock is the shipping-constrained standard length; C
-  openings face inward; X-gantry reinforcement stays internal/below wheel path.
+  structure; 1000 mm stock is the shipping-constrained standard length; Y
+  gantry C-Beams place the 80 mm dimension vertically; C openings face inward;
+  X-gantry reinforcement stays internal/below wheel path.
 - **Build inside-out when spacing depends on motion.** For M3-2, the X gantry
   end plates are the X-to-Y handoff; the Y gantry ends attach to Z-carriage
   plates; the Z posts and frame then accommodate that stackup. The assembly
@@ -226,8 +227,9 @@ validated performance.
   and the Z post. In the current design the spacer is also the motor mount, so
   the final ZPMM STEP/BOM binding must be frozen before release.
 - **Plate family selection is part of the tolerance stack.** The X-to-Y
-  handoff uses the 125 x 125 x 6 mm C-Beam Gantry Plate XLarge asset, 2x
-  total. The Y-to-Z/Z-post carriage interfaces use the smaller V-Slot 20-80
+  handoff uses the 125 x 125 x 6 mm C-Beam Gantry Plate XLarge asset, 2x total.
+  The X-axis printhead carriage uses two additional XLarge plates and eight
+  wheels. The Y-to-Z/Z-post carriage interfaces use the smaller V-Slot 20-80
   gantry plate asset, inspected as roughly 127 x 88 x 3 mm. Substituting one
   plate family into the other interface should fail the reference spec.
 - **V-slot handoff stackup is now a declared validation gate.** CADCLAW checks
@@ -247,8 +249,9 @@ validated performance.
   fail unless an authored connector or spacer STEP is explicitly placed.
 - **Datum-level flushness also matters.** The M3-2 top-center 2040 spreader is
   oriented with its 40 mm side vertical and its top face level with the top
-  frame members. CADCLAW now treats that as a bbox-alignment datum check, not
-  only a visual preference.
+  frame members. Its two V-Slot 20-80 bracket/spacer plates are lowered so
+  their 88 mm height centers on the 80 mm frame-member datum. CADCLAW now
+  treats those as bbox-alignment datum checks, not only visual preferences.
 - **FEA belongs after geometry validity.** A PyNiteFEA helper can later compare
   4080, 2080, or 2040 static frame-member options and joint techniques, but it
   should consume the already-declared assembly topology. Gantry extrusions stay
@@ -293,13 +296,14 @@ validated performance.
 - [x] Standard review view renderer.
 - [x] Validation wrapper for generated assembly rounds.
 - [x] Initial CLI tools for LLM operation.
-- [x] Gantry-first M3-2 assembly sequence: X gantry, Y gantries, Z carriage
-      plates, Z posts, then frame completion with 6 mm frame spacers.
+- [x] Gantry-first M3-2 assembly sequence: X gantry, X carriage, Y gantries,
+      Z carriage plates, Z posts, then frame completion with 6 mm frame
+      spacers.
 - [x] Explicit 6 mm side-rail/post frame spacer declarations in the M3
       reference spec and BOM CSV path.
-- [x] Correct plate-family assignment by handoff: X-to-Y uses 2x C-Beam
-      Gantry Plate XLarge, while Y-to-Z/Z-post carriage interfaces use the
-      smaller 3 mm V-Slot 20-80 plate.
+- [x] Correct plate-family assignment by handoff: X-to-Y and X-carriage
+      interfaces use C-Beam Gantry Plate XLarge, while Y-to-Z/Z-post carriage
+      interfaces use the smaller 3 mm V-Slot 20-80 plate.
 - [x] Instance-level interference validation wired into assembly check rounds
       and per-step sequence reports.
 - [x] Gated `render-sequence` behavior that stops at the first declared
@@ -333,6 +337,11 @@ validated performance.
       first tracked M3 load cases live in
       `examples/m3_crete/m3_fea_load_cases.yaml`; generated reports, CSVs, and
       stress/strain plots are emitted under `examples/m3_crete/build/fea/`.
+- [x] Add the X-axis printhead carriage reference stack: two authored C-Beam
+      Gantry Plate XLarge plates, eight authored Solid V Wheel instances, and
+      wheel-alignment groups for the two-sided carriage.
+- [x] Rotate the M3-2 Y gantry C-Beams so the 80 mm dimension is vertical and
+      add bbox checks so future reference rounds flag a thin-side-up Y gantry.
 
 ## LLM Tool Surface
 
@@ -364,17 +373,18 @@ Current implementation status:
   STEP using the existing CADCLAW VTK renderer.
 - `assemble render-sequence` exports cumulative partial STEP assemblies,
   renders per-step X/Y/Z/hero/iso image sets, runs per-step instance-level
-  interference, V-slot handoff stackup, static frame adjacency, and authored
-  hole-alignment checks when requested, stops on the first failed validation by
-  default, records per-step validation status and repair suggestions in the
-  sequence manifest, can render a final rotating GIF after all gates pass, and
-  emits a public-safe model-derived CSV BOM grouped by authored STEP source and
-  role.
+  interference, V-slot handoff stackup, static frame adjacency, authored
+  hole-alignment, wheel-alignment, open-channel orientation, and bbox-alignment
+  checks when requested, stops on the first failed validation by default,
+  records per-step validation status and repair suggestions in the sequence
+  manifest, can render a final rotating GIF after all gates pass, and emits a
+  public-safe model-derived CSV BOM grouped by authored STEP source and role.
 - `assemble check-round` runs one build round, verifies declared spec role
-  inventory, runs declared instance-level interference, V-slot handoff
-  stackup, static frame adjacency, and authored hole-alignment checks,
-  optionally renders review views, emits a model-derived BOM/design inventory,
-  and writes a single report.
+  inventory, runs declared instance-level interference, V-slot handoff stackup,
+  static frame adjacency, authored hole-alignment, wheel-alignment,
+  open-channel orientation, and bbox-alignment checks, optionally renders
+  review views, emits a model-derived BOM/design inventory, and writes a single
+  report.
 - `assemble suggest-adjustment` remains future work; for now adjustment advice
   comes from existing CADCLAW findings such as `interference.clip`.
 

@@ -35,8 +35,8 @@ active_reference_assets:
     generated_by_cadclaw: false
   - id: cbeam_gantry_plate_xlarge
     source_path: CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP
-    use: X-axis gantry plates only, one on each side of the X gantry.
-    current_reference_quantity: 2
+    use: X-axis plates only: two X-to-Y handoff plates at the X gantry ends plus two printhead-carriage plates, one on each side of the X gantry.
+    current_reference_quantity: 4
     generated_by_cadclaw: false
   - id: vslot_gantry_plate_20_80
     source_path: CAD/Components/Plates/V-Slot Gantry Plate 20-80mm.step
@@ -55,8 +55,8 @@ active_reference_assets:
     generated_by_cadclaw: true
   - id: solid_v_wheel_standard
     source_path: CAD/Components/Wheels/Solid V Wheel.step
-    use: Standard M3 V-wheel reference placed at the modeled X-to-Y and Y-to-Z carriage interfaces, four wheels per gantry plate with authored hole-center alignment and a 7mm spacer/washer standoff; full BOM carries 32 wheels after the printhead/tooling carriage is selected.
-    current_reference_quantity: 24
+    use: Standard M3 V-wheel reference placed at the modeled X-to-Y, X-carriage, and Y-to-Z carriage interfaces, four wheels per gantry plate with authored hole-center alignment and a 7mm spacer/washer standoff.
+    current_reference_quantity: 32
     generated_by_cadclaw: false
 
 excluded_from_minimal_testkit:

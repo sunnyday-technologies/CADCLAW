@@ -25,12 +25,15 @@ Rules:
 
 Current M3-2 fixture constraints:
 
-- Build inside-out: place the X gantry and end plates first, then the Y
-  gantries, then Y-to-Z/Z-post carriage plates, then the Z posts and frame
-  members around that motion stack.
+- Build inside-out: place the X gantry and end plates first, add the two-sided
+  X carriage, then the Y gantries, then Y-to-Z/Z-post carriage plates, then
+  the Z posts and frame members around that motion stack.
 - X-to-Y uses two C-Beam Gantry Plate XLarge assets, one at each X gantry end.
-  Y-to-Z/Z-post interfaces use the smaller V-Slot 20-80 gantry plates.
-- Y-gantry C-Beam open channels face inward toward the printer volume.
+  The X-axis printhead carriage uses two additional C-Beam Gantry Plate XLarge
+  assets, one on each side of the X beam. Y-to-Z/Z-post interfaces use the
+  smaller V-Slot 20-80 gantry plates.
+- Y-gantry C-Beams place their 80 mm dimension vertically and open channels
+  face inward toward the printer volume.
 - The frame is open at the bottom in the X direction; do not add bottom X
   frame rails unless the benchmark spec changes.
 - Lower Y-direction static frame rails are 2080 V-slot, not C-Beam.
@@ -39,14 +42,13 @@ Current M3-2 fixture constraints:
   members.
 - The top center spreader uses two V-Slot 20-80 gantry plates as mounting
   bracket/spacer stock.
-- Place authored Solid V Wheel STEP instances at the modeled X-to-Y and Y-to-Z
-  carriage interfaces so wheel-slot and wheel-hole location choices are visible
-  in review renders. Each gantry plate uses four wheels; wheel centerlines
-  align to authored plate holes, and the wheel inner face is held 7 mm off the
-  plate face by a 6 mm spacer plus 1 mm washer stack. Eccentric washers may
-  absorb a few millimeters of remaining adjustment, but the alignment error
-  must be reported. Keep the remaining printhead/tooling carriage wheel set
-  explicit as incomplete until that interface is selected.
+- Place authored Solid V Wheel STEP instances at the modeled X-to-Y,
+  X-carriage, and Y-to-Z carriage interfaces so wheel-slot and wheel-hole
+  location choices are visible in review renders. Each gantry plate uses four
+  wheels; wheel centerlines align to authored plate holes, and the wheel inner
+  face is held 7 mm off the plate face by a 6 mm spacer plus 1 mm washer stack.
+  Eccentric washers may absorb a few millimeters of remaining adjustment, but
+  the alignment error must be reported.
 - Top side-rail/post spacer locations use the authored ZPMM motor-mount/spacer
   STEP. Lower side-rail/post spacer locations use a simple 6 x 40 x 80 mm flat
   spacer.
@@ -60,11 +62,12 @@ Known incomplete areas in the current seed:
 - Motors and motor plates require authored assets and connector metadata.
 - Y gantries are represented by placed authored C-Beam rail datums in the
   current seed; Z drive assemblies still need connector-backed placement.
-- 24 Solid V Wheel instances are placed in the current seed. The full BOM
-  carries 32 wheels once the printhead/tooling carriage is selected.
+- 32 Solid V Wheel instances are placed in the current seed, including the
+  two-sided X-carriage wheel set.
 - The current seed checks authored-hole alignment for the Y-gantry to
   Z-carriage plate interfaces.
-- Printhead/tooling interface has not been selected for this round.
+- Printhead/tool payload and final carriage mount interface have not been
+  selected for this round.
 
 Output expectations:
 

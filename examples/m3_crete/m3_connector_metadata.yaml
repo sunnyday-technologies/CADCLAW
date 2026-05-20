@@ -65,7 +65,10 @@ components:
 
   - id: cbeam_gantry_plate_xlarge
     source_path: CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP
-    notes: 125 x 125 x 6mm C-Beam plate used for the M3 X-axis gantry only, 2x total; do not use for Y-to-Z/Z-post carriage interfaces in the M3-2 reference sequence.
+    notes: >
+      125 x 125 x 6mm C-Beam plate used for M3 X-axis interfaces only, 4x
+      total: two X-to-Y handoff plates and two X-carriage plates; do not use
+      for Y-to-Z/Z-post carriage interfaces in the M3-2 reference sequence.
     frames:
       - id: plate_center
         kind: mount_face
@@ -78,7 +81,7 @@ components:
 
   - id: solid_v_wheel_standard
     source_path: CAD/Components/Wheels/Solid V Wheel.step
-    notes: Standard solid V-wheel reference for M3. Inspected envelope is 10.2 x 23.9 x 23.9 mm. The current reference places 24 wheels at modeled carriage interfaces, four per gantry plate, with centers aligned to authored plate holes and a 7mm plate-face standoff for the spacer/washer stack; the remaining full-BOM wheels belong to the not-yet-selected printhead/tooling carriage.
+    notes: Standard solid V-wheel reference for M3. Inspected envelope is 10.2 x 23.9 x 23.9 mm. The current reference places 32 wheels at modeled X-to-Y, X-carriage, and Y-to-Z carriage interfaces, four per gantry plate, with centers aligned to authored plate holes and a 7mm plate-face standoff for the spacer/washer stack.
     frames:
       - id: wheel_center
         kind: reference

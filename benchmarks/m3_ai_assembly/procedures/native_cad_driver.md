@@ -40,9 +40,10 @@ Current M3-2 fixture constraints to verify before export:
 - Lower Y-direction static frame rails are 2080 V-slot.
 - The top center spreader is 2040 V-slot with the 40 mm side vertical and top
   face level with the top frame.
-- Y-gantry C-Beam open channels face inward.
-- X-to-Y plates are C-Beam Gantry Plate XLarge; Y-to-Z/Z-post carriage plates
-  are V-Slot 20-80.
+- Y-gantry C-Beams place the 80 mm dimension vertically and open channels face
+  inward.
+- X-to-Y plates and X-carriage plates are C-Beam Gantry Plate XLarge;
+  Y-to-Z/Z-post carriage plates are V-Slot 20-80.
 - Top spacer/motor-mount locations use ZPMM; lower spacer locations use the
   simple flat 6 x 40 x 80 mm spacer.
 

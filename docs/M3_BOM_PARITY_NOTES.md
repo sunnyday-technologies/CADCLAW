@@ -15,8 +15,8 @@ Boundary:
   heavier, more accurate, or more conservative.
 
 The current CADCLAW reference assembly contains the placed frame, gantry datum,
-plate, spacer, and 24 visible Solid V Wheel assets. It does not yet model
-belts, motors, fasteners, or printhead/tooling. For that reason, the current
+plate, spacer, and 32 visible Solid V Wheel assets. It does not yet model
+belts, motors, fasteners, or the printhead/tool payload. For that reason, the current
 BOM parity rule file
 intentionally checks only the placed STEP signatures:
 
@@ -27,7 +27,9 @@ intentionally checks only the placed STEP signatures:
   new/updated BOM id `86`.
 - `vslot_2040_1000`: 1 top center spreader extrusion, checked against
   new/updated BOM id `87`.
-- `cbeam_gantry_plate_xlarge`: 2 X-axis plates, checked against BOM id `84`.
+- `cbeam_gantry_plate_xlarge`: 4 X-axis plates, checked against BOM id `84`:
+  2 X-to-Y handoff plates at the X gantry ends plus 2 X-carriage plates for
+  the printhead carriage.
 - `vslot_gantry_plate_20_80`: 6 small 3mm plates, checked against BOM id `69`:
   4 Y-to-Z/Z-post carriage plates plus 2 top-center spreader bracket/spacer
   plates.
@@ -35,13 +37,11 @@ intentionally checks only the placed STEP signatures:
   id `75`.
 - `flat_frame_spacer_6mm`: 4 simple 6 x 40 x 80mm lower frame spacers, checked
   against BOM id `79`.
-- `solid_v_wheel_standard`: 24 placed Solid V Wheel STEP instances at the
-  modeled X-to-Y and Y-to-Z carriage interfaces, checked against BOM id `17`.
-  The M3-owned interactive BOM remains at 32 total wheels because the remaining
-  8 belong to the not-yet-selected printhead/tooling carriage interface. The
-  assembly gate also checks four wheels per modeled gantry plate, wheel
-  centerline-to-authored-hole alignment, and the 7 mm spacer/washer standoff
-  from the plate face.
+- `solid_v_wheel_standard`: 32 placed Solid V Wheel STEP instances at the
+  modeled X-to-Y, X-carriage, and Y-to-Z carriage interfaces, checked against
+  BOM id `17`. The assembly gate checks four wheels per modeled gantry plate,
+  wheel centerline-to-authored-hole alignment, and the 7 mm spacer/washer
+  standoff from the plate face.
 
 Run:
 
@@ -64,6 +64,8 @@ Known gaps from the current parity report:
 
 - BOM id `67` must drop from 17 design C-Beam pieces to 14 design C-Beam pieces
   plus one spare.
+- BOM id `84` must carry four C-Beam Gantry Plate XLarge parts: two X-to-Y
+  handoff plates and two X-carriage plates.
 - BOM id `69` must describe six smaller `V-Slot 20-80` gantry plates, not a
   common `125x125` Y/Z plate strategy.
 - BOM id `75` should carry the authored `ZPMM.step` motor-mount/spacer at
@@ -72,8 +74,8 @@ Known gaps from the current parity report:
   four instances, and should not describe a motor mount.
 - New/updated BOM ids `86` and `87` should carry the 2080 lower Y rails and
   2040 top center spreader, respectively.
-- BOM id `17` can remain 32 total wheels while CADCLAW's current reference
-  design count is 24 until the printhead/tooling carriage is modeled.
+- BOM id `17` should remain 32 total wheels and should match the current
+  CADCLAW reference design count.
 
 Passing this narrow parity check will require either updating the M3-owned
 interactive BOM to match the current authored CAD placement or revising the
