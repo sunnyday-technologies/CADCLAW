@@ -24,6 +24,10 @@ seeds:
   bom_audit_rules: examples/m3_crete/m3_bom_audit.yaml
   prompt: benchmarks/m3_ai_assembly/prompts/standard_prompt.md
 
+procedures:
+  cadclaw_spec_driver: benchmarks/m3_ai_assembly/procedures/cadclaw_spec_driver.md
+  native_cad_driver: benchmarks/m3_ai_assembly/procedures/native_cad_driver.md
+
 asset_policy:
   public_assets_included: false
   source_notes: benchmarks/m3_ai_assembly/assets/source_notes.md

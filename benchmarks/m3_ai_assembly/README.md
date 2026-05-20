@@ -18,6 +18,8 @@ printer performance.
 
 - `benchmark.yaml` defines the benchmark contract and scoring weights.
 - `prompts/standard_prompt.md` is the shared prompt seed for both tracks.
+- `procedures/` contains the CADCLAW-spec-driver and native-CAD-driver run
+  procedures.
 - `scripts/run_grader.py` runs the CADCLAW assembly check-round and writes a
   normalized report.
 - `scripts/score_report.py` converts a normalized CADCLAW report into an

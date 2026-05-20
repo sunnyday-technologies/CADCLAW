@@ -28,8 +28,10 @@ Known incomplete areas in the current seed:
 - Connector frames need rendered-view and CAD inspection verification.
 - Belt paths and pulley/idler routing are not fully specified.
 - Motors and motor plates require authored assets and connector metadata.
-- Y gantries are represented by authored actuator macro assemblies in the
+- Y gantries are represented by placed authored C-Beam rail datums in the
   current seed; Z drive assemblies still need connector-backed placement.
+- The current seed checks authored-hole alignment for the Y-gantry to
+  Z-carriage plate interfaces.
 - Printhead/tooling interface has not been selected for this round.
 
 Output expectations:

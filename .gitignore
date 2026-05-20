@@ -22,3 +22,4 @@ fusion_test/
 media/
 docs/fonts/
 docs/media/*.gif
+benchmarks/m3_ai_assembly/results/*.json

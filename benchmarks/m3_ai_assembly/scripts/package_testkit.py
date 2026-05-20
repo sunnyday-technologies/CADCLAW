@@ -26,6 +26,8 @@ PACKAGE_PATHS = [
     "benchmarks/m3_ai_assembly/assets/checksums.txt",
     "benchmarks/m3_ai_assembly/assets/source_notes.md",
     "benchmarks/m3_ai_assembly/prompts/standard_prompt.md",
+    "benchmarks/m3_ai_assembly/procedures/cadclaw_spec_driver.md",
+    "benchmarks/m3_ai_assembly/procedures/native_cad_driver.md",
     "benchmarks/m3_ai_assembly/results/.gitkeep",
     "benchmarks/m3_ai_assembly/scripts/run_grader.py",
     "benchmarks/m3_ai_assembly/scripts/score_report.py",
