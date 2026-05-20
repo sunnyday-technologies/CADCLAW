@@ -98,7 +98,7 @@ COLOR_EXTRUSION = (0.08, 0.08, 0.09)   # anodized black extrusions
 COLOR_PRINTED = (0.59, 0.84, 0.0)      # Sunnyday green printed parts
 COLOR_METAL = (0.72, 0.74, 0.76)       # aluminum plates / brackets
 COLOR_MOTOR = (0.30, 0.30, 0.32)       # stepper body
-COLOR_WHEEL = (0.13, 0.13, 0.14)       # V-wheels / delrin
+COLOR_WHEEL = (0.59, 0.84, 0.0)        # bright green V-wheels for review
 COLOR_BELT = (0.15, 0.15, 0.15)        # GT2 belt
 
 # Label -> color defaults keyed on the M3-CRETE naming scheme.
