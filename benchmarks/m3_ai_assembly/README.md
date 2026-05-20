@@ -19,11 +19,15 @@ printer performance.
 - `benchmark.yaml` defines the benchmark contract and scoring weights.
 - `prompts/standard_prompt.md` is the shared prompt seed for both tracks.
 - `procedures/` contains the CADCLAW-spec-driver and native-CAD-driver run
-  procedures.
+  procedures plus a comparison runbook.
+- `run_logs/` contains the run-log template and the retrospective first-pass
+  CADCLAW setup log.
 - `scripts/run_grader.py` runs the CADCLAW assembly check-round and writes a
   normalized report.
 - `scripts/score_report.py` converts a normalized CADCLAW report into an
   early benchmark score.
+- `scripts/summarize_run_log.py` summarizes attempts, retries, corrections,
+  interventions, elapsed time, and token telemetry when available.
 - `scripts/package_testkit.py` builds a public-safe ZIP containing only text
   seeds, prompts, scripts, and docs.
 - `assets/checksums.txt` is intentionally empty until redistributable assets
@@ -71,3 +75,16 @@ allowlisted STEP assets referenced in `examples/m3_crete/m3_testkit_assets.yaml`
 The package script does not include local STEP, image, native CAD, or BOM
 assets. Add those to a public release package only after the asset allowlist,
 source notes, and checksums are ready for redistribution.
+
+## Demo GIFs
+
+Local generated GIFs are build artifacts, not package contents. To regenerate
+the current M3 sequence animations from existing May 20 sequence STEP outputs:
+
+```powershell
+.venv\Scripts\python.exe examples\m3_crete\generate_sequence_gifs.py
+```
+
+The script writes `assembly_progress_360.gif` and
+`final_explode_slow_rotate.gif` under
+`examples\m3_crete\build\sequence\final\`.

@@ -388,6 +388,68 @@ instances:
             self.assertIn("instance-level interference", report.confidence_budget.checked)
             self.assertNotIn("interference", report.confidence_budget.not_checked)
 
+    def test_check_round_reuses_geometry_cache_across_shape_gates(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = self._export_box_step(root / "CAD" / "box.step")
+            metadata = self._write(root, "connectors.yaml", f"""
+schema_version: connector_metadata.v0.1
+components:
+  - id: box
+    source_path: {source.as_posix()}
+""")
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+connector_metadata: {metadata.as_posix()}
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+validation:
+  expected_inventory:
+    frame: 1
+    plate: 1
+  run_checks: [interference, bbox_alignment]
+  interference:
+    min_volume_mm3: 0.1
+  bbox_alignment:
+    checks:
+      - id: fixed_box_x_size
+        instance: fixed_box
+        axis: x
+        expected_size_mm: 10.0
+instances:
+  - id: fixed_box
+    role: frame
+    source_path: {source.as_posix()}
+  - id: clear_box
+    role: plate
+    source_path: {source.as_posix()}
+    transform:
+      translate_mm: [30.0, 0.0, 0.0]
+""")
+
+            report = run_assembly_check_round(
+                spec,
+                dry_run=False,
+                render_views=False,
+                write_inventory=False,
+            )
+            self.assertEqual(report.overall.value, "pass")
+            cache = report.meta["geometry_cache"]
+            self.assertEqual(cache["requests"], 2)
+            self.assertEqual(cache["misses"], 1)
+            self.assertEqual(cache["hits"], 1)
+            self.assertEqual(cache["loaded_instances"], 2)
+            self.assertEqual(cache["cached_instance_sets"], 1)
+
     def test_check_round_runs_declared_vslot_stackup_gate(self):
         try:
             import cadquery  # noqa: F401

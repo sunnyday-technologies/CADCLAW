@@ -1,0 +1,225 @@
+schema_version: m3_ai_assembly_run_log.v0.1
+run_id: initial_cadclaw_setup_2026_05
+benchmark_id: m3_ai_assembly
+track: cadclaw_spec_driver
+status: retrospective_partial
+
+driver:
+  ai_driver: current_codex_desktop_session
+  ai_driver_version: not_recorded_in_repo
+  cad_driver: CADCLAW/CadQuery
+  cad_driver_version: development_branch
+  host_application: Codex desktop
+
+prompt:
+  prompt_path: benchmarks/m3_ai_assembly/prompts/standard_prompt.md
+  prompt_revision: retrospective_from_thread
+  prompt_sha256: not_captured
+
+inputs:
+  benchmark_contract: benchmarks/m3_ai_assembly/benchmark.yaml
+  assembly_spec: examples/m3_crete/m3_reference_assembly.yaml
+  connector_metadata: examples/m3_crete/m3_connector_metadata.yaml
+  testkit_assets: examples/m3_crete/m3_testkit_assets.yaml
+  reference_assets:
+    - path: D:/SDT_Docs/media/M3-CRETE_render.jpg
+      checksum: not_captured
+      redistribution_status: local_reference_only
+
+timing:
+  started_utc: null
+  ended_utc: null
+  elapsed_minutes: null
+  capture_status: unavailable
+  unavailable_reason: This first setup was an interactive development thread; wall-clock timing was not instrumented from the shared-prompt start.
+
+token_usage:
+  capture_status: unavailable
+  capture_method: null
+  prompt_tokens: null
+  completion_tokens: null
+  reasoning_tokens: null
+  tool_tokens: null
+  total_tokens: null
+  unavailable_reason: Token telemetry was not exported into the repository for this retrospective run. Future runs should capture provider or host-application usage fields directly.
+
+attempts:
+  - attempt_id: A01
+    is_retry: false
+    driver_action: Created the benchmark/dev-kit scaffold, shared prompt, CADCLAW-spec-driver procedure, native-CAD-driver procedure, grader, scorer, and text-only package script.
+    artifact_paths:
+      - benchmarks/m3_ai_assembly/README.md
+      - benchmarks/m3_ai_assembly/benchmark.yaml
+      - benchmarks/m3_ai_assembly/prompts/standard_prompt.md
+      - benchmarks/m3_ai_assembly/procedures/cadclaw_spec_driver.md
+      - benchmarks/m3_ai_assembly/procedures/native_cad_driver.md
+    checks_run: []
+    result: passed_with_open_geometry_gaps
+    corrections: []
+    human_interventions:
+      - User confirmed the benchmark should stay general, with M3-CRETE M3-2 as the proving example.
+    token_usage:
+      capture_status: inherit_run
+    notes: Scaffold was intentionally text-only pending asset redistribution review.
+
+  - attempt_id: A02
+    is_retry: true
+    driver_action: Built initial inside-out M3-2 assembly sequence from X gantry to Y gantries to Z posts and frame completion.
+    artifact_paths:
+      - examples/m3_crete/m3_reference_assembly.yaml
+    checks_run:
+      - command: .venv/Scripts/python.exe -m cadclaw_cli.main assemble render-sequence examples/m3_crete/m3_reference_assembly.yaml --views front,top,hero,iso --rotate-final
+        result: warning
+        elapsed_seconds: null
+    result: corrected_later
+    corrections:
+      - Initial review images showed gantry plates placed into the C-Beam body instead of flat on the gantry end faces.
+      - Initial frame interpretation still needed open-bottom X-frame constraints.
+    human_interventions:
+      - User identified plate orientation and open-frame issues from generated views.
+    token_usage:
+      capture_status: inherit_run
+
+  - attempt_id: A03
+    is_retry: true
+    driver_action: Corrected X-to-Y gantry plate orientation and encoded the V-slot axis handoff stackup rule.
+    artifact_paths:
+      - examples/m3_crete/m3_reference_assembly.yaml
+      - docs/AUTO_ASSEMBLY_HARNESS_PLAN.md
+    checks_run:
+      - command: .venv/Scripts/python.exe -m cadclaw_cli.main assemble check-round examples/m3_crete/m3_reference_assembly.yaml --no-render-views
+        result: warning
+        elapsed_seconds: null
+    result: passed_with_not_built_yet_warnings
+    corrections:
+      - Moved X-to-Y plates outside the X C-Beam end faces.
+      - Added explicit plate thickness, running gap, and spacer/tolerance budget to the validation config.
+    human_interventions:
+      - User confirmed the required plate-to-gantry progression and spacer logic.
+    token_usage:
+      capture_status: inherit_run
+
+  - attempt_id: A04
+    is_retry: true
+    driver_action: Corrected plate family assignment and Y-to-Z carriage modeling.
+    artifact_paths:
+      - examples/m3_crete/m3_reference_assembly.yaml
+      - examples/m3_crete/m3_testkit_assets.yaml
+    checks_run: []
+    result: passed_with_not_built_yet_warnings
+    corrections:
+      - Restricted C-Beam Gantry Plate XLarge assets to X-axis interfaces.
+      - Used smaller V-Slot 20-80 gantry plates for Y-to-Z/Z-post carriage interfaces.
+      - Added Solid V Wheel instances and wheel-alignment groups to make hole/roller alignment visible and checkable.
+    human_interventions:
+      - User clarified the 125 x 125 x 6 mm plates are X-axis only and the smaller plates are 3 mm.
+    token_usage:
+      capture_status: inherit_run
+
+  - attempt_id: A05
+    is_retry: true
+    driver_action: Added frame spacers, differentiated ZPMM top motor-mount spacers from lower flat spacers, and fixed ZPMM native millimeter scale.
+    artifact_paths:
+      - examples/m3_crete/m3_reference_assembly.yaml
+      - examples/m3_crete/generated/M3_6mm_frame_shim_4080.step
+      - examples/m3_crete/m3_connector_metadata.yaml
+    checks_run:
+      - command: .venv/Scripts/python.exe -m cadclaw_cli.main assemble check-round examples/m3_crete/m3_reference_assembly.yaml --no-render-views
+        result: warning
+        elapsed_seconds: null
+    result: passed_with_not_built_yet_warnings
+    corrections:
+      - Replaced earlier shim assumptions with authored ZPMM.step at confirmed 6.1 mm thickness for top motor-mount spacer positions.
+      - Kept lower side-rail spacers as simple 6 x 40 x 80 mm flat stock.
+    human_interventions:
+      - User exported resized ZPMM STEP and clarified that top spacers also act as motor mounts.
+    token_usage:
+      capture_status: inherit_run
+
+  - attempt_id: A06
+    is_retry: true
+    driver_action: Updated field-build frame constraints and Y-gantry orientation.
+    artifact_paths:
+      - examples/m3_crete/m3_reference_assembly.yaml
+      - benchmarks/m3_ai_assembly/benchmark.yaml
+      - benchmarks/m3_ai_assembly/prompts/standard_prompt.md
+    checks_run:
+      - command: .venv/Scripts/python.exe -m cadclaw_cli.main assemble render-sequence examples/m3_crete/m3_reference_assembly.yaml --views front,top,hero,iso --rotate-final
+        result: warning
+        elapsed_seconds: null
+    result: passed_with_not_built_yet_warnings
+    corrections:
+      - Set lower Y-direction frame members to 2080 V-slot.
+      - Set top center spreader to 2040 V-slot with 40 mm side vertical and top face flush with the top frame.
+      - Centered the spreader gantry plates vertically on the 2080/frame-member datum.
+      - Rotated Y-gantry C-Beams so the 80 mm dimension is vertical and open channels face inward.
+    human_interventions:
+      - User provided field-build corrections for lower Y rails, center spreader, and Y-gantry channel orientation.
+    token_usage:
+      capture_status: inherit_run
+
+  - attempt_id: A07
+    is_retry: true
+    driver_action: Added X-axis printhead carriage reference stack.
+    artifact_paths:
+      - examples/m3_crete/m3_reference_assembly.yaml
+      - tests/test_assembly_spec.py
+    checks_run:
+      - command: .venv/Scripts/python.exe -m cadclaw_cli.main assemble check-round examples/m3_crete/m3_reference_assembly.yaml --no-render-views
+        result: warning
+        elapsed_seconds: null
+      - command: .venv/Scripts/python.exe -m pytest --basetemp .tmp_pytest/basetemp
+        result: passed
+        elapsed_seconds: null
+    result: passed_with_not_built_yet_warnings
+    corrections:
+      - Added two C-Beam Gantry Plate XLarge X-carriage plates, one on each side of the X gantry.
+      - Added eight Solid V Wheel instances for the X carriage.
+      - Added bbox checks for 80 mm vertical Y gantries and top-spreader alignment.
+    human_interventions:
+      - User confirmed the two-sided X-carriage plate and wheel arrangement.
+    token_usage:
+      capture_status: inherit_run
+
+outputs:
+  final_step: examples/m3_crete/build/m3_reference_round1.step
+  design_inventory: examples/m3_crete/build/m3_reference_round1_inventory.json
+  cadclaw_report: examples/m3_crete/build/m3_reference_round1_report.json
+  score_report: null
+  review_views:
+    - examples/m3_crete/build/sequence/views/06_frame_completion_hero.png
+  demo_gifs:
+    - examples/m3_crete/build/sequence/final/assembly_progress_360.gif
+    - examples/m3_crete/build/sequence/final/final_explode_slow_rotate.gif
+  run_summary_json: null
+
+summary:
+  attempt_count: 7
+  retry_count: 6
+  correction_count: 14
+  human_intervention_count: 7
+  major_corrections:
+    - X gantry plates moved from inside the rail body to flat end-face placement.
+    - Plate family corrected by axis handoff.
+    - 6 mm spacer logic moved from moving gantry stack to static frame side-rail/post joints.
+    - ZPMM STEP scale corrected to 6.1 mm native millimeter thickness.
+    - Bottom X-frame members excluded for the open-frame design.
+    - Lower Y rails changed to 2080 V-slot.
+    - Top center spreader changed to 2040 V-slot, 40 mm side vertical and top face flush.
+    - Y-gantry C-Beams rotated so 80 mm dimension is vertical and open channels face inward.
+    - X-axis printhead carriage plates and wheels added.
+  blockers:
+    - Dedicated printhead/tooling STEP was not found in the local asset search.
+    - Two M3-2 x-motor STEP files inspected as assembly-scale exports, not small reusable motor or mount components.
+    - Belt, pulley, idler, and motor routing still needs connector-backed placement before release scoring can treat it as complete.
+  residual_not_built_yet:
+    - Connector frames for rail endpoints and plates.
+    - Belt paths and pulley/idler routing.
+    - Motors and motor plates.
+    - Z drive assemblies.
+    - Printhead/tooling interface.
+
+privacy_review:
+  secrets_checked: false
+  private_procurement_fields_excluded: true
+  notes: This retrospective log contains no credential values and does not include private procurement records.

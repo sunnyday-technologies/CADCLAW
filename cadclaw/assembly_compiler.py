@@ -92,6 +92,33 @@ class PlacedInstanceShape:
     shape: object
 
 
+@dataclass
+class GeometryShapeCache:
+    """Per-run cache for transformed instance shapes used by validation gates."""
+
+    records_by_key: Dict[Tuple[str, ...], Tuple[List[PlacedInstanceShape], List[Finding]]] = field(
+        default_factory=dict
+    )
+    requests: int = 0
+    hits: int = 0
+    misses: int = 0
+    loaded_instances: int = 0
+
+    def key_for(self, instance_ids: Iterable[str] | None) -> Tuple[str, ...]:
+        if instance_ids is None:
+            return ("<all>",)
+        return tuple(sorted(set(str(value) for value in instance_ids)))
+
+    def to_dict(self) -> dict:
+        return {
+            "requests": self.requests,
+            "hits": self.hits,
+            "misses": self.misses,
+            "loaded_instances": self.loaded_instances,
+            "cached_instance_sets": len(self.records_by_key),
+        }
+
+
 @dataclass(frozen=True)
 class CylindricalFeature:
     instance_id: str
@@ -534,8 +561,18 @@ def _placed_instance_shapes(
     spec_path: Path,
     plan: AssemblyBuildPlan,
     instance_ids: Iterable[str] | None = None,
+    shape_cache: GeometryShapeCache | None = None,
 ) -> Tuple[List[PlacedInstanceShape], List[Finding]]:
     import cadquery as cq
+
+    cache_key: Tuple[str, ...] | None = None
+    if shape_cache is not None:
+        shape_cache.requests += 1
+        cache_key = shape_cache.key_for(instance_ids)
+        cached = shape_cache.records_by_key.get(cache_key)
+        if cached is not None:
+            shape_cache.hits += 1
+            return cached
 
     spec_dir = spec_path.resolve().parent
     manifest_sources = _load_manifest_sources(spec.manifests, spec_dir)
@@ -575,6 +612,10 @@ def _placed_instance_shapes(
                     "resolved_path": _display_path(source_path),
                 },
             ))
+    if shape_cache is not None and cache_key is not None:
+        shape_cache.misses += 1
+        shape_cache.loaded_instances += len(records)
+        shape_cache.records_by_key[cache_key] = (records, findings)
     return records, findings
 
 
@@ -958,6 +999,7 @@ def _run_hole_alignment(
     spec_path: Path,
     plan: AssemblyBuildPlan,
     instance_ids: Iterable[str] | None = None,
+    shape_cache: GeometryShapeCache | None = None,
 ) -> tuple[List[Finding], dict]:
     config = _validation_section(spec, "hole_alignment")
     groups_raw = config.get("groups", config.get("pairs", []))
@@ -972,7 +1014,7 @@ def _run_hole_alignment(
         return findings, {"checked": False, "reason": "config_invalid"}
 
     records, shape_findings = _placed_instance_shapes(
-        spec, spec_path, plan, instance_ids=instance_ids
+        spec, spec_path, plan, instance_ids=instance_ids, shape_cache=shape_cache
     )
     findings.extend(shape_findings)
     by_id = {record.id: record for record in records}
@@ -1093,6 +1135,7 @@ def _run_wheel_alignment(
     spec_path: Path,
     plan: AssemblyBuildPlan,
     instance_ids: Iterable[str] | None = None,
+    shape_cache: GeometryShapeCache | None = None,
 ) -> tuple[List[Finding], dict]:
     config = _validation_section(spec, "wheel_alignment")
     groups_raw = config.get("groups", [])
@@ -1107,7 +1150,7 @@ def _run_wheel_alignment(
         return findings, {"checked": False, "reason": "config_invalid"}
 
     records, shape_findings = _placed_instance_shapes(
-        spec, spec_path, plan, instance_ids=instance_ids
+        spec, spec_path, plan, instance_ids=instance_ids, shape_cache=shape_cache
     )
     findings.extend(shape_findings)
     by_id = {record.id: record for record in records}
@@ -1384,6 +1427,7 @@ def _run_vslot_stackup(
     spec_path: Path,
     plan: AssemblyBuildPlan,
     instance_ids: Iterable[str] | None = None,
+    shape_cache: GeometryShapeCache | None = None,
 ) -> tuple[List[Finding], dict]:
     config = _validation_section(spec, "vslot_stackup")
     handoffs_raw = config.get("handoffs", [])
@@ -1398,7 +1442,7 @@ def _run_vslot_stackup(
         return findings, {"checked": False, "reason": "config_invalid"}
 
     records, shape_findings = _placed_instance_shapes(
-        spec, spec_path, plan, instance_ids=instance_ids
+        spec, spec_path, plan, instance_ids=instance_ids, shape_cache=shape_cache
     )
     findings.extend(shape_findings)
     by_id = {record.id: record for record in records}
@@ -1731,6 +1775,7 @@ def _run_frame_adjacency(
     spec_path: Path,
     plan: AssemblyBuildPlan,
     instance_ids: Iterable[str] | None = None,
+    shape_cache: GeometryShapeCache | None = None,
 ) -> tuple[List[Finding], dict]:
     config = _validation_section(spec, "frame_adjacency")
     joints_raw = config.get("joints", [])
@@ -1745,7 +1790,7 @@ def _run_frame_adjacency(
         return findings, {"checked": False, "reason": "config_invalid"}
 
     records, shape_findings = _placed_instance_shapes(
-        spec, spec_path, plan, instance_ids=instance_ids
+        spec, spec_path, plan, instance_ids=instance_ids, shape_cache=shape_cache
     )
     findings.extend(shape_findings)
     by_id = {record.id: record for record in records}
@@ -2071,6 +2116,7 @@ def _run_bbox_alignment(
     spec_path: Path,
     plan: AssemblyBuildPlan,
     instance_ids: Iterable[str] | None = None,
+    shape_cache: GeometryShapeCache | None = None,
 ) -> tuple[List[Finding], dict]:
     config = _validation_section(spec, "bbox_alignment")
     checks_raw = config.get("checks", [])
@@ -2085,7 +2131,7 @@ def _run_bbox_alignment(
         return findings, {"checked": False, "reason": "config_invalid"}
 
     records, shape_findings = _placed_instance_shapes(
-        spec, spec_path, plan, instance_ids=instance_ids
+        spec, spec_path, plan, instance_ids=instance_ids, shape_cache=shape_cache
     )
     findings.extend(shape_findings)
     bboxes = {record.id: _bbox_tuple(record.shape) for record in records}
@@ -2252,6 +2298,7 @@ def _run_spec_interference(
     plan: AssemblyBuildPlan,
     instance_ids: Iterable[str] | None = None,
     preferred_movable_ids: Iterable[str] | None = None,
+    shape_cache: GeometryShapeCache | None = None,
 ) -> tuple[List[Finding], dict]:
     from OCP.BRepAlgoAPI import BRepAlgoAPI_Common
     from OCP.BRepGProp import BRepGProp
@@ -2270,7 +2317,7 @@ def _run_spec_interference(
     }
 
     records, findings = _placed_instance_shapes(
-        spec, spec_path, plan, instance_ids=instance_ids
+        spec, spec_path, plan, instance_ids=instance_ids, shape_cache=shape_cache
     )
     bboxes = {record.id: _bbox_tuple(record.shape) for record in records}
     preferred = {str(value) for value in preferred_movable_ids or []}
@@ -2685,6 +2732,7 @@ def run_assembly_sequence(
     validate_bbox_alignment = "bbox_alignment" in requested_checks
 
     plan = plan_assembly_build(spec_file, dry_run=dry_run)
+    shape_cache = GeometryShapeCache() if not dry_run else None
     findings: List[Finding] = []
     findings.extend(_protected_output_findings(spec, spec_file.resolve().parent))
     findings.extend(_generation_policy_findings(plan))
@@ -2770,6 +2818,7 @@ def run_assembly_sequence(
                 plan,
                 instance_ids=cumulative,
                 preferred_movable_ids=step.instance_ids,
+                shape_cache=shape_cache,
             )
             tagged_findings = [
                 _with_sequence_step(finding, step.id)
@@ -2793,6 +2842,7 @@ def run_assembly_sequence(
                 spec_file,
                 plan,
                 instance_ids=cumulative,
+                shape_cache=shape_cache,
             )
             tagged_findings = [
                 _with_sequence_step(finding, step.id)
@@ -2816,6 +2866,7 @@ def run_assembly_sequence(
                 spec_file,
                 plan,
                 instance_ids=cumulative,
+                shape_cache=shape_cache,
             )
             tagged_findings = [
                 _with_sequence_step(finding, step.id)
@@ -2839,6 +2890,7 @@ def run_assembly_sequence(
                 spec_file,
                 plan,
                 instance_ids=cumulative,
+                shape_cache=shape_cache,
             )
             tagged_findings = [
                 _with_sequence_step(finding, step.id)
@@ -2862,6 +2914,7 @@ def run_assembly_sequence(
                 spec_file,
                 plan,
                 instance_ids=cumulative,
+                shape_cache=shape_cache,
             )
             tagged_findings = [
                 _with_sequence_step(finding, step.id)
@@ -2908,6 +2961,7 @@ def run_assembly_sequence(
                 spec_file,
                 plan,
                 instance_ids=cumulative,
+                shape_cache=shape_cache,
             )
             tagged_findings = [
                 _with_sequence_step(finding, step.id)
@@ -3108,6 +3162,7 @@ def run_assembly_sequence(
         "rotation_gif": _display_path(rotation_output) if rotation_output else None,
         "sequence_blocked_at": sequence_blocked_at,
         "stop_on_validation_fail": stop_on_validation_fail,
+        "geometry_cache": shape_cache.to_dict() if shape_cache is not None else None,
     }
     if not dry_run:
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -3236,6 +3291,7 @@ def run_assembly_sequence(
             "rotation_gif": manifest["rotation_gif"],
             "sequence_blocked_at": sequence_blocked_at,
             "stop_on_validation_fail": stop_on_validation_fail,
+            "geometry_cache": manifest["geometry_cache"],
         },
     )
     report.overall = report.compute_overall()
@@ -3556,6 +3612,7 @@ def run_assembly_check_round(
     requested_checks = _requested_validation_checks(spec)
     validation_meta: Dict[str, object] = {}
     geometry_plan: Optional[AssemblyBuildPlan] = None
+    shape_cache = GeometryShapeCache() if not dry_run else None
 
     def _get_geometry_plan() -> AssemblyBuildPlan:
         nonlocal geometry_plan
@@ -3583,6 +3640,7 @@ def run_assembly_check_round(
                 spec,
                 spec_file,
                 _get_geometry_plan(),
+                shape_cache=shape_cache,
             )
             findings.extend(interference_findings)
             validation_meta["interference"] = interference_meta
@@ -3603,6 +3661,7 @@ def run_assembly_check_round(
                 spec,
                 spec_file,
                 _get_geometry_plan(),
+                shape_cache=shape_cache,
             )
             findings.extend(stackup_findings)
             validation_meta["vslot_stackup"] = stackup_meta
@@ -3623,6 +3682,7 @@ def run_assembly_check_round(
                 spec,
                 spec_file,
                 _get_geometry_plan(),
+                shape_cache=shape_cache,
             )
             findings.extend(frame_findings)
             validation_meta["frame_adjacency"] = frame_meta
@@ -3643,6 +3703,7 @@ def run_assembly_check_round(
                 spec,
                 spec_file,
                 _get_geometry_plan(),
+                shape_cache=shape_cache,
             )
             findings.extend(hole_findings)
             validation_meta["hole_alignment"] = hole_meta
@@ -3663,6 +3724,7 @@ def run_assembly_check_round(
                 spec,
                 spec_file,
                 _get_geometry_plan(),
+                shape_cache=shape_cache,
             )
             findings.extend(wheel_findings)
             validation_meta["wheel_alignment"] = wheel_meta
@@ -3703,6 +3765,7 @@ def run_assembly_check_round(
                 spec,
                 spec_file,
                 _get_geometry_plan(),
+                shape_cache=shape_cache,
             )
             findings.extend(bbox_findings)
             validation_meta["bbox_alignment"] = bbox_meta
@@ -3837,6 +3900,7 @@ def run_assembly_check_round(
             "build": build_report.meta,
             "role_inventory": role_inventory,
             "validation": validation_meta,
+            "geometry_cache": shape_cache.to_dict() if shape_cache is not None else None,
             "render": render_report.meta if render_report else {
                 "skipped": bool(render_views),
                 "reason": render_skipped_reason,
@@ -3858,6 +3922,7 @@ __all__ = [
     "AssemblyBuildPlan",
     "AssemblySequenceStepOutput",
     "DESIGN_INVENTORY_VERSION",
+    "GeometryShapeCache",
     "ResolvedInstance",
     "inspect_component",
     "plan_assembly_build",

@@ -1,0 +1,89 @@
+schema_version: m3_ai_assembly_run_log.v0.1
+run_id: replace_with_unique_run_id
+benchmark_id: m3_ai_assembly
+track: cadclaw_spec_driver
+status: planned
+
+driver:
+  ai_driver: replace_with_ai_driver_name
+  ai_driver_version: unknown
+  cad_driver: CADCLAW/CadQuery
+  cad_driver_version: unknown
+  host_application: unknown
+
+prompt:
+  prompt_path: benchmarks/m3_ai_assembly/prompts/standard_prompt.md
+  prompt_revision: unknown
+  prompt_sha256: unknown
+
+inputs:
+  benchmark_contract: benchmarks/m3_ai_assembly/benchmark.yaml
+  assembly_spec: examples/m3_crete/m3_reference_assembly.yaml
+  connector_metadata: examples/m3_crete/m3_connector_metadata.yaml
+  testkit_assets: examples/m3_crete/m3_testkit_assets.yaml
+  reference_assets:
+    - path: null
+      checksum: null
+      redistribution_status: unknown
+
+timing:
+  started_utc: null
+  ended_utc: null
+  elapsed_minutes: null
+  capture_status: unavailable
+  unavailable_reason: Fill this in if wall-clock telemetry was not captured.
+
+token_usage:
+  capture_status: unavailable
+  capture_method: null
+  prompt_tokens: null
+  completion_tokens: null
+  reasoning_tokens: null
+  tool_tokens: null
+  total_tokens: null
+  unavailable_reason: Fill this in if provider or host telemetry was not exported.
+
+attempts:
+  - attempt_id: A01
+    is_retry: false
+    started_utc: null
+    ended_utc: null
+    elapsed_minutes: null
+    driver_action: Describe the action taken in this attempt.
+    artifact_paths:
+      - null
+    checks_run:
+      - command: null
+        result: not_run
+        elapsed_seconds: null
+    result: pending
+    corrections: []
+    human_interventions: []
+    token_usage:
+      capture_status: inherit_run
+      prompt_tokens: null
+      completion_tokens: null
+      total_tokens: null
+    notes: null
+
+outputs:
+  final_step: null
+  design_inventory: null
+  cadclaw_report: null
+  score_report: null
+  review_views: []
+  run_summary_json: null
+
+summary:
+  attempt_count: null
+  retry_count: null
+  correction_count: null
+  human_intervention_count: null
+  major_corrections: []
+  blockers: []
+  residual_not_built_yet: []
+
+privacy_review:
+  secrets_checked: false
+  private_procurement_fields_excluded: false
+  notes: Do not include credentials, API keys, auth headers, private supplier fields, or local-only secrets.
