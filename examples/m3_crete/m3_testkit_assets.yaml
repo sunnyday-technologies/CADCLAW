@@ -15,12 +15,23 @@ policy:
   full_catalog_not_vendored: true
   exact_dimensions_from_step_or_validated_spec: true
   contextual_parts_generated_by_cadclaw: false
+  plain_hole_free_spacers_may_be_generated_when_user_approved: true
 
 active_reference_assets:
   - id: cbeam_40x80_1000
     source_path: CAD/Advanced/Linear Rail/C-Beam 40x80x1000 Linear Rail.step
-    use: Primary 4080 C-Beam stock for M3-2 frame members and X/Y gantry rails.
-    current_reference_quantity: 17
+    use: 4080 C-Beam stock for Z posts, top X frame rails, top side rails, and X/Y gantry rails. Lower Y rails are now 2080 and the top center spreader is 2040.
+    current_reference_quantity: 14
+    generated_by_cadclaw: false
+  - id: vslot_2080_1000
+    source_path: CAD/Components/V-Slot/V-Slot 20x80x1000 Linear Rail.step
+    use: Lower Y-direction static frame rails, replacing C-Beam at the base.
+    current_reference_quantity: 2
+    generated_by_cadclaw: false
+  - id: vslot_2040_1000
+    source_path: CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step
+    use: Top center spreader extrusion.
+    current_reference_quantity: 1
     generated_by_cadclaw: false
   - id: cbeam_gantry_plate_xlarge
     source_path: CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP
@@ -29,14 +40,19 @@ active_reference_assets:
     generated_by_cadclaw: false
   - id: vslot_gantry_plate_20_80
     source_path: CAD/Components/Plates/V-Slot Gantry Plate 20-80mm.step
-    use: Smaller 3mm Y-to-Z/Z-post carriage plates.
-    current_reference_quantity: 4
+    use: Smaller 3mm Y-to-Z/Z-post carriage plates plus the two top-center spreader bracket/spacer plates.
+    current_reference_quantity: 6
     generated_by_cadclaw: false
   - id: zpmm_motor_mount_spacer
     source_path: ZPMM.step
-    use: Authored 6.1mm side-rail/post motor-mount spacer replacing the generated 6mm shim placeholder.
-    current_reference_quantity: 8
+    use: Authored 6.1mm side-rail/post motor-mount spacer at motor-mount positions only.
+    current_reference_quantity: 4
     generated_by_cadclaw: false
+  - id: m3_flat_frame_spacer_6mm
+    source_path: examples/m3_crete/generated/M3_6mm_frame_shim_4080.step
+    use: Simple 6 x 40 x 80mm lower Y-rail frame spacer; no holes or contextual bolt pattern.
+    current_reference_quantity: 4
+    generated_by_cadclaw: true
 
 retained_reference_or_future_assets:
   - id: solid_v_wheel_standard
@@ -44,16 +60,14 @@ retained_reference_or_future_assets:
     use: Standard M3 V-wheel reference. The Delrin standard wheel has the same practical envelope; mini V-wheels are smaller but are not the M3 reference.
   - id: vslot_2080_1200
     source_path: CAD/Custom/2080_1200mm.step
-    use: Future lower Y-frame member candidate replacing a C-Beam member for cost/weight after validation.
+    use: Retained custom-length 2080 candidate for future variants; active M3-2 reference uses the 1000mm 2080 stock file.
   - id: vslot_2040_1200
     source_path: CAD/Custom/2040_1200mm.step
-    use: Future frame/member comparison candidate for expansion and FEA studies.
+    use: Retained custom-length 2040 candidate for future variants; active M3-2 top center spreader uses the 1000mm 2040 stock file.
 
 excluded_from_minimal_testkit:
   - source_path: CAD/Advanced/Assemblies/C-Beam Linear Actuator 1000mm.step
     reason: Macro actuator is not needed for the current M3-2 reference assembly; the Y gantry uses explicit C-Beam rail placement.
-  - source_path: examples/m3_crete/generated/M3_6mm_frame_shim_4080.step
-    reason: Superseded by authored ZPMM motor-mount/spacer STEP for active placement.
   - source_path: CAD/Components/Wheels/Delrin V Wheel.step
     reason: Duplicate practical envelope for this reference; use the solid wheel asset for the benchmark.
   - source_path: CAD/Components/Wheels/Xtreme Mini V Wheel.step

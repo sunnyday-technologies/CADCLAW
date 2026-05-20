@@ -481,6 +481,25 @@ class TestMED6ExpectedDesignQtyAndSpareQty(unittest.TestCase):
                          f"Expected no cad.count_mismatch, got "
                          f"{[f.message for f in cbeam_count_findings]}")
 
+    def test_missing_bom_item_rule_still_covers_cad_label(self):
+        """A missing public BOM item is already a rule_no_match failure; the
+        covered CAD label should not also be reported as unmapped."""
+        report = self._run_inline(
+            [],
+            [{
+                "id": 68,
+                "expected_design_qty": 1,
+                "expected_label": "cbeam",
+            }],
+            labels={"cbeam": [40.0, 80.0, 1000.0]},
+        )
+        self.assertTrue(any(f.id == "bom.rule_no_match" for f in report.findings))
+        cbeam_unmapped = [
+            f for f in report.findings
+            if f.id == "cad.unmapped_label" and f.evidence.get("label") == "cbeam"
+        ]
+        self.assertEqual(cbeam_unmapped, [])
+
     def test_spare_qty_consistent_no_warning(self):
         """expected_qty = expected_design_qty + spare_qty — should NOT warn."""
         bom = [

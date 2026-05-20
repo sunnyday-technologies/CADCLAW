@@ -74,12 +74,18 @@ class TestRuleLoader(unittest.TestCase):
     def test_m3_bom_audit_rules_load(self):
         rules = load_rules("examples/m3_crete/m3_bom_audit.yaml")
         self.assertIn("cbeam_4080_1000", rules.labels)
+        self.assertIn("vslot_2080_1000", rules.labels)
+        self.assertIn("vslot_2040_1000", rules.labels)
         self.assertIn("zpmm_motor_mount_spacer", rules.labels)
-        self.assertEqual(len(rules.bom_audit.rules), 4)
+        self.assertIn("flat_frame_spacer_6mm", rules.labels)
+        self.assertEqual(len(rules.bom_audit.rules), 7)
         by_id = {rule.id: rule for rule in rules.bom_audit.rules}
-        self.assertEqual(by_id[67].expected_design_qty, 17)
+        self.assertEqual(by_id[67].expected_design_qty, 14)
         self.assertEqual(by_id[67].spare_qty, 1)
-        self.assertEqual(by_id[79].expected_label, "zpmm_motor_mount_spacer")
+        self.assertEqual(by_id[75].expected_label, "zpmm_motor_mount_spacer")
+        self.assertEqual(by_id[79].expected_label, "flat_frame_spacer_6mm")
+        self.assertEqual(by_id[86].expected_label, "vslot_2080_1000")
+        self.assertEqual(by_id[87].expected_label, "vslot_2040_1000")
 
     def test_label_sig_helpers(self):
         path = self._write_tmp(GOOD_YAML)

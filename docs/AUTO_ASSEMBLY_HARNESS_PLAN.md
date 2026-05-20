@@ -77,6 +77,8 @@ The M3 assembly workflow benchmark is tracked in
   while CADCLAW/CadQuery compiles and validates each round.
 
 CADCLAW grades both routes with the same STEP, BOM, and review-view checks.
+The BOM check compares CADCLAW's model-derived design inventory against the
+M3-owned interactive BOM, rather than making CADCLAW the public BOM authority.
 This keeps the comparison focused on where verification belongs in the loop,
 not on which tool can produce the most plausible render.
 
@@ -98,6 +100,8 @@ not on which tool can produce the most plausible render.
 4. **CadQuery Compiler**
    Imports authored STEP parts, applies transforms and patterns, optionally
    generates stock-only geometry, exports STEP, and writes design inventory.
+   For M3-CRETE, this model-derived inventory is an overcheck artifact and
+   delta source; the interactive/procurement BOM remains owned by the M3 repo.
 
 5. **Review Views**
    Named renders such as `front`, `left`, `right`, `top`, `iso`, and local
@@ -130,7 +134,9 @@ Existing M3-CRETE work to reuse, not duplicate:
   generated orthographic review PNGs after every edit.
 - `../M3-CRETE/CAD/bom_generate.py` already derives a structural
   BOM and hardware pack from the live assembly. CADCLAW should generalize this
-  into a design-inventory/BOM emitter instead of starting from a blank design.
+  into a model-derived design-inventory/BOM emitter instead of starting from a
+  blank design. That emitter should produce evidence and proposed deltas for
+  M3-CRETE maintainers, not overwrite the interactive BOM.
 - `../M3-CRETE/config.js` defines the active variant model:
   M3-2 is the base BOM quantity set, with M3-1 and M3-4 expressed through
   quantity overrides.
@@ -197,6 +203,10 @@ validated performance.
 - **BOM is partly modeled and partly derived.** Fasteners and some hardware
   should come from rules over detected joints and placed parts, not necessarily
   from modeled bodies.
+- **BOM ownership is split by purpose.** CADCLAW emits a model-based BOM and
+  parity findings from the current assembly; M3-CRETE owns the public
+  interactive/procurement BOM and decides whether CADCLAW's deltas should be
+  accepted.
 - **Variant quantities already exist.** CADCLAW should ingest or mirror the
   `config.js` variant-override model instead of inventing a second variant
   source of truth.
@@ -354,11 +364,13 @@ Current implementation status:
   hole-alignment checks when requested, stops on the first failed validation by
   default, records per-step validation status and repair suggestions in the
   sequence manifest, can render a final rotating GIF after all gates pass, and
-  emits a public-safe CSV BOM grouped by authored STEP source and role.
+  emits a public-safe model-derived CSV BOM grouped by authored STEP source and
+  role.
 - `assemble check-round` runs one build round, verifies declared spec role
   inventory, runs declared instance-level interference, V-slot handoff
   stackup, static frame adjacency, and authored hole-alignment checks,
-  optionally renders review views, and emits a single report.
+  optionally renders review views, emits a model-derived BOM/design inventory,
+  and writes a single report.
 - `assemble suggest-adjustment` remains future work; for now adjustment advice
   comes from existing CADCLAW findings such as `interference.clip`.
 

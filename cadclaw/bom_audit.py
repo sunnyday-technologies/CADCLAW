@@ -280,6 +280,10 @@ def run_bom_audit(
     for rule in bom_rules:
         rule_findings: List[Finding] = []
         item = bom_by_id.get(rule.id)
+        labels = _resolve_labels(rule)
+        if labels:
+            for label in labels:
+                matched_labels.add(label)
         if item is None:
             rule_findings.append(Finding(
                 id="bom.rule_no_match",
@@ -291,6 +295,18 @@ def run_bom_audit(
                 ),
                 evidence={"rule_id": rule.id},
             ))
+            expected = (
+                rule.expected_design_qty
+                if rule.expected_design_qty is not None
+                else rule.expected_cad_count
+            )
+            if expected is not None and labels:
+                label_aggregation[tuple(sorted(labels))].append({
+                    "rule_id": rule.id,
+                    "expected": expected,
+                    "severity": Severity.FAIL,
+                    "labels": list(labels),
+                })
             findings.extend(_apply_severity_override(rule, f) for f in rule_findings)
             continue
 
@@ -436,11 +452,8 @@ def run_bom_audit(
                 ))
 
         # 4f. CAD-side count
-        labels = _resolve_labels(rule)
         if labels:
             cad_count = sum(cad_inventory.get(l, 0) for l in labels)
-            for l in labels:
-                matched_labels.add(l)
             expected = _effective_cad_count(rule, item)
             # v0.7 / MED-5: defer cad.count_mismatch emission so we can
             # aggregate multiple rules pointing at the same label. Track

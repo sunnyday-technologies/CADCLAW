@@ -743,6 +743,108 @@ instances:
                 places=3,
             )
 
+    def test_check_round_runs_open_channel_orientation_gate(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rail = self._export_box_step(root / "CAD" / "rail.step")
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+validation:
+  run_checks: [open_channel_orientation]
+  open_channel_orientation:
+    angle_tolerance_deg: 1.0
+    requirements:
+      - id: y_left_channel_inward
+        instance: y_left
+        local_open_axis: [0.0, 1.0, 0.0]
+        expected_global_axis: [1.0, 0.0, 0.0]
+instances:
+  - id: y_left
+    role: y_gantry_beam
+    source_path: {rail.as_posix()}
+    transform:
+      rotate_deg: [0.0, -90.0, -90.0]
+""")
+
+            report = run_assembly_check_round(
+                spec,
+                dry_run=False,
+                render_views=False,
+                write_inventory=False,
+            )
+            self.assertFalse(
+                any(
+                    f.id.startswith("open_channel_orientation.")
+                    for f in report.findings
+                )
+            )
+            self.assertTrue(
+                report.meta["validation"]["open_channel_orientation"]["checked"]
+            )
+            self.assertIn(
+                "C-Beam open-channel orientation",
+                report.confidence_budget.checked,
+            )
+
+    def test_check_round_flags_open_channel_orientation_mismatch(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rail = self._export_box_step(root / "CAD" / "rail.step")
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: round1
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+validation:
+  run_checks: [open_channel_orientation]
+  open_channel_orientation:
+    angle_tolerance_deg: 1.0
+    requirements:
+      - id: y_left_channel_inward
+        instance: y_left
+        local_open_axis: [0.0, 1.0, 0.0]
+        expected_global_axis: [1.0, 0.0, 0.0]
+instances:
+  - id: y_left
+    role: y_gantry_beam
+    source_path: {rail.as_posix()}
+    transform:
+      rotate_deg: [0.0, 90.0, 90.0]
+""")
+
+            report = run_assembly_check_round(
+                spec,
+                dry_run=False,
+                render_views=False,
+                write_inventory=False,
+            )
+            self.assertEqual(report.overall.value, "fail")
+            finding = next(
+                f for f in report.findings
+                if f.id == "open_channel_orientation.channel_not_inward"
+            )
+            self.assertEqual(finding.evidence["instance"], "y_left")
+            self.assertAlmostEqual(finding.evidence["angle_deg"], 180.0, places=3)
+
     def test_check_round_runs_declared_frame_adjacency_gate(self):
         try:
             import cadquery  # noqa: F401
@@ -1047,6 +1149,8 @@ assembly_sequence:
             self.assertEqual(report.meta["steps"][0]["validation_status"], "not_run")
             self.assertEqual(len(calls), 2)
             self.assertTrue((out_dir / "steps" / "01_x_gantry.step").exists())
+            self.assertTrue((out_dir / "final" / "final_sequence_assembly.step").exists())
+            self.assertTrue(report.meta["final_step"].endswith("final_sequence_assembly.step"))
             self.assertTrue((out_dir / "assembly_sequence_manifest.json").exists())
             self.assertTrue(bom.exists())
             bom_text = bom.read_text(encoding="utf-8")

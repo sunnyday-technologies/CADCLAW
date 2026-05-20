@@ -46,6 +46,12 @@ M3-CRETE BOM data exists separately:
 - CAD-derived structural/hardware BOM CSVs under `../M3-CRETE/CAD/`.
 - Private order/procurement records exist and must not be treated as public BOM truth or echoed in reports.
 
+CADCLAW should emit a model-derived BOM/design inventory from placed authored
+STEP assets and generated stock declarations, then compare it against the
+M3-owned interactive BOM. The comparison can propose evidence-backed deltas in
+either direction, but the M3 project remains the authority for builder-facing
+BOM changes.
+
 ## Old Goals: Keep, Revise, Deprecate
 
 Keep:

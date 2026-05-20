@@ -402,6 +402,33 @@ def _apply_transform_to_point(
     return (rotated[0] + tx, rotated[1] + ty, rotated[2] + tz)
 
 
+def _apply_transform_to_vector(
+    vector: Iterable[float],
+    transform: Transform,
+) -> Tuple[float, float, float]:
+    x, y, z = [float(value) for value in vector]
+    rx, ry, rz = transform.rotate_deg
+    rotated = _rotate_point((x, y, z), "x", rx)
+    rotated = _rotate_point(rotated, "y", ry)
+    return _rotate_point(rotated, "z", rz)
+
+
+def _normalize_vector(vector: Iterable[float]) -> Tuple[float, float, float] | None:
+    x, y, z = [float(value) for value in vector]
+    mag = math.sqrt(x * x + y * y + z * z)
+    if mag <= 1e-9:
+        return None
+    return (x / mag, y / mag, z / mag)
+
+
+def _angle_between_vectors(
+    a: Tuple[float, float, float],
+    b: Tuple[float, float, float],
+) -> float:
+    dot = max(-1.0, min(1.0, sum(x * y for x, y in zip(a, b))))
+    return math.degrees(math.acos(dot))
+
+
 def _connector_components_by_source(
     spec: AssemblySpec,
     spec_path: Path,
@@ -1540,6 +1567,134 @@ def _run_frame_adjacency(
     }
 
 
+def _run_open_channel_orientation(
+    spec: AssemblySpec,
+    spec_path: Path,
+    plan: AssemblyBuildPlan,
+    instance_ids: Iterable[str] | None = None,
+) -> tuple[List[Finding], dict]:
+    config = _validation_section(spec, "open_channel_orientation")
+    requirements = config.get("requirements", [])
+    findings: List[Finding] = []
+    if not isinstance(requirements, list):
+        findings.append(Finding(
+            id="open_channel_orientation.config_invalid",
+            category="assemble",
+            severity=Severity.FAIL,
+            message="validation.open_channel_orientation.requirements must be a list",
+        ))
+        return findings, {"checked": False, "reason": "config_invalid"}
+
+    by_id = {instance.id: instance for instance in spec.instances}
+    included = set(instance_ids) if instance_ids is not None else None
+    tolerance = _as_float(config.get("angle_tolerance_deg"), 8.0)
+    checked: List[str] = []
+    partial: List[str] = []
+    skipped: List[str] = []
+
+    for index, raw in enumerate(requirements, start=1):
+        requirement_id = _handoff_id(raw, index)
+        if not isinstance(raw, dict):
+            findings.append(Finding(
+                id="open_channel_orientation.requirement_invalid",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{requirement_id}: requirement entry must be a mapping",
+            ))
+            continue
+
+        instance_id = str(raw.get("instance", "")).strip()
+        local_axis = raw.get("local_open_axis")
+        expected_axis = raw.get("expected_global_axis")
+        if not instance_id or local_axis is None or expected_axis is None:
+            findings.append(Finding(
+                id="open_channel_orientation.requirement_invalid",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=(
+                    f"{requirement_id}: requires instance, local_open_axis, "
+                    "and expected_global_axis"
+                ),
+                evidence={"requirement": requirement_id},
+            ))
+            continue
+        if included is not None and instance_id not in included:
+            partial.append(requirement_id)
+            continue
+        instance = by_id.get(instance_id)
+        if instance is None:
+            skipped.append(requirement_id)
+            findings.append(Finding(
+                id="open_channel_orientation.instance_missing",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{requirement_id}: instance {instance_id!r} not found",
+                evidence={"requirement": requirement_id, "instance": instance_id},
+            ))
+            continue
+
+        try:
+            local = _normalize_vector(local_axis)
+            expected = _normalize_vector(expected_axis)
+        except Exception:
+            local = None
+            expected = None
+        if local is None or expected is None:
+            findings.append(Finding(
+                id="open_channel_orientation.requirement_invalid",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{requirement_id}: local/expected axes must be nonzero vectors",
+                evidence={"requirement": requirement_id},
+            ))
+            continue
+
+        actual = _normalize_vector(_apply_transform_to_vector(local, instance.transform))
+        if actual is None:
+            findings.append(Finding(
+                id="open_channel_orientation.requirement_invalid",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{requirement_id}: transformed open-channel vector is zero",
+                evidence={"requirement": requirement_id},
+            ))
+            continue
+
+        checked.append(requirement_id)
+        angle = _angle_between_vectors(actual, expected)
+        if angle > tolerance:
+            findings.append(Finding(
+                id="open_channel_orientation.channel_not_inward",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=(
+                    f"{requirement_id}: {instance_id} open-channel normal is "
+                    f"{angle:.1f} degrees from the expected inward direction"
+                ),
+                suggested_fix=(
+                    f"Rotate {instance_id} around its gantry axis so the "
+                    "C-Beam open channel faces the inside of the printer."
+                ),
+                evidence={
+                    "requirement": requirement_id,
+                    "instance": instance_id,
+                    "actual_global_axis": [round(value, 6) for value in actual],
+                    "expected_global_axis": [round(value, 6) for value in expected],
+                    "angle_deg": round(angle, 3),
+                    "angle_tolerance_deg": tolerance,
+                },
+            ))
+
+    return findings, {
+        "checked": True,
+        "checked_requirements": checked,
+        "partial_requirements": sorted(set(partial)),
+        "skipped_requirements": skipped,
+        "instance_ids": list(instance_ids) if instance_ids is not None else None,
+        "angle_tolerance_deg": tolerance,
+    }
+
+
 def _run_spec_interference(
     spec: AssemblySpec,
     spec_path: Path,
@@ -1974,6 +2129,7 @@ def run_assembly_sequence(
     validate_vslot_stackup = "vslot_stackup" in requested_checks
     validate_frame_adjacency = "frame_adjacency" in requested_checks
     validate_hole_alignment = "hole_alignment" in requested_checks
+    validate_open_channel = "open_channel_orientation" in requested_checks
 
     plan = plan_assembly_build(spec_file, dry_run=dry_run)
     findings: List[Finding] = []
@@ -2015,6 +2171,9 @@ def run_assembly_sequence(
     )
     sequence_hole_alignment_checked = (
         validate_hole_alignment and not dry_run and not blocking
+    )
+    sequence_open_channel_checked = (
+        validate_open_channel and not dry_run and not blocking
     )
     sequence_blocked_at: Optional[str] = None
     if renderer is None and render_views:
@@ -2117,6 +2276,29 @@ def run_assembly_sequence(
         if sequence_hole_alignment_checked:
             validation_ran = True
             step_findings, _step_meta = _run_hole_alignment(
+                spec,
+                spec_file,
+                plan,
+                instance_ids=cumulative,
+            )
+            tagged_findings = [
+                _with_sequence_step(finding, step.id)
+                for finding in step_findings
+            ]
+            findings.extend(tagged_findings)
+            step_failed = step_failed or any(
+                finding.severity == Severity.FAIL
+                for finding in tagged_findings
+            )
+            repair_suggestions.extend(
+                finding.suggested_fix
+                for finding in tagged_findings
+                if finding.severity == Severity.FAIL and finding.suggested_fix
+            )
+            validation_status = "fail" if step_failed else "pass"
+        if sequence_open_channel_checked:
+            validation_ran = True
+            step_findings, _step_meta = _run_open_channel_orientation(
                 spec,
                 spec_file,
                 plan,
@@ -2242,9 +2424,27 @@ def run_assembly_sequence(
             bom_output = _resolve_output_path(str(bom_output))
         write_assembly_bom_csv(plan, bom_output, instance_ids=cumulative or None)
 
+    final_step_output = None
+    final_export_ready = (
+        not dry_run
+        and not blocking
+        and not sequence_blocked_at
+        and bool(cumulative)
+    )
+    if final_export_ready:
+        final_dir.mkdir(parents=True, exist_ok=True)
+        final_step = final_dir / "final_sequence_assembly.step"
+        final_step_output = _export_step(
+            spec,
+            spec_file,
+            plan,
+            output_path=final_step,
+            instance_ids=cumulative,
+        )
+
     rotation_output = None
     if rotate_final:
-        if dry_run or blocking or sequence_blocked_at or not cumulative:
+        if not final_step_output:
             findings.append(Finding(
                 id="assemble.sequence_rotation_skipped",
                 category="assemble",
@@ -2257,21 +2457,12 @@ def run_assembly_sequence(
                 },
             ))
         else:
-            final_dir.mkdir(parents=True, exist_ok=True)
-            final_step = final_dir / "final_sequence_assembly.step"
-            written_final = _export_step(
-                spec,
-                spec_file,
-                plan,
-                output_path=final_step,
-                instance_ids=cumulative,
-            )
             rotation_output = final_dir / "final_rotate.gif"
             try:
                 if gif_renderer is None:
                     from .render import render_radial_explode_gif as gif_renderer
                 gif_renderer(
-                    str(written_final),
+                    str(final_step_output),
                     str(rotation_output),
                     expansion=0.0,
                     explode_frames=1,
@@ -2307,6 +2498,7 @@ def run_assembly_sequence(
             }
             for step in step_outputs
         ],
+        "final_step": _display_path(final_step_output) if final_step_output else None,
         "bom_csv": _display_path(bom_output) if bom_output else None,
         "rotation_gif": _display_path(rotation_output) if rotation_output else None,
         "sequence_blocked_at": sequence_blocked_at,
@@ -2342,7 +2534,12 @@ def run_assembly_sequence(
                 ["sequence authored hole alignment"]
                 if sequence_hole_alignment_checked else []
             ),
+            *(
+                ["sequence C-Beam open-channel orientation"]
+                if sequence_open_channel_checked else []
+            ),
             "BOM CSV generation" if write_bom else "BOM CSV skipped by request",
+            *([] if not final_step_output else ["final sequence STEP export"]),
             *(
                 ["explicit spacer placement declarations"]
                 if _has_explicit_spacers(spec) else []
@@ -2350,6 +2547,7 @@ def run_assembly_sequence(
         ],
         not_checked=[
             *([] if not dry_run else ["sequence STEP export"]),
+            *([] if final_step_output else ["final sequence STEP export"]),
             *([] if render_views else ["sequence review rendering"]),
             *([] if rotate_final else ["final rotation GIF"]),
             *(
@@ -2371,6 +2569,11 @@ def run_assembly_sequence(
                 [] if sequence_hole_alignment_checked
                 else ["sequence authored hole alignment"]
                 if validate_hole_alignment else []
+            ),
+            *(
+                [] if sequence_open_channel_checked
+                else ["sequence C-Beam open-channel orientation"]
+                if validate_open_channel else []
             ),
             *(
                 [] if _has_explicit_spacers(spec)
@@ -2405,6 +2608,7 @@ def run_assembly_sequence(
             "output_dir": _display_path(out_dir),
             "manifest": _display_path(manifest_path) if manifest_path else None,
             "steps": manifest["steps"],
+            "final_step": manifest["final_step"],
             "bom_csv": manifest["bom_csv"],
             "rotation_gif": manifest["rotation_gif"],
             "sequence_blocked_at": sequence_blocked_at,
@@ -2820,6 +3024,26 @@ def run_assembly_check_round(
             findings.extend(hole_findings)
             validation_meta["hole_alignment"] = hole_meta
 
+    if "open_channel_orientation" in requested_checks:
+        if dry_run:
+            validation_meta["open_channel_orientation"] = {
+                "checked": False,
+                "reason": "dry_run",
+            }
+        elif build_report.overall == Severity.FAIL:
+            validation_meta["open_channel_orientation"] = {
+                "checked": False,
+                "reason": "build_failed",
+            }
+        else:
+            channel_findings, channel_meta = _run_open_channel_orientation(
+                spec,
+                spec_file,
+                _get_geometry_plan(),
+            )
+            findings.extend(channel_findings)
+            validation_meta["open_channel_orientation"] = channel_meta
+
     render_report: Optional[Report] = None
     render_skipped_reason: Optional[str] = None
     if render_views:
@@ -2887,6 +3111,16 @@ def run_assembly_check_round(
         label = f"authored hole alignment ({reason})"
         if label not in confidence.not_checked:
             confidence.not_checked.append(label)
+    if validation_meta.get("open_channel_orientation", {}).get("checked"):
+        if "C-Beam open-channel orientation" not in confidence.checked:
+            confidence.checked.append("C-Beam open-channel orientation")
+    elif "open_channel_orientation" in requested_checks:
+        reason = validation_meta.get(
+            "open_channel_orientation", {}
+        ).get("reason", "not_run")
+        label = f"C-Beam open-channel orientation ({reason})"
+        if label not in confidence.not_checked:
+            confidence.not_checked.append(label)
     for check_name in sorted(
         requested_checks - {
             "inventory",
@@ -2894,6 +3128,7 @@ def run_assembly_check_round(
             "vslot_stackup",
             "frame_adjacency",
             "hole_alignment",
+            "open_channel_orientation",
         }
     ):
         label = f"{check_name} (not yet wired for assembly specs)"

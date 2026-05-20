@@ -186,18 +186,58 @@ class TestAssemblySpec(unittest.TestCase):
         roles = {instance.role for instance in spec.instances}
         self.assertIn("y_gantry_beam", roles)
         self.assertNotIn("y_gantry_actuator", roles)
-        self.assertIn("frame_side_spacer_6mm", roles)
+        self.assertIn("frame_side_motor_mount_spacer_6mm", roles)
+        self.assertIn("frame_side_flat_spacer_6mm", roles)
         self.assertNotIn("y_axis_spacer_6mm", roles)
-        frame_spacers = [
+        motor_mount_spacers = [
             instance for instance in spec.instances
-            if instance.role == "frame_side_spacer_6mm"
+            if instance.role == "frame_side_motor_mount_spacer_6mm"
         ]
-        self.assertEqual(len(frame_spacers), 8)
-        for instance in frame_spacers:
+        self.assertEqual(len(motor_mount_spacers), 4)
+        for instance in motor_mount_spacers:
             self.assertEqual(instance.source_path, "ZPMM.step")
             self.assertEqual(instance.transform.scale, 1.0)
             self.assertEqual(instance.transform.source_origin_mm, [1316.785, 2283.831, 3.05])
             self.assertEqual(instance.transform.rotate_deg, [90.0, 0.0, 0.0])
+        flat_spacers = [
+            instance for instance in spec.instances
+            if instance.role == "frame_side_flat_spacer_6mm"
+        ]
+        self.assertEqual(len(flat_spacers), 4)
+        for instance in flat_spacers:
+            self.assertEqual(
+                instance.source_path,
+                "examples/m3_crete/generated/M3_6mm_frame_shim_4080.step",
+            )
+            self.assertEqual(instance.transform.rotate_deg, [0.0, 0.0, 0.0])
+        bottom_rails = [
+            instance for instance in spec.instances
+            if instance.role == "bottom_frame_rail_y_2080"
+        ]
+        self.assertEqual(len(bottom_rails), 2)
+        for instance in bottom_rails:
+            self.assertEqual(
+                instance.source_path,
+                "CAD/Components/V-Slot/V-Slot 20x80x1000 Linear Rail.step",
+            )
+        y_left = next(instance for instance in spec.instances if instance.id == "y_gantry_left")
+        y_right = next(instance for instance in spec.instances if instance.id == "y_gantry_right")
+        self.assertEqual(y_left.transform.rotate_deg, [0.0, -90.0, -90.0])
+        self.assertEqual(y_right.transform.rotate_deg, [0.0, 90.0, 90.0])
+        spreaders = [
+            instance for instance in spec.instances
+            if instance.role == "top_center_spreader_2040"
+        ]
+        self.assertEqual(len(spreaders), 1)
+        self.assertEqual(
+            spreaders[0].source_path,
+            "CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step",
+        )
+        spreader_plates = [
+            instance for instance in spec.instances
+            if instance.role == "top_center_spreader_plate"
+        ]
+        self.assertEqual(len(spreader_plates), 2)
         x_plate_instances = [
             instance for instance in spec.instances
             if instance.role == "x_gantry_plate"
@@ -234,6 +274,7 @@ class TestAssemblySpec(unittest.TestCase):
             )
         )
         self.assertIn("hole_alignment", spec.validation["run_checks"])
+        self.assertIn("open_channel_orientation", spec.validation["run_checks"])
         hole_alignment = spec.validation["hole_alignment"]
         self.assertTrue(
             any(
@@ -250,6 +291,21 @@ class TestAssemblySpec(unittest.TestCase):
                 and handoff["plate_gap_mm"] == 1.0
                 and handoff["next_gap_mm"] == 2.0
                 for handoff in vslot_stackup["handoffs"]
+            )
+        )
+        orientation = spec.validation["open_channel_orientation"]
+        self.assertTrue(
+            any(
+                item["id"] == "left_y_gantry_channel_inward"
+                and item["expected_global_axis"] == [1.0, 0.0, 0.0]
+                for item in orientation["requirements"]
+            )
+        )
+        self.assertTrue(
+            any(
+                item["id"] == "right_y_gantry_channel_inward"
+                and item["expected_global_axis"] == [-1.0, 0.0, 0.0]
+                for item in orientation["requirements"]
             )
         )
         self.assertEqual(

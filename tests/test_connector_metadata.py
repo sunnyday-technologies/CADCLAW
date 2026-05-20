@@ -106,11 +106,26 @@ class TestConnectorMetadata(unittest.TestCase):
         self.assertEqual(wheel.source_path, "CAD/Components/Wheels/Solid V Wheel.step")
         rail_2080 = next(c for c in metadata.components if c.id == "vslot_2080_1200")
         self.assertEqual(rail_2080.source_path, "CAD/Custom/2080_1200mm.step")
+        active_2080 = next(c for c in metadata.components if c.id == "vslot_2080_1000")
+        self.assertEqual(
+            active_2080.source_path,
+            "CAD/Components/V-Slot/V-Slot 20x80x1000 Linear Rail.step",
+        )
+        active_2040 = next(c for c in metadata.components if c.id == "vslot_2040_1000")
+        self.assertEqual(
+            active_2040.source_path,
+            "CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step",
+        )
         zpmm = next(c for c in metadata.components if c.id == "zpmm_motor_mount_spacer")
         self.assertEqual(zpmm.source_path, "ZPMM.step")
         zpmm_tags = {tag for frame in zpmm.frames for tag in frame.tags}
         self.assertIn("authored_step", zpmm_tags)
         self.assertIn("native_mm_scale", zpmm_tags)
+        flat_spacer = next(c for c in metadata.components if c.id == "m3_flat_frame_spacer_6mm")
+        self.assertEqual(
+            flat_spacer.source_path,
+            "examples/m3_crete/generated/M3_6mm_frame_shim_4080.step",
+        )
 
 
 if __name__ == "__main__":
