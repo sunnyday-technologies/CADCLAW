@@ -574,7 +574,12 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
                                 gif_colors: int = 64,
                                 optimize: bool = True,
                                 keep_pngs: bool = False,
-                                use_step_colors: bool = True):
+                                use_step_colors: bool = True,
+                                separate_nested: bool = False,
+                                nested_separation_mm: float = 45.0,
+                                nested_lift_mm: float = 0.0,
+                                nested_reveal_color: tuple = None,
+                                nested_containment_tol_mm: float = 0.5):
     """Build a 'cooler' exploded-view GIF in two phases:
 
       1. Every part moves outward from the assembly centroid simultaneously
@@ -604,6 +609,15 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         gif_width/height/colors, optimize: GIF encoding knobs.
         keep_pngs: If True, preserve the per-frame PNGs (written to a temp
             dir next to the GIF).
+        separate_nested: If True, parts whose bounding boxes are contained
+            inside larger parts are pulled out along +Y during the explode.
+            This is intended for review artifacts where nested insert rails
+            would otherwise remain hidden inside host extrusions.
+        nested_separation_mm: Extra +Y reveal offset for nested parts.
+        nested_lift_mm: Extra +Z reveal offset for nested parts.
+        nested_reveal_color: Optional override color for nested parts in the
+            review artifact.
+        nested_containment_tol_mm: Bounding-box tolerance for nested detection.
     """
     import tempfile as _tmp
     import vtk
@@ -620,13 +634,41 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
     cy = (ymin + ymax) / 2
     cz = (zmin + zmax) / 2
 
-    part_entries = []  # list of (actor, offset_vector)
+    def _shape_bbox(shape):
+        bb = shape.BoundingBox()
+        return (bb.xmin, bb.ymin, bb.zmin, bb.xmax, bb.ymax, bb.zmax)
+
+    def _bbox_volume(bbox):
+        return max(0.0, bbox[3] - bbox[0]) * max(0.0, bbox[4] - bbox[1]) * max(0.0, bbox[5] - bbox[2])
+
+    def _bbox_contained(inner, outer, tol):
+        return (
+            inner[0] >= outer[0] - tol and inner[3] <= outer[3] + tol
+            and inner[1] >= outer[1] - tol and inner[4] <= outer[4] + tol
+            and inner[2] >= outer[2] - tol and inner[5] <= outer[5] + tol
+        )
+
+    shape_bboxes = [_shape_bbox(shape) for shape in shapes]
+    nested_offsets = [(0.0, 0.0, 0.0) for _ in shapes]
+    nested_indexes = set()
+    if separate_nested:
+        volumes = [_bbox_volume(bbox) for bbox in shape_bboxes]
+        for inner_index, inner_bbox in enumerate(shape_bboxes):
+            for outer_index, outer_bbox in enumerate(shape_bboxes):
+                if inner_index == outer_index or volumes[inner_index] >= volumes[outer_index]:
+                    continue
+                if _bbox_contained(inner_bbox, outer_bbox, nested_containment_tol_mm):
+                    nested_offsets[inner_index] = (0.0, nested_separation_mm, nested_lift_mm)
+                    nested_indexes.add(inner_index)
+                    break
+
+    part_entries = []  # list of (actor, radial_offset_vector, nested_offset_vector)
     renderer = vtk.vtkRenderer()
     renderer.SetBackground(*background_bottom)
     renderer.SetBackground2(*background_top)
     renderer.GradientBackgroundOn()
 
-    for shape in shapes:
+    for index, shape in enumerate(shapes):
         poly = shape.toVtkPolyData(tolerance=tessellation_tol,
                                      angularTolerance=0.3)
         mapper = vtk.vtkPolyDataMapper()
@@ -635,8 +677,11 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
         prop = actor.GetProperty()
-        prop.SetColor(*_color_for(shape, labels, color_map, default_color,
-                                   step_colors=step_colors))
+        if nested_reveal_color is not None and index in nested_indexes:
+            prop.SetColor(*nested_reveal_color)
+        else:
+            prop.SetColor(*_color_for(shape, labels, color_map, default_color,
+                                       step_colors=step_colors))
         # Mostly-flat shading. `face_shading` (0..1) trades ambient for
         # diffuse so faces oriented differently get visibly different
         # shades — useful when surface details would otherwise be lost
@@ -660,7 +705,7 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         offset = (pcx - cx, pcy - cy, pcz - cz)
 
         renderer.AddActor(actor)
-        part_entries.append((actor, offset))
+        part_entries.append((actor, offset, nested_offsets[index]))
 
     # Single headlight at full intensity. Combined with the per-actor
     # property (ambient = 1 - face_shading, diffuse = face_shading), the
@@ -675,14 +720,15 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
 
     # Pre-compute the fully-exploded bounds so camera fits the expanded cloud.
     expanded_shapes = []
-    for shape in shapes:
+    for index, shape in enumerate(shapes):
         bb = shape.BoundingBox()
         pcx = (bb.xmin + bb.xmax) / 2
         pcy = (bb.ymin + bb.ymax) / 2
         pcz = (bb.zmin + bb.zmax) / 2
-        ox = (pcx - cx) * expansion
-        oy = (pcy - cy) * expansion
-        oz = (pcz - cz) * expansion
+        nx, ny, nz = nested_offsets[index]
+        ox = (pcx - cx) * expansion + nx
+        oy = (pcy - cy) * expansion + ny
+        oz = (pcz - cz) * expansion + nz
         class _FakeBB:
             def __init__(self, bb, ox, oy, oz):
                 self.xmin = bb.xmin + ox; self.xmax = bb.xmax + ox
@@ -718,10 +764,10 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         png_paths.append(path)
 
     def _set_expansion(t):
-        for actor, (ox, oy, oz) in part_entries:
-            actor.SetPosition(ox * t * expansion,
-                              oy * t * expansion,
-                              oz * t * expansion)
+        for actor, (ox, oy, oz), (nx, ny, nz) in part_entries:
+            actor.SetPosition((ox * expansion + nx) * t,
+                              (oy * expansion + ny) * t,
+                              (oz * expansion + nz) * t)
 
     # Phase 1: expansion 0 -> 1 (ease in/out with a cosine curve)
     import math as _m
