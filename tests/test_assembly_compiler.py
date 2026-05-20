@@ -743,6 +743,154 @@ instances:
                 places=3,
             )
 
+    def test_check_round_runs_declared_wheel_alignment_gate(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plate = self._export_y_hole_plate_step(
+                root / "CAD" / "plate.step",
+                points=[(-10.0, -10.0), (10.0, -10.0), (-10.0, 10.0), (10.0, 10.0)],
+            )
+            wheel = self._export_box_step(
+                root / "CAD" / "wheel.step",
+                dims=(10.2, 23.9, 23.9),
+            )
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: wheel_alignment
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+validation:
+  run_checks: [wheel_alignment]
+  wheel_alignment:
+    max_hole_error_mm: 0.25
+    expected_wheels_per_plate: 4
+    radius_min_mm: 2.0
+    radius_max_mm: 3.0
+    groups:
+      - id: plate_wheels
+        plate_instance: plate
+        axis: y
+        wheel_instances: [wheel_a, wheel_b, wheel_c, wheel_d]
+instances:
+  - id: plate
+    role: plate
+    source_path: {plate.as_posix()}
+  - id: wheel_a
+    role: v_wheel
+    source_path: {wheel.as_posix()}
+    transform:
+      translate_mm: [-10, 5, -10]
+  - id: wheel_b
+    role: v_wheel
+    source_path: {wheel.as_posix()}
+    transform:
+      translate_mm: [10, 5, -10]
+  - id: wheel_c
+    role: v_wheel
+    source_path: {wheel.as_posix()}
+    transform:
+      translate_mm: [-10, 5, 10]
+  - id: wheel_d
+    role: v_wheel
+    source_path: {wheel.as_posix()}
+    transform:
+      translate_mm: [10, 5, 10]
+""")
+
+            report = run_assembly_check_round(
+                spec,
+                dry_run=False,
+                render_views=False,
+            )
+            self.assertFalse(
+                any(f.id.startswith("wheel_alignment.") for f in report.findings)
+            )
+            self.assertTrue(report.meta["validation"]["wheel_alignment"]["checked"])
+            self.assertIn("wheel-to-plate alignment", report.confidence_budget.checked)
+
+    def test_check_round_flags_wheel_alignment_mismatch(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plate = self._export_y_hole_plate_step(
+                root / "CAD" / "plate.step",
+                points=[(-10.0, -10.0), (10.0, -10.0), (-10.0, 10.0), (10.0, 10.0)],
+            )
+            wheel = self._export_box_step(
+                root / "CAD" / "wheel.step",
+                dims=(10.2, 23.9, 23.9),
+            )
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: wheel_alignment_bad
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+validation:
+  run_checks: [wheel_alignment]
+  wheel_alignment:
+    max_hole_error_mm: 0.25
+    expected_wheels_per_plate: 4
+    radius_min_mm: 2.0
+    radius_max_mm: 3.0
+    groups:
+      - id: plate_wheels
+        plate_instance: plate
+        axis: y
+        wheel_instances: [wheel_a, wheel_b, wheel_c, wheel_d]
+instances:
+  - id: plate
+    role: plate
+    source_path: {plate.as_posix()}
+  - id: wheel_a
+    role: v_wheel
+    source_path: {wheel.as_posix()}
+    transform:
+      translate_mm: [-10, 5, -10]
+  - id: wheel_b
+    role: v_wheel
+    source_path: {wheel.as_posix()}
+    transform:
+      translate_mm: [14, 5, -10]
+  - id: wheel_c
+    role: v_wheel
+    source_path: {wheel.as_posix()}
+    transform:
+      translate_mm: [-10, 5, 10]
+  - id: wheel_d
+    role: v_wheel
+    source_path: {wheel.as_posix()}
+    transform:
+      translate_mm: [10, 5, 10]
+""")
+
+            report = run_assembly_check_round(
+                spec,
+                dry_run=False,
+                render_views=False,
+            )
+            self.assertEqual(report.overall.value, "fail")
+            finding = next(
+                f for f in report.findings
+                if f.id == "wheel_alignment.hole_center_mismatch"
+            )
+            self.assertEqual(finding.evidence["plate_instance"], "plate")
+            self.assertEqual(len(finding.evidence["matches"]), 3)
+
     def test_check_round_runs_open_channel_orientation_gate(self):
         try:
             import cadquery  # noqa: F401

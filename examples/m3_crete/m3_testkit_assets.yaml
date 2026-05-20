@@ -55,7 +55,7 @@ active_reference_assets:
     generated_by_cadclaw: true
   - id: solid_v_wheel_standard
     source_path: CAD/Components/Wheels/Solid V Wheel.step
-    use: Standard M3 V-wheel reference placed at the modeled X-to-Y and Y-to-Z carriage interfaces; full BOM carries 32 wheels after the printhead/tooling carriage is selected.
+    use: Standard M3 V-wheel reference placed at the modeled X-to-Y and Y-to-Z carriage interfaces, four wheels per gantry plate with authored hole-center alignment and a 7mm spacer/washer standoff; full BOM carries 32 wheels after the printhead/tooling carriage is selected.
     current_reference_quantity: 24
     generated_by_cadclaw: false
 

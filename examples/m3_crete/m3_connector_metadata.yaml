@@ -78,7 +78,7 @@ components:
 
   - id: solid_v_wheel_standard
     source_path: CAD/Components/Wheels/Solid V Wheel.step
-    notes: Standard solid V-wheel reference for M3. Inspected envelope is 10.2 x 23.9 x 23.9 mm. The current reference places 24 wheels at modeled carriage interfaces; the remaining full-BOM wheels belong to the not-yet-selected printhead/tooling carriage.
+    notes: Standard solid V-wheel reference for M3. Inspected envelope is 10.2 x 23.9 x 23.9 mm. The current reference places 24 wheels at modeled carriage interfaces, four per gantry plate, with centers aligned to authored plate holes and a 7mm plate-face standoff for the spacer/washer stack; the remaining full-BOM wheels belong to the not-yet-selected printhead/tooling carriage.
     frames:
       - id: wheel_center
         kind: reference

@@ -38,7 +38,10 @@ intentionally checks only the placed STEP signatures:
 - `solid_v_wheel_standard`: 24 placed Solid V Wheel STEP instances at the
   modeled X-to-Y and Y-to-Z carriage interfaces, checked against BOM id `17`.
   The M3-owned interactive BOM remains at 32 total wheels because the remaining
-  8 belong to the not-yet-selected printhead/tooling carriage interface.
+  8 belong to the not-yet-selected printhead/tooling carriage interface. The
+  assembly gate also checks four wheels per modeled gantry plate, wheel
+  centerline-to-authored-hole alignment, and the 7 mm spacer/washer standoff
+  from the plate face.
 
 Run:
 

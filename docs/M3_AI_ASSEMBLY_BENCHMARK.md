@@ -47,6 +47,13 @@ The reference image is for topology, proportions, and human review only. Exact
 dimensions must come from the target spec, authored STEP assets, or validated
 measurements.
 
+Current M3-2 wheel placement uses four authored Solid V Wheel STEP instances
+per modeled gantry plate. The wheel centerlines align to authored gantry-plate
+holes, and the wheel inner face is checked at a 7 mm standoff from the plate
+face to represent the 6 mm spacer plus 1 mm washer stack. Eccentric washers
+may absorb a few millimeters of remaining adjustment, but the run report must
+still expose that alignment evidence.
+
 The shared benchmark/dev-kit package should include only the STEP files listed
 in `m3_testkit_assets.yaml`, plus license/source notes. The full local
 OpenBuilds-derived `Advanced` and `Components` directories are useful for

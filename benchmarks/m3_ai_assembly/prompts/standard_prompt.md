@@ -41,7 +41,11 @@ Current M3-2 fixture constraints:
   bracket/spacer stock.
 - Place authored Solid V Wheel STEP instances at the modeled X-to-Y and Y-to-Z
   carriage interfaces so wheel-slot and wheel-hole location choices are visible
-  in review renders. Keep the remaining printhead/tooling carriage wheel set
+  in review renders. Each gantry plate uses four wheels; wheel centerlines
+  align to authored plate holes, and the wheel inner face is held 7 mm off the
+  plate face by a 6 mm spacer plus 1 mm washer stack. Eccentric washers may
+  absorb a few millimeters of remaining adjustment, but the alignment error
+  must be reported. Keep the remaining printhead/tooling carriage wheel set
   explicit as incomplete until that interface is selected.
 - Top side-rail/post spacer locations use the authored ZPMM motor-mount/spacer
   STEP. Lower side-rail/post spacer locations use a simple 6 x 40 x 80 mm flat

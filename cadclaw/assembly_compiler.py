@@ -678,6 +678,13 @@ def _bbox_axis_len(
     return _bbox_axis_max(bbox, axis_index) - _bbox_axis_min(bbox, axis_index)
 
 
+def _bbox_axis_center(
+    bbox: Tuple[float, float, float, float, float, float],
+    axis_index: int,
+) -> float:
+    return (_bbox_axis_min(bbox, axis_index) + _bbox_axis_max(bbox, axis_index)) / 2.0
+
+
 def _bbox_axis_overlap(
     a: Tuple[float, float, float, float, float, float],
     b: Tuple[float, float, float, float, float, float],
@@ -873,6 +880,79 @@ def _match_cylindrical_features(
     return matches, closest
 
 
+def _dedupe_cylindrical_features(
+    features: List[CylindricalFeature],
+    axis_index: int,
+) -> List[CylindricalFeature]:
+    unique: List[CylindricalFeature] = []
+    seen: set[tuple[float, float, float]] = set()
+    for feature in features:
+        planar = _planar_point(feature.center_mm, axis_index)
+        key = (
+            round(planar[0], 3),
+            round(planar[1], 3),
+            round(feature.radius_mm, 3),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(feature)
+    return unique
+
+
+def _bbox_center(
+    bbox: Tuple[float, float, float, float, float, float],
+) -> Tuple[float, float, float]:
+    return (
+        _bbox_axis_center(bbox, 0),
+        _bbox_axis_center(bbox, 1),
+        _bbox_axis_center(bbox, 2),
+    )
+
+
+def _match_wheel_centers_to_holes(
+    wheel_centers: List[tuple[str, Tuple[float, float, float]]],
+    hole_features: List[CylindricalFeature],
+    axis_index: int,
+    max_error_mm: float,
+) -> Tuple[List[dict], Optional[dict]]:
+    candidates: List[tuple[float, int, int]] = []
+    for wheel_index, (_wheel_id, wheel_center) in enumerate(wheel_centers):
+        for hole_index, hole in enumerate(hole_features):
+            error = _planar_distance(wheel_center, hole.center_mm, axis_index)
+            candidates.append((error, wheel_index, hole_index))
+
+    matches: List[dict] = []
+    used_wheels: set[int] = set()
+    used_holes: set[int] = set()
+    closest: Optional[dict] = None
+    for error, wheel_index, hole_index in sorted(candidates, key=lambda item: item[0]):
+        wheel_id, wheel_center = wheel_centers[wheel_index]
+        hole = hole_features[hole_index]
+        if closest is None:
+            closest = {
+                "wheel_instance": wheel_id,
+                "wheel_center_mm": [round(value, 3) for value in wheel_center],
+                "hole_center_mm": [round(value, 3) for value in hole.center_mm],
+                "error_mm": round(error, 3),
+                "hole_radius_mm": round(hole.radius_mm, 3),
+            }
+        if error > max_error_mm:
+            continue
+        if wheel_index in used_wheels or hole_index in used_holes:
+            continue
+        used_wheels.add(wheel_index)
+        used_holes.add(hole_index)
+        matches.append({
+            "wheel_instance": wheel_id,
+            "wheel_center_mm": [round(value, 3) for value in wheel_center],
+            "hole_center_mm": [round(value, 3) for value in hole.center_mm],
+            "error_mm": round(error, 3),
+            "hole_radius_mm": round(hole.radius_mm, 3),
+        })
+    return matches, closest
+
+
 def _run_hole_alignment(
     spec: AssemblySpec,
     spec_path: Path,
@@ -1003,6 +1083,297 @@ def _run_hole_alignment(
         "feature_counts": feature_counts,
         "max_error_mm": default_max_error,
         "min_matches": default_min_matches,
+        "radius_min_mm": default_radius_min,
+        "radius_max_mm": default_radius_max,
+    }
+
+
+def _run_wheel_alignment(
+    spec: AssemblySpec,
+    spec_path: Path,
+    plan: AssemblyBuildPlan,
+    instance_ids: Iterable[str] | None = None,
+) -> tuple[List[Finding], dict]:
+    config = _validation_section(spec, "wheel_alignment")
+    groups_raw = config.get("groups", [])
+    findings: List[Finding] = []
+    if not isinstance(groups_raw, list):
+        findings.append(Finding(
+            id="wheel_alignment.config_invalid",
+            category="assemble",
+            severity=Severity.FAIL,
+            message="validation.wheel_alignment.groups must be a list",
+        ))
+        return findings, {"checked": False, "reason": "config_invalid"}
+
+    records, shape_findings = _placed_instance_shapes(
+        spec, spec_path, plan, instance_ids=instance_ids
+    )
+    findings.extend(shape_findings)
+    by_id = {record.id: record for record in records}
+    bboxes = {record.id: _bbox_tuple(record.shape) for record in records}
+    included = set(instance_ids) if instance_ids is not None else None
+
+    default_expected_count = int(config.get("expected_wheels_per_plate", 4))
+    default_max_error = _as_float(config.get("max_hole_error_mm"), 1.0)
+    default_radius_min = _as_float(config.get("radius_min_mm"), 1.0)
+    default_radius_max = _as_float(config.get("radius_max_mm"), 10.0)
+    default_axis_tol = _as_float(config.get("axis_tolerance_deg"), 5.0)
+    default_standoff = (
+        float(config["plate_face_to_wheel_inner_face_mm"])
+        if isinstance(config.get("plate_face_to_wheel_inner_face_mm"), (int, float))
+        else None
+    )
+    default_standoff_tol = _as_float(config.get("standoff_tolerance_mm"), 0.5)
+    default_eccentric_allowance = _as_float(
+        config.get("eccentric_adjustment_allowance_mm"), 0.0
+    )
+
+    checked_groups: List[str] = []
+    partial_groups: List[str] = []
+    skipped_groups: List[str] = []
+    hole_feature_counts: Dict[str, int] = {}
+
+    for index, raw in enumerate(groups_raw, start=1):
+        group_id = _handoff_id(raw, index)
+        if not isinstance(raw, dict):
+            findings.append(Finding(
+                id="wheel_alignment.group_invalid",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{group_id}: group entry must be a mapping",
+            ))
+            continue
+
+        plate_id = _handoff_instance(raw, "plate_instance")
+        wheel_values = raw.get("wheel_instances", [])
+        axis = str(raw.get("axis", raw.get("hole_axis", ""))).lower()
+        axis_idx = _axis_index(axis)
+        side = _side_value(raw.get("side"))
+        if (
+            not plate_id
+            or axis_idx is None
+            or not isinstance(wheel_values, list)
+            or not all(isinstance(value, str) and value for value in wheel_values)
+        ):
+            findings.append(Finding(
+                id="wheel_alignment.group_invalid",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=(
+                    f"{group_id}: requires plate_instance, wheel_instances, "
+                    "and axis"
+                ),
+                evidence={"group": group_id},
+            ))
+            continue
+
+        wheel_ids = [str(value) for value in wheel_values]
+        expected_count = int(raw.get("expected_wheel_count", default_expected_count))
+        if len(wheel_ids) != expected_count:
+            findings.append(Finding(
+                id="wheel_alignment.count_mismatch",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=(
+                    f"{group_id}: {plate_id} declares {len(wheel_ids)} wheels, "
+                    f"expected {expected_count}"
+                ),
+                suggested_fix=(
+                    f"Declare exactly {expected_count} wheel instances for "
+                    f"{plate_id}; V-slot gantry plates use four wheels."
+                ),
+                evidence={
+                    "group": group_id,
+                    "plate_instance": plate_id,
+                    "wheel_instances": wheel_ids,
+                    "expected_wheel_count": expected_count,
+                },
+            ))
+
+        required_ids = [plate_id, *wheel_ids]
+        if included is not None and any(instance_id not in included for instance_id in required_ids):
+            partial_groups.append(group_id)
+            continue
+
+        missing_ids = [instance_id for instance_id in required_ids if instance_id not in by_id]
+        if missing_ids:
+            skipped_groups.append(group_id)
+            findings.append(Finding(
+                id="wheel_alignment.instance_missing",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{group_id}: referenced instance(s) not found",
+                evidence={"group": group_id, "missing_instances": missing_ids},
+            ))
+            continue
+
+        checked_groups.append(group_id)
+        max_error = _as_float(raw.get("max_hole_error_mm"), default_max_error)
+        min_matches = int(raw.get("min_matches", expected_count))
+        radius_min = _as_float(raw.get("radius_min_mm"), default_radius_min)
+        radius_max = _as_float(raw.get("radius_max_mm"), default_radius_max)
+        axis_tol = _as_float(raw.get("axis_tolerance_deg"), default_axis_tol)
+        standoff = (
+            float(raw["plate_face_to_wheel_inner_face_mm"])
+            if isinstance(raw.get("plate_face_to_wheel_inner_face_mm"), (int, float))
+            else default_standoff
+        )
+        standoff_tol = _as_float(raw.get("standoff_tolerance_mm"), default_standoff_tol)
+        eccentric_allowance = _as_float(
+            raw.get("eccentric_adjustment_allowance_mm"),
+            default_eccentric_allowance,
+        )
+        allowed_error = max(max_error, eccentric_allowance)
+
+        hole_features = _dedupe_cylindrical_features(
+            _cylindrical_features(
+                by_id[plate_id],
+                axis_idx,
+                axis_tol,
+                radius_min,
+                radius_max,
+            ),
+            axis_idx,
+        )
+        hole_feature_counts[plate_id] = len(hole_features)
+        wheel_centers = [
+            (wheel_id, _bbox_center(bboxes[wheel_id]))
+            for wheel_id in wheel_ids
+        ]
+        matches, closest = _match_wheel_centers_to_holes(
+            wheel_centers,
+            hole_features,
+            axis_idx,
+            allowed_error,
+        )
+        if len(matches) < min_matches:
+            findings.append(Finding(
+                id="wheel_alignment.hole_center_mismatch",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=(
+                    f"{group_id}: only {len(matches)} wheel center(s) align "
+                    f"with authored holes on {plate_id}; expected at least "
+                    f"{min_matches}"
+                ),
+                suggested_fix=(
+                    "Move the wheel centers onto the authored corner holes "
+                    "of the gantry plate before using that plate to locate "
+                    "the rail slot."
+                ),
+                evidence={
+                    "group": group_id,
+                    "plate_instance": plate_id,
+                    "wheel_instances": wheel_ids,
+                    "axis": axis,
+                    "max_hole_error_mm": max_error,
+                    "eccentric_adjustment_allowance_mm": eccentric_allowance,
+                    "min_matches": min_matches,
+                    "plate_hole_feature_count": len(hole_features),
+                    "closest_pair": closest,
+                    "matches": matches[:10],
+                },
+            ))
+        elif eccentric_allowance > max_error:
+            adjusted_matches = [
+                match for match in matches
+                if float(match["error_mm"]) > max_error
+            ]
+            if adjusted_matches:
+                findings.append(Finding(
+                    id="wheel_alignment.eccentric_adjustment_used",
+                    category="assemble",
+                    severity=Severity.WARN,
+                    message=(
+                        f"{group_id}: {len(adjusted_matches)} wheel center(s) "
+                        "need eccentric-washer adjustment beyond the target "
+                        f"{max_error:g}mm hole-center error"
+                    ),
+                    suggested_fix=(
+                        "Where possible, shift the plate or wheel placement "
+                        "closer to the authored hole centers before relying "
+                        "on eccentric washer adjustment."
+                    ),
+                    evidence={
+                        "group": group_id,
+                        "plate_instance": plate_id,
+                        "axis": axis,
+                        "max_hole_error_mm": max_error,
+                        "eccentric_adjustment_allowance_mm": eccentric_allowance,
+                        "adjusted_matches": adjusted_matches[:10],
+                    },
+                ))
+
+        if standoff is not None:
+            if side is None:
+                findings.append(Finding(
+                    id="wheel_alignment.group_invalid",
+                    category="assemble",
+                    severity=Severity.FAIL,
+                    message=(
+                        f"{group_id}: side is required when a wheel standoff "
+                        "distance is declared"
+                    ),
+                    evidence={"group": group_id},
+                ))
+                continue
+            plate_bbox = bboxes[plate_id]
+            plate_face = (
+                _bbox_axis_min(plate_bbox, axis_idx)
+                if side == "negative"
+                else _bbox_axis_max(plate_bbox, axis_idx)
+            )
+            for wheel_id in wheel_ids:
+                wheel_bbox = bboxes[wheel_id]
+                wheel_inner_face = (
+                    _bbox_axis_max(wheel_bbox, axis_idx)
+                    if side == "negative"
+                    else _bbox_axis_min(wheel_bbox, axis_idx)
+                )
+                actual_standoff = (
+                    plate_face - wheel_inner_face
+                    if side == "negative"
+                    else wheel_inner_face - plate_face
+                )
+                if abs(actual_standoff - standoff) > standoff_tol:
+                    findings.append(Finding(
+                        id="wheel_alignment.standoff_out_of_range",
+                        category="assemble",
+                        severity=Severity.FAIL,
+                        message=(
+                            f"{group_id}: {wheel_id} is {actual_standoff:.2f}mm "
+                            f"from the {plate_id} plate face, expected "
+                            f"{standoff:g}mm"
+                        ),
+                        suggested_fix=(
+                            f"Move {wheel_id} along {axis.upper()} so the "
+                            "6mm spacer plus 1mm washer stack sits between "
+                            "the plate face and wheel."
+                        ),
+                        evidence={
+                            "group": group_id,
+                            "plate_instance": plate_id,
+                            "wheel_instance": wheel_id,
+                            "axis": axis,
+                            "side": side,
+                            "actual_standoff_mm": round(actual_standoff, 3),
+                            "expected_standoff_mm": standoff,
+                            "standoff_tolerance_mm": standoff_tol,
+                        },
+                    ))
+
+    return findings, {
+        "checked": True,
+        "checked_groups": checked_groups,
+        "partial_groups": sorted(set(partial_groups)),
+        "skipped_groups": skipped_groups,
+        "hole_feature_counts": hole_feature_counts,
+        "expected_wheels_per_plate": default_expected_count,
+        "max_hole_error_mm": default_max_error,
+        "plate_face_to_wheel_inner_face_mm": default_standoff,
+        "standoff_tolerance_mm": default_standoff_tol,
+        "eccentric_adjustment_allowance_mm": default_eccentric_allowance,
         "radius_min_mm": default_radius_min,
         "radius_max_mm": default_radius_max,
     }
@@ -2309,6 +2680,7 @@ def run_assembly_sequence(
     validate_vslot_stackup = "vslot_stackup" in requested_checks
     validate_frame_adjacency = "frame_adjacency" in requested_checks
     validate_hole_alignment = "hole_alignment" in requested_checks
+    validate_wheel_alignment = "wheel_alignment" in requested_checks
     validate_open_channel = "open_channel_orientation" in requested_checks
     validate_bbox_alignment = "bbox_alignment" in requested_checks
 
@@ -2352,6 +2724,9 @@ def run_assembly_sequence(
     )
     sequence_hole_alignment_checked = (
         validate_hole_alignment and not dry_run and not blocking
+    )
+    sequence_wheel_alignment_checked = (
+        validate_wheel_alignment and not dry_run and not blocking
     )
     sequence_open_channel_checked = (
         validate_open_channel and not dry_run and not blocking
@@ -2460,6 +2835,29 @@ def run_assembly_sequence(
         if sequence_hole_alignment_checked:
             validation_ran = True
             step_findings, _step_meta = _run_hole_alignment(
+                spec,
+                spec_file,
+                plan,
+                instance_ids=cumulative,
+            )
+            tagged_findings = [
+                _with_sequence_step(finding, step.id)
+                for finding in step_findings
+            ]
+            findings.extend(tagged_findings)
+            step_failed = step_failed or any(
+                finding.severity == Severity.FAIL
+                for finding in tagged_findings
+            )
+            repair_suggestions.extend(
+                finding.suggested_fix
+                for finding in tagged_findings
+                if finding.severity == Severity.FAIL and finding.suggested_fix
+            )
+            validation_status = "fail" if step_failed else "pass"
+        if sequence_wheel_alignment_checked:
+            validation_ran = True
+            step_findings, _step_meta = _run_wheel_alignment(
                 spec,
                 spec_file,
                 plan,
@@ -2742,6 +3140,10 @@ def run_assembly_sequence(
                 if sequence_hole_alignment_checked else []
             ),
             *(
+                ["sequence wheel-to-plate alignment"]
+                if sequence_wheel_alignment_checked else []
+            ),
+            *(
                 ["sequence C-Beam open-channel orientation"]
                 if sequence_open_channel_checked else []
             ),
@@ -2780,6 +3182,11 @@ def run_assembly_sequence(
                 [] if sequence_hole_alignment_checked
                 else ["sequence authored hole alignment"]
                 if validate_hole_alignment else []
+            ),
+            *(
+                [] if sequence_wheel_alignment_checked
+                else ["sequence wheel-to-plate alignment"]
+                if validate_wheel_alignment else []
             ),
             *(
                 [] if sequence_open_channel_checked
@@ -3240,6 +3647,26 @@ def run_assembly_check_round(
             findings.extend(hole_findings)
             validation_meta["hole_alignment"] = hole_meta
 
+    if "wheel_alignment" in requested_checks:
+        if dry_run:
+            validation_meta["wheel_alignment"] = {
+                "checked": False,
+                "reason": "dry_run",
+            }
+        elif build_report.overall == Severity.FAIL:
+            validation_meta["wheel_alignment"] = {
+                "checked": False,
+                "reason": "build_failed",
+            }
+        else:
+            wheel_findings, wheel_meta = _run_wheel_alignment(
+                spec,
+                spec_file,
+                _get_geometry_plan(),
+            )
+            findings.extend(wheel_findings)
+            validation_meta["wheel_alignment"] = wheel_meta
+
     if "open_channel_orientation" in requested_checks:
         if dry_run:
             validation_meta["open_channel_orientation"] = {
@@ -3347,6 +3774,14 @@ def run_assembly_check_round(
         label = f"authored hole alignment ({reason})"
         if label not in confidence.not_checked:
             confidence.not_checked.append(label)
+    if validation_meta.get("wheel_alignment", {}).get("checked"):
+        if "wheel-to-plate alignment" not in confidence.checked:
+            confidence.checked.append("wheel-to-plate alignment")
+    elif "wheel_alignment" in requested_checks:
+        reason = validation_meta.get("wheel_alignment", {}).get("reason", "not_run")
+        label = f"wheel-to-plate alignment ({reason})"
+        if label not in confidence.not_checked:
+            confidence.not_checked.append(label)
     if validation_meta.get("open_channel_orientation", {}).get("checked"):
         if "C-Beam open-channel orientation" not in confidence.checked:
             confidence.checked.append("C-Beam open-channel orientation")
@@ -3374,6 +3809,7 @@ def run_assembly_check_round(
             "vslot_stackup",
             "frame_adjacency",
             "hole_alignment",
+            "wheel_alignment",
             "open_channel_orientation",
             "bbox_alignment",
         }

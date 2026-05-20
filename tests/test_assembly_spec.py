@@ -287,6 +287,7 @@ class TestAssemblySpec(unittest.TestCase):
             )
         )
         self.assertIn("hole_alignment", spec.validation["run_checks"])
+        self.assertIn("wheel_alignment", spec.validation["run_checks"])
         self.assertIn("open_channel_orientation", spec.validation["run_checks"])
         self.assertIn("bbox_alignment", spec.validation["run_checks"])
         hole_alignment = spec.validation["hole_alignment"]
@@ -305,6 +306,18 @@ class TestAssemblySpec(unittest.TestCase):
                 and handoff["plate_gap_mm"] == 1.0
                 and handoff["next_gap_mm"] == 2.0
                 for handoff in vslot_stackup["handoffs"]
+            )
+        )
+        wheel_alignment = spec.validation["wheel_alignment"]
+        self.assertEqual(wheel_alignment["expected_wheels_per_plate"], 4)
+        self.assertEqual(wheel_alignment["plate_face_to_wheel_inner_face_mm"], 7.0)
+        self.assertEqual(wheel_alignment["eccentric_adjustment_allowance_mm"], 3.5)
+        self.assertTrue(
+            any(
+                group["id"] == "x_left_plate_wheels"
+                and group["plate_instance"] == "x_gantry_plate_left"
+                and len(group["wheel_instances"]) == 4
+                for group in wheel_alignment["groups"]
             )
         )
         orientation = spec.validation["open_channel_orientation"]
