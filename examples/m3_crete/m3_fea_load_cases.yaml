@@ -1,0 +1,67 @@
+schema_version: m3_fea_load_cases.v0.1
+description: >
+  Light PyNiteFEA beam-frame load cases for the M3-2 reference assembly.
+  These cases are decision-support checks for member sizing and frame
+  rigidity. They are not solid-element stress validation and do not replace
+  physical validation.
+defaults:
+  safety_factor: 1.65
+  deflection_limit_mm: 0.5
+  self_weight: true
+  gravity_dir: FY
+  output_root: examples/m3_crete/build/fea
+load_cases:
+  - id: x_gantry_center_printhead_5kg
+    frame: m3-xgantry
+    description: >
+      Baseline 2 m X-gantry check with a nominal 5 kg printhead load at
+      midspan. This isolates the gantry beam from the full frame.
+    load_node: printhead
+    load_n: 49.0
+
+  - id: m3_2_center_printhead_5kg
+    frame: m3-2-frame
+    description: >
+      Full M3-2 frame with a nominal 5 kg printhead load at the center
+      handoff node.
+    load_node: printhead
+    load_n: 49.0
+
+  - id: m3_2_front_top_lateral_x_100n
+    frame: m3-2-frame
+    description: >
+      Front top-corner lateral push in the global X direction, split across
+      the left and right front top posts.
+    point_loads:
+      - node: L_F_top
+        direction: FX
+        value_n: 50.0
+      - node: R_F_top
+        direction: FX
+        value_n: 50.0
+
+  - id: m3_2_rear_top_lateral_x_100n
+    frame: m3-2-frame
+    description: >
+      Rear top-corner lateral push in the global X direction, split across
+      the left and right rear top posts.
+    point_loads:
+      - node: L_B_top
+        direction: FX
+        value_n: 50.0
+      - node: R_B_top
+        direction: FX
+        value_n: 50.0
+
+  - id: m3_2_front_top_depth_push_100n
+    frame: m3-2-frame
+    description: >
+      Front top-corner depth-direction push in global Z, useful for checking
+      side-rail racking stiffness.
+    point_loads:
+      - node: L_F_top
+        direction: FZ
+        value_n: 50.0
+      - node: R_F_top
+        direction: FZ
+        value_n: 50.0

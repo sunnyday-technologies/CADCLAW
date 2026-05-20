@@ -94,6 +94,7 @@ def render_member_maps(
     output_dir: str | Path,
     *,
     title_prefix: str = "Frame FEA",
+    load_label: str | None = "49 N center load",
 ) -> Tuple[Path, Path]:
     """Render stress and strain envelope maps for a solved frame.
 
@@ -130,6 +131,7 @@ def render_member_maps(
         title=f"{title_prefix} - member peak bending stress",
         units="MPa",
         cmap=cm.inferno,
+        load_label=load_label,
     )
     _render_map(
         frame,
@@ -138,6 +140,7 @@ def render_member_maps(
         title=f"{title_prefix} - member peak elastic strain",
         units="microstrain",
         cmap=cm.viridis,
+        load_label=load_label,
     )
     return stress_path, strain_path
 
@@ -150,6 +153,7 @@ def _render_map(
     title: str,
     units: str,
     cmap,
+    load_label: str | None,
 ) -> None:
     import matplotlib.pyplot as plt
     from matplotlib import colors
@@ -189,11 +193,11 @@ def _render_map(
     node_z = [node.y for node in frame.nodes.values()]
     ax.scatter(node_x, node_y, node_z, s=12, c="#111827", depthshade=False)
 
-    if "printhead" in frame.nodes:
+    if "printhead" in frame.nodes and load_label:
         p = frame.nodes["printhead"]
         ax.scatter([p.x], [p.z], [p.y], s=70, c="#d7191c",
                    marker="v", depthshade=False)
-        ax.text(p.x, p.z, p.y + 0.05, "49 N center load", color="#111827")
+        ax.text(p.x, p.z, p.y + 0.05, load_label, color="#111827")
 
     ax.set_title(title)
     ax.set_xlabel("X span (m)")

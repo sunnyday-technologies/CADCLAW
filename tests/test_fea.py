@@ -6,6 +6,9 @@ M3-CRETE X-gantry model is cross-checked against the documented
 δ ≈ 0.44 mm deflection anchor at 3 kg nominal load.
 """
 import csv
+import importlib.util
+import json
+from pathlib import Path
 
 import pytest
 
@@ -21,9 +24,20 @@ from cadclaw.fea.joint_adequacy import (
 )
 from cadclaw.fea.m3_frame import m3_2_frame, m3_xgantry_frame
 
+ROOT = Path(__file__).resolve().parents[1]
+FEA_CASES = ROOT / "examples" / "m3_crete" / "m3_fea_load_cases.yaml"
+FEA_RUNNER = ROOT / "examples" / "m3_crete" / "run_fea_load_cases.py"
 G = 9.80665
 ROW_KEYS = {"joint_id", "joint_type", "max_moment_Nm",
             "allowable_Nm", "utilization", "result"}
+
+
+def _load_m3_fea_runner():
+    spec = importlib.util.spec_from_file_location("m3_fea_runner", FEA_RUNNER)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 def _simply_supported(span=2.0, point_load_N=1000.0):
@@ -149,6 +163,35 @@ def test_m3_2_frame_keeps_open_bottom_x_direction():
     assert "bottom_side_R" in frame.members
     assert not any(member_id.startswith("bottom_x_")
                    for member_id in frame.members)
+
+
+def test_m3_fea_load_case_spec_loads():
+    """The tracked M3 load-case spec is valid and covers the full frame."""
+    runner = _load_m3_fea_runner()
+    spec = runner.load_spec(FEA_CASES)
+    case_ids = {case["id"] for case in spec["load_cases"]}
+    assert "m3_2_center_printhead_5kg" in case_ids
+    assert "m3_2_front_top_lateral_x_100n" in case_ids
+    assert spec["defaults"]["output_root"].endswith("build/fea")
+
+
+def test_m3_fea_runner_writes_case_outputs(tmp_path):
+    """The FEA runner produces report, joint CSV, and member-demand CSV."""
+    runner = _load_m3_fea_runner()
+    summary = runner.run_cases(
+        FEA_CASES,
+        case_ids={"m3_2_center_printhead_5kg"},
+        output_root=tmp_path,
+        render_plots=False,
+    )
+    assert summary["load_cases"][0]["overall"] == "pass"
+    assert summary["load_cases"][0]["deflection_mm"] < 0.5
+    outputs = summary["load_cases"][0]["outputs"]
+    for key in ("report_json", "joint_csv", "member_csv"):
+        assert outputs[key]
+        assert Path(outputs[key]).exists()
+    report = json.loads(Path(outputs["report_json"]).read_text())
+    assert report["meta"]["load_case_id"] == "m3_2_center_printhead_5kg"
 
 
 # --------------------------------------------------------------------------

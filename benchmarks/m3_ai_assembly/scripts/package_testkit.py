@@ -34,10 +34,13 @@ PACKAGE_PATHS = [
     "benchmarks/m3_ai_assembly/scripts/package_testkit.py",
     "docs/M3_AI_ASSEMBLY_BENCHMARK.md",
     "docs/M3_BOM_PARITY_NOTES.md",
+    "docs/M3_FEA_LOAD_CASES.md",
     "examples/m3_crete/m3_reference_assembly.yaml",
     "examples/m3_crete/m3_connector_metadata.yaml",
     "examples/m3_crete/m3_testkit_assets.yaml",
     "examples/m3_crete/m3_bom_audit.yaml",
+    "examples/m3_crete/m3_fea_load_cases.yaml",
+    "examples/m3_crete/run_fea_load_cases.py",
 ]
 
 

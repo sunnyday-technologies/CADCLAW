@@ -92,6 +92,8 @@ class TestM3BenchmarkScripts(unittest.TestCase):
             self.assertIn("benchmarks/m3_ai_assembly/package_manifest.json", names)
             self.assertIn("examples/m3_crete/m3_testkit_assets.yaml", names)
             self.assertIn("examples/m3_crete/m3_bom_audit.yaml", names)
+            self.assertIn("examples/m3_crete/m3_fea_load_cases.yaml", names)
+            self.assertIn("docs/M3_FEA_LOAD_CASES.md", names)
             self.assertFalse(any(name.lower().endswith(".step") for name in names))
 
 

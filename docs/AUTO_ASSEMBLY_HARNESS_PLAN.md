@@ -314,8 +314,11 @@ validated performance.
 - [x] Replace generated frame shim placeholders with the authored ZPMM
       motor-mount/spacer STEP using native millimeter scale and explicit
       source-origin recentering.
-- [ ] Add optional `FEA/` PyNiteFEA integration for static frame member and
-      joint-technique comparison after connector-valid geometry exists.
+- [x] Add optional PyNiteFEA integration for static frame member and
+      joint-technique comparison after connector-valid geometry exists. The
+      first tracked M3 load cases live in
+      `examples/m3_crete/m3_fea_load_cases.yaml`; generated reports, CSVs, and
+      stress/strain plots are emitted under `examples/m3_crete/build/fea/`.
 
 ## LLM Tool Surface
 
@@ -329,8 +332,9 @@ The eventual tool surface should be deterministic and narrow:
 - `cadclaw assemble render-sequence`
 - `cadclaw assemble check-round`
 - `cadclaw assemble suggest-adjustment`
-- future `cadclaw fea compare-frame` or equivalent helper once the `FEA/`
-  PyNiteFEA workflow exists
+- `cadclaw fea joint-adequacy`
+- `examples/m3_crete/run_fea_load_cases.py`
+- future `cadclaw fea compare-frame` helper for member-option sweeps
 
 The LLM should edit specs and connector metadata, not freehand arbitrary
 CadQuery scripts.
@@ -371,8 +375,8 @@ Current implementation status:
   for the active M3 reference and should stay out of the minimal test kit.
 - Which spacer/motor-mount instances need top-only, bottom-only, mirrored, or
   endcap geometry once the final ZPMM STEP is available?
-- Which frame-member options should the future FEA comparison include first:
-  4080 baseline, 2080 static rails, 2040 static rails, or 2040 reinforcement
-  members around C-Beam gantries?
+- Which frame-member options should the future FEA comparison sweep include
+  first: 4080 baseline, 2080 static rails, 2040 static rails, or 2040
+  reinforcement members around C-Beam gantries?
 - Which reference assets can be redistributed publicly?
 - How strict should release validation be about `not_built_yet` findings?
