@@ -95,8 +95,39 @@ class TestConnectorMetadata(unittest.TestCase):
         metadata = load_connector_metadata("examples/m3_crete/m3_connector_metadata.yaml")
         self.assertGreaterEqual(len(metadata.components), 6)
         self.assertTrue(any(c.id == "cbeam_40x80_1000" for c in metadata.components))
-        self.assertTrue(any(c.id == "cbeam_linear_actuator_1000" for c in metadata.components))
-        self.assertTrue(any(c.id == "aluminum_spacer_6mm" for c in metadata.components))
+        self.assertFalse(any(c.id == "cbeam_linear_actuator_1000" for c in metadata.components))
+        self.assertFalse(any(c.id == "m3_frame_shim_4080_6mm" for c in metadata.components))
+        xlarge = next(c for c in metadata.components if c.id == "cbeam_gantry_plate_xlarge")
+        self.assertEqual(
+            xlarge.source_path,
+            "CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP",
+        )
+        wheel = next(c for c in metadata.components if c.id == "solid_v_wheel_standard")
+        self.assertEqual(wheel.source_path, "CAD/Components/Wheels/Solid V Wheel.step")
+        self.assertFalse(any(c.id == "vslot_2080_1200" for c in metadata.components))
+        active_2080 = next(c for c in metadata.components if c.id == "vslot_2080_1000")
+        self.assertEqual(
+            active_2080.source_path,
+            "CAD/Components/V-Slot/V-Slot 20x80x1000 Linear Rail.step",
+        )
+        active_2040 = next(c for c in metadata.components if c.id == "vslot_2040_1000")
+        self.assertEqual(
+            active_2040.source_path,
+            "CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step",
+        )
+        zpmm = next(c for c in metadata.components if c.id == "zpmm_motor_mount_spacer")
+        self.assertEqual(
+            zpmm.source_path,
+            "examples/m3_crete/generated/ZPMM_6p1_motor_mount_spacer_6mm_holes.step",
+        )
+        zpmm_tags = {tag for frame in zpmm.frames for tag in frame.tags}
+        self.assertIn("derived_from_authored_step", zpmm_tags)
+        self.assertIn("native_mm_scale", zpmm_tags)
+        flat_spacer = next(c for c in metadata.components if c.id == "m3_flat_frame_spacer_6mm")
+        self.assertEqual(
+            flat_spacer.source_path,
+            "examples/m3_crete/generated/M3_6mm_frame_shim_4080.step",
+        )
 
 
 if __name__ == "__main__":

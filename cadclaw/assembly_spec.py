@@ -95,8 +95,10 @@ class AssemblyConstraint(_Strict):
 class Transform(_Strict):
     translate_mm: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
     rotate_deg: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
+    scale: float = 1.0
+    source_origin_mm: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
 
-    @field_validator("translate_mm", "rotate_deg")
+    @field_validator("translate_mm", "rotate_deg", "source_origin_mm")
     @classmethod
     def _check_vec3(cls, value: List[float]) -> List[float]:
         if not isinstance(value, list) or len(value) != 3:
@@ -104,6 +106,13 @@ class Transform(_Strict):
         if not all(isinstance(v, (int, float)) for v in value):
             raise ValueError("transform vector elements must be numbers")
         return [float(v) for v in value]
+
+    @field_validator("scale")
+    @classmethod
+    def _check_scale(cls, value: float) -> float:
+        if not isinstance(value, (int, float)) or value <= 0:
+            raise ValueError("transform scale must be a positive number")
+        return float(value)
 
 
 class Instance(_Strict):
