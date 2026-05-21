@@ -5,6 +5,12 @@ Last updated: 2026-05-21
 Scope: local-only CADCLAW work in `D:\SunnydayTech\CADCLAW`. Do not assume
 GitHub publication or remote sync unless explicitly requested.
 
+GitHub remote note: the online repository has been reinstated with history
+removed to eliminate past PII from public git history. Treat that remote as a
+new sanitized root. Do not push this local repository's old history directly;
+move current work by applying selected patches or file copies onto a fresh
+clone of the sanitized remote.
+
 ## Current Save Point
 
 - Branch: `codex/check-efficiency-review`

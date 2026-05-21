@@ -34,6 +34,7 @@ THICKNESS_MM = 6.1
 # its center is recorded here only as a regression note.
 SPINDLE_CENTER = (-0.591, -19.674)
 SPINDLE_DIAMETER_MM = 44.0
+NEMA23_BODY_WIDTH_MM = 56.4
 MOTOR_HOLE_DIAMETER_MM = 6.0
 MOTOR_HOLE_CENTERS = [
     (-24.170, -43.270),
@@ -50,11 +51,15 @@ MOTOR_HOLE_CENTERS = [
 # inventing a rectangular four-hole pattern.
 #
 # The ZPMM blank rail-side area is 80mm wide, so rotate the C-Beam profile
-# 90 degrees into the plate plane and place the 40mm profile height against
-# the blank edge. This preserves the six material-backed screw-port locations
-# and keeps them clear of the motor spindle opening.
+# 90 degrees into the plate plane. Its 40mm profile height is placed so the
+# NEMA 23 motor body's rail-side face rests on the 4080 extrusion envelope.
+# This gives the motor body a mechanical support/thermal path instead of
+# asking the printed spacer plate to cantilever the motor by itself.
 CBEAM_HOLE_DIAMETER_MM = 6.0
-CBEAM_PROFILE_CENTER_Y_MM = 28.5
+CBEAM_PROFILE_HALF_HEIGHT_MM = 20.0
+CBEAM_PROFILE_CENTER_Y_MM = (
+    SPINDLE_CENTER[1] + (NEMA23_BODY_WIDTH_MM / 2.0) + CBEAM_PROFILE_HALF_HEIGHT_MM
+)
 CBEAM_HOLE_CENTERS = [
     (30.0, CBEAM_PROFILE_CENTER_Y_MM - 10.0),
     (30.0, CBEAM_PROFILE_CENTER_Y_MM + 10.0),
