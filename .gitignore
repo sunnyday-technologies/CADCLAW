@@ -12,3 +12,12 @@ Thumbs.db
 .claude/
 docs/media/*.png
 !docs/media/cadclaw_*.png
+
+# Secrets / environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa
+id_ed25519
