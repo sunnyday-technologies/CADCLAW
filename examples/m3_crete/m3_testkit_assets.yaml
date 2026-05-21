@@ -44,10 +44,11 @@ active_reference_assets:
     current_reference_quantity: 6
     generated_by_cadclaw: false
   - id: zpmm_motor_mount_spacer
-    source_path: ZPMM.step
-    use: Authored 6.1mm side-rail/post motor-mount spacer at motor-mount positions only.
+    source_path: examples/m3_crete/generated/ZPMM_6p1_motor_mount_spacer_6mm_holes.step
+    use: One-off derived 6.1mm side-rail/post motor-mount spacer at motor-mount positions only; based on the user-confirmed authored ZPMM STEP with four motor holes widened to 6mm and six 4080 C-Beam end-alignment holes added.
     current_reference_quantity: 4
-    generated_by_cadclaw: false
+    generated_by_cadclaw: true
+    exception_scope: M3 custom spacer correction only; not general CADCLAW plate or motor-mount authoring.
   - id: m3_flat_frame_spacer_6mm
     source_path: examples/m3_crete/generated/M3_6mm_frame_shim_4080.step
     use: Simple 6 x 40 x 80mm lower Y-rail frame spacer; no holes or contextual bolt pattern.

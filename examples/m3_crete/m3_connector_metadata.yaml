@@ -119,17 +119,17 @@ components:
         tags: [rail_end, top_center_spreader, active_reference, needs_verification]
 
   - id: zpmm_motor_mount_spacer
-    source_path: ZPMM.step
-    notes: Resized authored ZPMM export inspected on 2026-05-18. CADCLAW loaded one part with bbox signature 6.1 x 80 x 97 mm, matching the user-confirmed intended 6.1mm printed thickness. Assembly placement uses explicit source-origin recentering.
+    source_path: examples/m3_crete/generated/ZPMM_6p1_motor_mount_spacer_6mm_holes.step
+    notes: One-off M3 derivative of the user-confirmed authored ZPMM STEP. The outline and motor-spindle opening are preserved; four existing motor holes and the six asymmetric 4080 C-Beam end-alignment screw-port holes are 6mm through-holes.
     frames:
       - id: native_center
         kind: reference
-        origin_mm: [1316.785, 2283.831, 3.05]
-        tags: [zpmm, motor_mount, frame_side, authored_step, native_mm_scale]
+        origin_mm: [0.0, 0.0, 0.0]
+        tags: [zpmm, motor_mount, frame_side, derived_from_authored_step, native_mm_scale]
       - id: normalized_center
         kind: reference
-        origin_mm: [1316.785, 2283.831, 3.05]
-        tags: [zpmm, motor_mount, frame_side, authored_step, source_origin_for_recenter]
+        origin_mm: [0.0, 0.0, 0.0]
+        tags: [zpmm, motor_mount, frame_side, derived_from_authored_step, centered_source]
 
   - id: m3_flat_frame_spacer_6mm
     source_path: examples/m3_crete/generated/M3_6mm_frame_shim_4080.step

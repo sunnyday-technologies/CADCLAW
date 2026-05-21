@@ -195,9 +195,12 @@ class TestAssemblySpec(unittest.TestCase):
         ]
         self.assertEqual(len(motor_mount_spacers), 4)
         for instance in motor_mount_spacers:
-            self.assertEqual(instance.source_path, "ZPMM.step")
+            self.assertEqual(
+                instance.source_path,
+                "examples/m3_crete/generated/ZPMM_6p1_motor_mount_spacer_6mm_holes.step",
+            )
             self.assertEqual(instance.transform.scale, 1.0)
-            self.assertEqual(instance.transform.source_origin_mm, [1316.785, 2283.831, 3.05])
+            self.assertEqual(instance.transform.source_origin_mm, [0.0, 0.0, 0.0])
             self.assertEqual(instance.transform.rotate_deg, [90.0, 0.0, 0.0])
         flat_spacers = [
             instance for instance in spec.instances

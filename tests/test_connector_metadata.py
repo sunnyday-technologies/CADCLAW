@@ -116,9 +116,12 @@ class TestConnectorMetadata(unittest.TestCase):
             "CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step",
         )
         zpmm = next(c for c in metadata.components if c.id == "zpmm_motor_mount_spacer")
-        self.assertEqual(zpmm.source_path, "ZPMM.step")
+        self.assertEqual(
+            zpmm.source_path,
+            "examples/m3_crete/generated/ZPMM_6p1_motor_mount_spacer_6mm_holes.step",
+        )
         zpmm_tags = {tag for frame in zpmm.frames for tag in frame.tags}
-        self.assertIn("authored_step", zpmm_tags)
+        self.assertIn("derived_from_authored_step", zpmm_tags)
         self.assertIn("native_mm_scale", zpmm_tags)
         flat_spacer = next(c for c in metadata.components if c.id == "m3_flat_frame_spacer_6mm")
         self.assertEqual(

@@ -11,8 +11,10 @@ GitHub publication or remote sync unless explicitly requested.
 - Recent local commits:
   - `1fdb1d3 Improve M3 GIF visualization palette`
   - `aef3b42 Keep M3 explode GIF under size gate`
+  - `feeb9ed Record local M3 verification status`
 - Working policy: authored STEP placement first; do not generate contextual
-  plates, brackets, mounts, hole patterns, or idler holders.
+  plates, brackets, mounts, hole patterns, or idler holders, except the
+  explicitly user-approved M3 ZPMM spacer correction noted below.
 
 ## Latest Verification
 
@@ -25,6 +27,13 @@ GitHub publication or remote sync unless explicitly requested.
     remain.
   - Geometry cache summary: `36` requests, `30` hits, `6` misses, `225`
     loaded instances, `6` cached instance sets.
+- ZPMM spacer correction:
+  - `examples\m3_crete\generated\ZPMM_6p1_motor_mount_spacer_6mm_holes.step`
+    is a one-off derivative of the user-confirmed authored `ZPMM.step`.
+  - The outline and large motor-spindle opening are preserved.
+  - The four existing motor holes are 6mm through-holes.
+  - Six C-Beam end-alignment holes are added from the asymmetric 4080
+    screw-port pattern; the open-channel non-holes are not used.
 - Single check-round:
   - Overall status: `warn`
   - Findings: eight `assemble.not_built_yet` items only.
@@ -58,6 +67,8 @@ GitHub publication or remote sync unless explicitly requested.
   `examples\m3_crete\build\m3_check_round_report.json`
 - FEA summary:
   `examples\m3_crete\build\fea\summary.json`
+- One-off derived ZPMM spacer STEP:
+  `examples\m3_crete\generated\ZPMM_6p1_motor_mount_spacer_6mm_holes.step`
 
 Generated files under `examples\m3_crete\build\` are local build artifacts and
 are not intended to be committed unless the project policy changes.
@@ -81,8 +92,8 @@ are not intended to be committed unless the project policy changes.
   and static frame joints from source CAD/rendered inspection.
 - Add authored STEP placement for belt paths, pulleys, idlers, motors, motor
   plates, and Z drive assemblies.
-- Freeze ZPMM motor-mount/spacer handedness, top/bottom orientation, and final
-  connector binding.
+- Freeze ZPMM motor-mount/spacer handedness and final connector binding in the
+  assembled frame views.
 - Select and place the printhead/tooling payload interface on the X carriage.
 - Update or intentionally diverge the M3 interactive BOM to resolve the current
   parity report.
