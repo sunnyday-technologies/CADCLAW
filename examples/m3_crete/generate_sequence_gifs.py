@@ -228,7 +228,7 @@ def build_explode_gif(final_step: Path, output_gif: Path) -> dict:
         expansion=0.22,
         explode_frames=24,
         hold_frames=8,
-        rotate_frames=96,
+        rotate_frames=90,
         fps=8,
         width=768,
         height=432,
