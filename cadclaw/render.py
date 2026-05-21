@@ -54,6 +54,72 @@ def _warn_if_gif_too_large(output_gif: str) -> int:
     return size
 
 
+def _rgb255(color: tuple) -> tuple[int, int, int]:
+    return tuple(
+        int(round(max(0.0, min(1.0, channel)) * 255))
+        for channel in color
+    )
+
+
+def _gif_palette_image(gif_colors: int) -> Image.Image:
+    """Return a fixed CADCLAW GIF palette.
+
+    Adaptive GIF palettes are efficient, but small green parts can be rare
+    enough in a frame that the encoder maps them toward gray. This fixed
+    palette keeps functional CAD colors exact while still using a small
+    palette for shareable artifacts.
+    """
+    palette_colors = max(2, min(256, gif_colors))
+    fixed = [
+        _rgb255(COLOR_PRINTED),
+        _rgb255(COLOR_WHEEL),
+        (112, 160, 0),
+        (128, 184, 0),
+        (170, 230, 28),
+        _rgb255(COLOR_EXTRUSION),
+        (32, 34, 38),
+        (48, 52, 58),
+        (64, 70, 78),
+        _rgb255(COLOR_METAL),
+        (150, 154, 160),
+        (188, 192, 196),
+        _rgb255(COLOR_MOTOR),
+        _rgb255(COLOR_BELT),
+        (97, 107, 120),
+        (122, 134, 145),
+        (146, 157, 168),
+        (158, 168, 179),
+        (180, 188, 196),
+        (255, 255, 255),
+        (0, 0, 0),
+    ]
+    bottom = (97, 107, 120)
+    top = (158, 168, 179)
+    ramp_slots = max(0, palette_colors - len(fixed))
+    for index in range(ramp_slots):
+        t = index / max(1, ramp_slots - 1)
+        fixed.append(tuple(
+            int(round(bottom[channel] * (1.0 - t) + top[channel] * t))
+            for channel in range(3)
+        ))
+    fixed = fixed[:palette_colors]
+    while len(fixed) < 256:
+        fixed.append(fixed[-1])
+
+    palette = Image.new("P", (1, 1))
+    palette.putpalette([channel for rgb in fixed for channel in rgb])
+    return palette
+
+
+def quantize_gif_frames(frames: list[Image.Image], gif_colors: int) -> list[Image.Image]:
+    """Quantize RGB frames with CADCLAW's fixed functional palette."""
+    palette = _gif_palette_image(gif_colors)
+    return [
+        frame.convert("RGB").quantize(palette=palette, dither=Image.NONE)
+        for frame in frames
+    ]
+
+
 def _load_shapes(step_path: str):
     """Return the list of renderable Shapes in a STEP file.
 
@@ -95,10 +161,10 @@ def _combined_polydata(shapes, tolerance: float = 0.5, angular: float = 0.3):
 
 # Sunnyday M3-CRETE palette.
 COLOR_EXTRUSION = (0.08, 0.08, 0.09)   # anodized black extrusions
-COLOR_PRINTED = (0.59, 0.84, 0.0)      # Sunnyday green printed parts
+COLOR_PRINTED = (151 / 255, 215 / 255, 0.0)  # Sunnyday brand green #97d700
 COLOR_METAL = (0.72, 0.74, 0.76)       # aluminum plates / brackets
 COLOR_MOTOR = (0.30, 0.30, 0.32)       # stepper body
-COLOR_WHEEL = (0.59, 0.84, 0.0)        # bright green V-wheels for review
+COLOR_WHEEL = COLOR_PRINTED            # brand-green V-wheels for review
 COLOR_BELT = (0.15, 0.15, 0.15)        # GT2 belt
 
 # Label -> color defaults keyed on the M3-CRETE naming scheme.
@@ -109,6 +175,8 @@ COLOR_BELT = (0.15, 0.15, 0.15)        # GT2 belt
 DEFAULT_COLOR_MAP = {
     'cbeam': COLOR_EXTRUSION, 'beam': COLOR_EXTRUSION,
     'extrusion': COLOR_EXTRUSION, 'post': COLOR_EXTRUSION,
+    'rail': COLOR_EXTRUSION, 'vslot_2040': COLOR_EXTRUSION,
+    'vslot_2080': COLOR_EXTRUSION,
     'motor': COLOR_MOTOR,
     'vwheel': COLOR_WHEEL, 'wheel': COLOR_WHEEL, 'pulley': COLOR_WHEEL,
     'idler': COLOR_WHEEL,
@@ -531,11 +599,7 @@ def render_frames_to_gif(frames_dir: str, output_gif: str,
         if (gw, gh) != img.size:
             img = img.resize((gw, gh), Image.LANCZOS)
         rgb_frames.append(img)
-    palette_colors = max(2, min(256, gif_colors))
-    master = rgb_frames[len(rgb_frames) // 2].convert(
-        "P", palette=Image.ADAPTIVE, colors=palette_colors,
-        dither=Image.NONE)
-    frames = [f.quantize(palette=master, dither=Image.NONE) for f in rgb_frames]
+    frames = quantize_gif_frames(rgb_frames, gif_colors)
     duration_ms = max(1, int(1000 / max(fps, 1)))
     frames[0].save(output_gif, save_all=True, append_images=frames[1:],
                     duration=duration_ms, loop=0, optimize=optimize,
@@ -579,7 +643,9 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
                                 nested_separation_mm: float = 45.0,
                                 nested_lift_mm: float = 0.0,
                                 nested_reveal_color: tuple = None,
-                                nested_containment_tol_mm: float = 0.5):
+                                nested_containment_tol_mm: float = 0.5,
+                                reveal_bbox_signatures: list = None,
+                                reveal_long_axes: list = None):
     """Build a 'cooler' exploded-view GIF in two phases:
 
       1. Every part moves outward from the assembly centroid simultaneously
@@ -618,6 +684,12 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         nested_reveal_color: Optional override color for nested parts in the
             review artifact.
         nested_containment_tol_mm: Bounding-box tolerance for nested detection.
+        reveal_bbox_signatures: Optional list of sorted bbox length signatures
+            such as (20, 40, 1000). Matching parts receive the same reveal
+            offset as nested parts even when containment heuristics are
+            ambiguous in an exploded assembly view.
+        reveal_long_axes: Optional list of bbox long-axis indexes to limit
+            reveal signatures to. Axis indexes are X=0, Y=1, Z=2.
     """
     import tempfile as _tmp
     import vtk
@@ -650,6 +722,12 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
 
     def _bbox_lengths(bbox):
         return (bbox[3] - bbox[0], bbox[4] - bbox[1], bbox[5] - bbox[2])
+
+    def _bbox_signature(bbox):
+        return tuple(round(length, 1) for length in sorted(_bbox_lengths(bbox)))
+
+    def _normalise_signature(signature):
+        return tuple(round(float(length), 1) for length in sorted(signature))
 
     def _long_axis(bbox):
         lengths = _bbox_lengths(bbox)
@@ -710,12 +788,22 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         return covered >= long_len - tol
 
     shape_bboxes = [_shape_bbox(shape) for shape in shapes]
+    reveal_signatures = {
+        _normalise_signature(signature)
+        for signature in (reveal_bbox_signatures or [])
+    }
+    reveal_axis_set = set(reveal_long_axes or [])
     nested_offsets = [(0.0, 0.0, 0.0) for _ in shapes]
     nested_indexes = set()
     if separate_nested:
         volumes = [_bbox_volume(bbox) for bbox in shape_bboxes]
         for inner_index, inner_bbox in enumerate(shape_bboxes):
-            nested = _bbox_splice_nested(inner_index, volumes, nested_containment_tol_mm)
+            nested = (
+                _bbox_signature(inner_bbox) in reveal_signatures
+                and (not reveal_axis_set or _long_axis(inner_bbox) in reveal_axis_set)
+            )
+            if not nested:
+                nested = _bbox_splice_nested(inner_index, volumes, nested_containment_tol_mm)
             for outer_index, outer_bbox in enumerate(shape_bboxes):
                 if inner_index == outer_index or volumes[inner_index] >= volumes[outer_index]:
                     continue
@@ -868,11 +956,7 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         if (gw, gh) != img.size:
             img = img.resize((gw, gh), Image.LANCZOS)
         rgb_frames.append(img)
-    palette_colors = max(2, min(256, gif_colors))
-    master = rgb_frames[len(rgb_frames) // 2].convert(
-        "P", palette=Image.ADAPTIVE, colors=palette_colors,
-        dither=Image.NONE)
-    frames = [f.quantize(palette=master, dither=Image.NONE) for f in rgb_frames]
+    frames = quantize_gif_frames(rgb_frames, gif_colors)
     duration_ms = max(1, int(1000 / max(fps, 1)))
     frames[0].save(output_gif, save_all=True, append_images=frames[1:],
                     duration=duration_ms, loop=0, optimize=optimize,

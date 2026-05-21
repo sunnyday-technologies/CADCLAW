@@ -23,3 +23,12 @@ media/
 docs/fonts/
 docs/media/*.gif
 benchmarks/m3_ai_assembly/results/*.json
+
+# Secrets / environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa
+id_ed25519

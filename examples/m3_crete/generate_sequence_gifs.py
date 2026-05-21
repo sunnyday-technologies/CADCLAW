@@ -21,8 +21,8 @@ from cadclaw.render import (
     DEFAULT_COLOR_MAP,
     _aim_camera,
     _color_for,
-    _extract_step_colors,
     _load_shapes,
+    quantize_gif_frames,
     render_radial_explode_gif,
 )
 
@@ -34,6 +34,22 @@ STEP_SEQUENCE = [
     "05_z_posts.step",
     "06_frame_completion.step",
 ]
+
+REVEAL_2040_SIGNATURE = (20.0, 40.0, 1000.0)
+REVEAL_2040_LIFT_MM = -300.0
+
+
+def _shape_size_signature(shape) -> tuple[float, float, float]:
+    bb = shape.BoundingBox()
+    return tuple(round(length, 1) for length in sorted((bb.xlen, bb.ylen, bb.zlen)))
+
+
+def _shape_is_x_2040_insert(shape) -> bool:
+    bb = shape.BoundingBox()
+    return (
+        _shape_size_signature(shape) == REVEAL_2040_SIGNATURE
+        and round(bb.xlen, 1) == 1000.0
+    )
 
 
 def _render_step_orbit_frames(
@@ -53,11 +69,15 @@ def _render_step_orbit_frames(
     gif_width: int,
     gif_height: int,
     gif_colors: int,
+    edges: bool,
+    reveal_2040: bool,
 ) -> list[Image.Image]:
     import vtk
 
     shapes = _load_shapes(str(step_path))
-    step_colors = _extract_step_colors(str(step_path))
+    # Use the CADCLAW semantic palette for shareable M3 artifacts. STEP-stored
+    # AP242 colors vary by source asset and made the brand green drift in GIFs.
+    step_colors = None
     renderer = vtk.vtkRenderer()
     renderer.SetBackground(0.38, 0.42, 0.47)
     renderer.SetBackground2(0.62, 0.66, 0.70)
@@ -69,6 +89,8 @@ def _render_step_orbit_frames(
         mapper.SetInputData(poly)
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
+        if reveal_2040 and _shape_is_x_2040_insert(shape):
+            actor.SetPosition(0.0, 0.0, REVEAL_2040_LIFT_MM)
         prop = actor.GetProperty()
         prop.SetColor(*_color_for(
             shape,
@@ -80,9 +102,10 @@ def _render_step_orbit_frames(
         prop.SetAmbient(1.0)
         prop.SetDiffuse(0.0)
         prop.SetSpecular(0.0)
-        prop.EdgeVisibilityOn()
-        prop.SetEdgeColor(0.05, 0.06, 0.06)
-        prop.SetLineWidth(0.6)
+        if edges:
+            prop.EdgeVisibilityOn()
+            prop.SetEdgeColor(0.05, 0.06, 0.06)
+            prop.SetLineWidth(0.6)
         renderer.AddActor(actor)
 
     head = vtk.vtkLight()
@@ -98,7 +121,7 @@ def _render_step_orbit_frames(
 
     window = vtk.vtkRenderWindow()
     window.SetOffScreenRendering(1)
-    window.SetMultiSamples(8)
+    window.SetMultiSamples(0)
     window.SetSize(width, height)
     window.AddRenderer(renderer)
 
@@ -132,7 +155,7 @@ def build_assembly_progress_gif(
     total_frames: int = 80,
     fps: int = 8,
     width: int = 960,
-    height: int = 720,
+    height: int = 540,
     gif_width: int = 960,
     gif_height: int = 540,
     gif_colors: int = 64,
@@ -170,13 +193,12 @@ def build_assembly_progress_gif(
                 gif_width=gif_width,
                 gif_height=gif_height,
                 gif_colors=gif_colors,
+                edges=False,
+                reveal_2040=True,
             ))
             frame_index += frame_count
 
-        master = frames[len(frames) // 2].convert(
-            "P", palette=Image.ADAPTIVE, colors=max(2, min(256, gif_colors))
-        )
-        paletted = [frame.quantize(palette=master, dither=Image.NONE) for frame in frames]
+        paletted = quantize_gif_frames(frames, gif_colors)
         duration_ms = max(1, int(1000 / max(fps, 1)))
         paletted[0].save(
             output_gif,
@@ -208,18 +230,21 @@ def build_explode_gif(final_step: Path, output_gif: Path) -> dict:
         hold_frames=8,
         rotate_frames=96,
         fps=8,
-        width=960,
-        height=720,
+        width=768,
+        height=432,
         view="hero",
         zoom=0.9,
         tessellation_tol=0.8,
-        gif_width=960,
-        gif_height=540,
+        gif_width=768,
+        gif_height=432,
         gif_colors=64,
+        edges=False,
+        use_step_colors=False,
         separate_nested=True,
         nested_separation_mm=0.0,
-        nested_lift_mm=-180.0,
-        nested_reveal_color=COLOR_PRINTED,
+        nested_lift_mm=REVEAL_2040_LIFT_MM,
+        reveal_bbox_signatures=[REVEAL_2040_SIGNATURE],
+        reveal_long_axes=[0],
     )
     return {"output": str(output_gif), "frames": frame_count, "fps": 8}
 
