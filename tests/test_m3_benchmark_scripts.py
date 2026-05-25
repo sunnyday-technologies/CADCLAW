@@ -96,7 +96,7 @@ class TestM3BenchmarkScripts(unittest.TestCase):
             self.assertIn("benchmarks/m3_ai_assembly/procedures/comparison_runbook.md", names)
             self.assertIn("benchmarks/m3_ai_assembly/scripts/summarize_run_log.py", names)
             self.assertIn("benchmarks/m3_ai_assembly/run_logs/templates/run_log_template.yaml", names)
-            self.assertIn("docs/M3_ASSEMBLY_EFFICIENCY_REVIEW.md", names)
+            self.assertIn("docs/M3_AI_ASSEMBLY_BENCHMARK.md", names)
             self.assertIn("examples/m3_crete/m3_fea_load_cases.yaml", names)
             self.assertIn("docs/M3_FEA_LOAD_CASES.md", names)
             self.assertFalse(any(name.lower().endswith(".step") for name in names))
