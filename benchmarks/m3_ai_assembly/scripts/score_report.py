@@ -93,7 +93,6 @@ def score_report(report_data: dict[str, Any], benchmark: dict[str, Any]) -> dict
     completeness_weight = float(weights.get("completeness_and_authored_asset_fidelity", 25))
     topology_weight = float(weights.get("dimensional_topology_match", 15))
     repro_weight = float(weights.get("reproducibility_and_provenance", 10))
-    human_weight = float(weights.get("human_effort", 10))
     claims_weight = float(weights.get("claim_hygiene_packaging", 5))
 
     gate_score = _bounded(gate_weight - fail_count * 10 - warn_count * 1.5, gate_weight)
@@ -127,7 +126,6 @@ def score_report(report_data: dict[str, Any], benchmark: dict[str, Any]) -> dict
         repro_score -= 1
     repro_score = _bounded(repro_score, repro_weight)
 
-    human_score = human_weight / 2
     claims_score = _bounded(claims_weight - claim_failures * 2.5, claims_weight)
 
     weighted_total = round(
@@ -135,7 +133,6 @@ def score_report(report_data: dict[str, Any], benchmark: dict[str, Any]) -> dict
         + completeness_score
         + topology_score
         + repro_score
-        + human_score
         + claims_score,
         3,
     )
@@ -153,7 +150,6 @@ def score_report(report_data: dict[str, Any], benchmark: dict[str, Any]) -> dict
             completeness_weight,
             topology_weight,
             repro_weight,
-            human_weight,
             claims_weight,
         ]),
         "subscores": {
@@ -161,7 +157,6 @@ def score_report(report_data: dict[str, Any], benchmark: dict[str, Any]) -> dict
             "completeness_and_authored_asset_fidelity": round(completeness_score, 3),
             "dimensional_topology_match": round(topology_score, 3),
             "reproducibility_and_provenance": round(repro_score, 3),
-            "human_effort": round(human_score, 3),
             "claim_hygiene_packaging": round(claims_score, 3),
         },
         "finding_counts": {
@@ -182,7 +177,7 @@ def score_report(report_data: dict[str, Any], benchmark: dict[str, Any]) -> dict
         ],
         "limitations": [
             "Early scorer; weights and penalties must be version-pinned with benchmark releases.",
-            "Human effort is scored conservatively until a run manifest/intervention log is provided.",
+            "Effort/autonomy (interventions, retries, time, tokens) is reported separately from the run log (see summarize_run_log.py), not folded into the artifact score.",
             "Dry-run reports cannot prove STEP loadability or visual alignment.",
         ],
     }

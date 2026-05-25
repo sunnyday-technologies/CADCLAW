@@ -14,7 +14,9 @@ target:
     - Y-gantry C-Beams place the 80 mm dimension vertically and open channels face inward
     - X-gantry C-Beams place the 80 mm dimension vertically and include one centered 1000 mm 2040 insert across the 2 m X-gantry splice
     - top X-direction frame C-Beam runs each include one centered 1000 mm 2040 insert across the 2 m frame splice
-    - X-to-Y plates and X-carriage plates use C-Beam Gantry Plate XLarge; Y-to-Z plates use V-Slot 20-80
+    - the two-sided X-axis printhead carriage uses two C-Beam Gantry Plate XLarge (125x125x6 mm), for the toolhead's off-axis forces; the X-to-Y handoff and Y-to-Z/Z-post carriage plates use the small V-Slot 20-80 (10 small + 2 XLarge). This intentionally diverges from the V1.0 source's zero-XLarge; see docs/M3_FRAME_CANON.md.
+    - the top center spreader is mounted with a 2-plate (6 mm) stack of small V-Slot 20-80 plates at each end (four plates total)
+    - the Y-axis GT2 belts run inside the Y-gantry C-beam channels; the X drive is the authored VS_Belt_Pinion (no separate X belt); the Y-motor screws directly to the C-beam (no mount plate) and homing is sensorless via the stepper driver's StallGuard, so there is no physical endstop part
     - Solid V Wheel STEP instances are placed at modeled X-to-Y, X-carriage, and Y-to-Z carriage interfaces; four wheels per gantry plate align to authored plate holes with a 7 mm spacer/washer standoff
     - CADCLAW model BOM is compared against, not written over, the M3 interactive BOM
 
@@ -66,12 +68,15 @@ grader:
     - review_views_for_non_dry_run
 
 scoring:
+  # human_effort removed (prerelease): effort/autonomy -- interventions, retries,
+  # wall-time, tokens -- is measured and reported from the run log
+  # (summarize_run_log.py), not weighted into the artifact score. The remaining
+  # five weights are renormalized (x100/90) to sum to 100, preserving their ratios.
   weights:
-    cadclaw_gate_results: 35
-    completeness_and_authored_asset_fidelity: 25
-    dimensional_topology_match: 15
-    reproducibility_and_provenance: 10
-    human_effort: 10
+    cadclaw_gate_results: 39
+    completeness_and_authored_asset_fidelity: 28
+    dimensional_topology_match: 17
+    reproducibility_and_provenance: 11
     claim_hygiene_packaging: 5
   hard_fail_notes:
     - Secret exposure, protected-path overwrite, non-loadable STEP, or uncontrolled generated contextual geometry overrides weighted score.
