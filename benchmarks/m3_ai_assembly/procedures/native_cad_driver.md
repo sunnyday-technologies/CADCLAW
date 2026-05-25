@@ -46,8 +46,8 @@ Current M3-2 fixture constraints to verify before export:
   centered 1000 mm 2040 insert across the 2 m X-gantry splice.
 - Each top X-direction frame C-Beam run includes one centered 1000 mm 2040
   insert across the 2 m frame splice.
-- X-to-Y plates and X-carriage plates are C-Beam Gantry Plate XLarge;
-  Y-to-Z/Z-post carriage plates are V-Slot 20-80.
+- All gantry plates (X-to-Y, X-carriage, and Y-to-Z/Z-post carriage) are the
+  small V-Slot 20-80 plate; the V1.0 source has zero C-Beam Gantry Plate XLarge.
 - Top spacer/motor-mount locations use ZPMM; lower spacer locations use the
   simple flat 6 x 40 x 80 mm spacer.
 

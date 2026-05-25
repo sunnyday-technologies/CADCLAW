@@ -28,10 +28,12 @@ Current M3-2 fixture constraints:
 - Build inside-out: place the X gantry and end plates first, add the two-sided
   X carriage, then the Y gantries, then Y-to-Z/Z-post carriage plates, then
   the Z posts and frame members around that motion stack.
-- X-to-Y uses two C-Beam Gantry Plate XLarge assets, one at each X gantry end.
-  The X-axis printhead carriage uses two additional C-Beam Gantry Plate XLarge
-  assets, one on each side of the X beam. Y-to-Z/Z-post interfaces use the
-  smaller V-Slot 20-80 gantry plates.
+- The two-sided X-axis printhead carriage uses two C-Beam Gantry Plate XLarge
+  (125x125x6 mm), one each side of the X beam, for the toolhead's off-axis
+  forces. All other gantry plates are the small V-Slot 20-80: two at the X-to-Y
+  handoff (one at each X gantry end) and the four Y-to-Z/Z-post carriage plates.
+  (This X-carriage XLarge choice intentionally diverges from the V1.0 source,
+  which has zero XLarge.)
 - Y-gantry C-Beams place their 80 mm dimension vertically and open channels
   face inward toward the printer volume.
 - X-gantry C-Beams also place their 80 mm dimension vertically. The 2 m
@@ -45,8 +47,8 @@ Current M3-2 fixture constraints:
 - The top center spreader is a 2040 V-slot extrusion. Place it with the 40 mm
   side vertical and the top surface level with the surrounding top frame
   members.
-- The top center spreader uses two V-Slot 20-80 gantry plates as mounting
-  bracket/spacer stock.
+- The top center spreader uses a 2-plate (6 mm) stack of small V-Slot 20-80
+  plates at each end (four plates total) as mounting bracket/spacer stock.
 - Place authored Solid V Wheel STEP instances at the modeled X-to-Y,
   X-carriage, and Y-to-Z carriage interfaces so wheel-slot and wheel-hole
   location choices are visible in review renders. Each gantry plate uses four
@@ -63,10 +65,15 @@ Current M3-2 fixture constraints:
 Known incomplete areas in the current seed:
 
 - Connector frames need rendered-view and CAD inspection verification.
-- Belt paths and pulley/idler routing are not fully specified.
-- Motors and motor plates require authored assets and connector metadata.
-- Y gantries are represented by placed authored C-Beam rail datums in the
-  current seed; Z drive assemblies still need connector-backed placement.
+- Z-axis and Y-axis GT2 belts are placed as cosmetic per-run stock, with
+  pulleys and return idlers; the X drive is the authored VS_Belt_Pinion. Final
+  belt-path tuning remains a render-review item.
+- The seven NEMA 23 motors are placed; no separate motor mount plates are used
+  (the Y-motor screws directly to the C-beam, and homing is sensorless via the
+  stepper driver's StallGuard, so there is no physical endstop part). Mount
+  plates may be added in a later version.
+- Y gantries are placed authored C-Beam rail datums; their Z-carriage plates and
+  wheels cascade onto them via the relative-placement resolver.
 - 32 Solid V Wheel instances are placed in the current seed, including the
   two-sided X-carriage wheel set.
 - The current seed checks authored-hole alignment for the Y-gantry to
