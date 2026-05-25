@@ -1,92 +1,114 @@
-# Standard M3-CRETE Assembly Prompt
+# M3-CRETE M3-2 — Shared Benchmark Core (ARB)
 
-Assemble the M3-CRETE M3-2 3D concrete printing system from the provided
-authored STEP assets and reference image.
+> **CANONICAL SHARED CORE.** This block is **identical across every track** (Fusion,
+> CadQuery, …); only the per-backend "How to drive" stub differs. Edit *this* file,
+> then regenerate the driver briefs with `prompts/build_briefs.py`. Frozen +
+> versioned per ARB release — **do not tune it to make a run pass.**
 
-Target:
+## Task
 
-- Variant: M3-2.
-- Target envelope/class: 2000 x 1000 x 1000 mm.
-- Use the reference image for topology and visual review only; exact dimensions
-  must come from the spec, authored STEP assets, or validated measurements.
+Assemble the M3-CRETE M3-2 3D concrete-printing system from the provided authored
+STEP parts, then export a single STEP assembly + a run log. You are being timed and
+graded.
 
-Rules:
+- Variant: M3-2. Target envelope/class: **2000 × 1000 × 1000 mm**.
+- **Place authored STEP parts. Do not generate** contextual plates, brackets, motor
+  mounts, NEMA hole patterns, idler holders, gantry plates, or adapter plates.
+  Cut-to-length **extrusion stock** (C-beam / V-slot) and **belt segments** are the
+  only geometry you may generate.
+- **You decide all placement — positions, orientations, and the build approach.
+  None is prescribed.** Keep assumptions / incomplete areas explicit.
+- Printhead/tool payload and the final carriage→tool mount interface are **out of
+  scope** this round — mark them as not-built.
 
-- Place authored STEP parts. Do not generate contextual plates, brackets,
-  motor mounts, NEMA hole patterns, idler holders, gantry plates, or adapter
-  plates from primitive CAD recipes.
-- Generate only explicitly allowed stock-like geometry: linear rail/extrusion
-  stock, explicit belt segments, or standard fastener stand-ins if the test kit
-  enables them.
-- Do not overwrite authoritative native CAD exports.
-- Keep assumptions and incomplete areas explicit as `not_built_yet`.
-- Produce a non-authoritative STEP assembly, design inventory, validation
-  report, and review views.
+## Fairness wall (critical — do not break this)
 
-Current M3-2 fixture constraints:
+Build only from this brief + the provided kit. Do **not** open, search for, or
+consult any reference assembly, answer key, solution spec, prior M3-CRETE design,
+or project memory — even if your environment makes one reachable. Those are the
+graded answer key; using them invalidates the run.
 
-- Build inside-out: place the X gantry and end plates first, add the two-sided
-  X carriage, then the Y gantries, then Y-to-Z/Z-post carriage plates, then
-  the Z posts and frame members around that motion stack.
-- The two-sided X-axis printhead carriage uses two C-Beam Gantry Plate XLarge
-  (125x125x6 mm), one each side of the X beam, for the toolhead's off-axis
-  forces. All other gantry plates are the small V-Slot 20-80: two at the X-to-Y
-  handoff (one at each X gantry end) and the four Y-to-Z/Z-post carriage plates.
-  (This X-carriage XLarge choice intentionally diverges from the V1.0 source,
-  which has zero XLarge.)
-- Y-gantry C-Beams place their 80 mm dimension vertically and open channels
-  face inward toward the printer volume.
-- X-gantry C-Beams also place their 80 mm dimension vertically. The 2 m
-  X-gantry run contains one authored 1000 mm 2040 V-slot insert centered
-  across the middle splice between the two 1000 mm 4080 C-Beam segments.
-- Each 2 m top X-direction frame run also contains one authored 1000 mm 2040
-  V-slot insert centered across its middle splice.
-- The frame is open at the bottom in the X direction; do not add bottom X
-  frame rails unless the benchmark spec changes.
-- Lower Y-direction static frame rails are 2080 V-slot, not C-Beam.
-- The top center spreader is a 2040 V-slot extrusion. Place it with the 40 mm
-  side vertical and the top surface level with the surrounding top frame
-  members.
-- The top center spreader uses a 2-plate (6 mm) stack of small V-Slot 20-80
-  plates at each end (four plates total) as mounting bracket/spacer stock.
-- Place authored Solid V Wheel STEP instances at the modeled X-to-Y,
-  X-carriage, and Y-to-Z carriage interfaces so wheel-slot and wheel-hole
-  location choices are visible in review renders. Each gantry plate uses four
-  wheels; wheel centerlines align to authored plate holes, and the wheel inner
-  face is held 7 mm off the plate face by a 6 mm spacer plus 1 mm washer stack.
-  Eccentric washers may absorb a few millimeters of remaining adjustment, but
-  the alignment error must be reported.
-- Top side-rail/post spacer locations use the authored ZPMM motor-mount/spacer
-  STEP. Lower side-rail/post spacer locations use a simple 6 x 40 x 80 mm flat
-  spacer.
-- CADCLAW's model-derived BOM is an overcheck artifact. Compare it against the
-  M3 interactive BOM, but do not overwrite the M3-owned public BOM.
+## Design constraints (the target — the "what," not the "how")
 
-Known incomplete areas in the current seed:
+- The two-sided **X-axis printhead carriage** uses two **C-Beam Gantry Plate XLarge
+  (125×125×6 mm)**, one each side of the X beam (off-axis toolhead forces). All
+  other gantry plates are the small **V-Slot 20-80**: two at the X-to-Y handoff
+  (one at each X-gantry end) and four for the Y-to-Z / Z-post carriages.
+- **Y-gantry C-Beams**: 80 mm dimension vertical, open channels facing **inward**
+  toward the print volume.
+- **X-gantry C-Beams**: 80 mm dimension vertical. The 2 m X-gantry run has one
+  **1000 mm 2040 V-slot insert centered across the middle splice** between the two
+  1000 mm 4080 C-Beam segments.
+- Each 2 m **top X-direction frame run** also has one 1000 mm 2040 insert centered
+  across its splice.
+- Frame is **open at the bottom in X** — no bottom X rails.
+- **Lower Y static frame rails are 2080 V-slot** (not C-Beam).
+- **Top center spreader**: a 2040 V-slot, placed with the **40 mm side vertical** and
+  its top surface level with the surrounding top frame. It mounts on a **2-plate
+  (6 mm) stack of small V-Slot 20-80 plates at each end** (four plates total).
+- **Solid V Wheels**: four per gantry plate at the X-to-Y, X-carriage, and Y-to-Z
+  interfaces; wheel centerlines align to the authored plate holes; the wheel inner
+  face sits **7 mm off the plate face** (6 mm spacer + 1 mm washer).
+- **Top** side-rail/post spacers use the authored **ZPMM** spacer; **lower** ones use
+  the simple **6×40×80 mm flat spacer**.
+- Drive: **Z and Y GT2 belts** run inside their C-beam channels with pulleys + return
+  idlers; the **X drive is the authored VS_Belt_Pinion** (no separate X belt). **7
+  NEMA 23 motors** are placed (4 Z, 2 Y, 1 X); the Y-motor screws directly to the
+  C-beam (sensorless StallGuard homing — no physical endstop, no mount plate this
+  round).
 
-- Connector frames need rendered-view and CAD inspection verification.
-- Z-axis and Y-axis GT2 belts are placed as cosmetic per-run stock, with
-  pulleys and return idlers; the X drive is the authored VS_Belt_Pinion. Final
-  belt-path tuning remains a render-review item.
-- The seven NEMA 23 motors are placed; no separate motor mount plates are used
-  (the Y-motor screws directly to the C-beam, and homing is sensorless via the
-  stepper driver's StallGuard, so there is no physical endstop part). Mount
-  plates may be added in a later version.
-- Y gantries are placed authored C-Beam rail datums; their Z-carriage plates and
-  wheels cascade onto them via the relative-placement resolver.
-- 32 Solid V Wheel instances are placed in the current seed, including the
-  two-sided X-carriage wheel set.
-- The current seed checks authored-hole alignment for the Y-gantry to
-  Z-carriage plate interfaces.
-- Printhead/tool payload and final carriage mount interface have not been
-  selected for this round.
+## The kit (authored parts; quantities are the target BOM)
 
-Output expectations:
+| Part | Qty | Role |
+|---|---|---|
+| C-Beam 40×80×1000 Linear Rail | 14 | Z posts, X-gantry rails, top X frame, Y-gantry rails (or generate cut-to-length 40×80 stock) |
+| V-Slot 20×80×1000 Linear Rail | 2 | lower Y static frame rails |
+| V-Slot 20×40×1000 Linear Rail | 4 | top center spreader + 3 centered splice inserts |
+| C-Beam Gantry Plate XLarge | 2 | X-carriage plates (one per side) |
+| V-Slot Gantry Plate 20-80mm | 10 | 2 X-to-Y handoff + 4 Y-to-Z/Z-post + 4 spreader bracket |
+| ZPMM motor-mount spacer (6 mm holes) | 4 | top motor-mount/post spacers |
+| 6×40×80 mm flat frame shim | 4 | lower side-rail/post spacers |
+| Solid V Wheel | 32 | 4 per gantry plate (X-to-Y, X-carriage, Y-to-Z) |
+| GT2 Timing Pulley 20 Tooth | 4 | Z-axis drive pulley, one per post top |
+| Smooth Idler Pulley Wheel | 4 | Z-axis return idler, one per post bottom |
+| GT2 belt, Z run (942 mm) | 8 | Z-axis belt runs (2 per post) |
+| GT2 belt, Y run (958 mm) | 4 | Y-axis belt runs (2 per Y gantry, inside channel) |
+| NEMA 23 motor (4 distinct Z exports) | 4 | Z-axis motors (post tops) |
+| NEMA 23 motor (2 distinct Y exports) | 2 | Y-axis motors |
+| NEMA 23 motor (1 X export) | 1 | X-axis motor (drives the VS_Belt_Pinion) |
+| VS_Belt_Pinion | 1 | X-axis belt + pulley actuator |
 
-- A machine-readable run manifest with model/tool versions, elapsed time,
-  prompt id, input checksums where available, and non-secret provenance.
-- A final STEP or dry-run assembly plan at a generated benchmark path.
-- CADCLAW design inventory and report.
-- Review renders for non-dry-run assemblies.
-- A human intervention log noting manual edits, approvals, restarts, and failed
-  attempts.
+Total ≈ 100 placed instances. The motor exports preserve their source orientation,
+so importing them un-rotated lands them close to their mounting attitude. (Your
+backend stub names the exact file/data-source for each part.)
+
+<!--BACKEND_STUB-->
+
+## Run log (you ARE being measured on effort)
+
+Capture model/tool versions, **elapsed wall-clock time** (start now), **attempts**,
+**retries**, **concrete corrections**, **human interventions**, and tokens if your
+host exposes them. Save as YAML (`run_log.yaml`):
+
+```yaml
+schema_version: m3_ai_assembly_run_log.v0.1
+run_id: <track>_<model>_<yyyymmdd>_<n>
+benchmark_id: m3_ai_assembly
+track: <filled by your backend stub>
+status: complete
+driver:
+  ai_driver: <your model name + version>
+  host_application: <your CAD backend + version>
+timing: {started_utc: null, ended_utc: null, elapsed_minutes: null}
+token_usage: {capture_status: unavailable, total_tokens: null}
+attempts:
+  - {attempt_id: A01, is_retry: false, driver_action: <what you did>, result: pending, corrections: [], human_interventions: [], notes: null}
+summary: {attempt_count: null, retry_count: null, correction_count: null, human_intervention_count: null, residual_not_built_yet: []}
+privacy_review: {secrets_checked: false, notes: No credentials, API keys, or private supplier fields.}
+```
+
+## When you are done
+
+Report: the STEP export path, the run-log path, anything left not-built, and a
+one-paragraph summary of where you struggled. **Stop there** — grading is done by a
+separate session. Do not grade yourself, and do not tune toward any gate.
