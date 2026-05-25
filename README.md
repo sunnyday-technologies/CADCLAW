@@ -244,7 +244,7 @@ Exit code 0 = passed. Exit code 1 = failed. Works in any CI system.
 ## Who This Is For
 
 - **Open-source hardware projects** — catch assembly errors before builders hit them
-- **CadQuery/FreeCAD users** — the testing layer the ecosystem is missing
+- **Open-CAD & scripting users** — the testing layer the ecosystem is missing
 - **Small manufacturing teams** — automated QA between design and procurement
 - **AI-assisted CAD workflows** — validate that AI-generated changes don't break the assembly
 
@@ -264,7 +264,7 @@ python -m venv .venv
 .\.venv\Scripts\python -m unittest discover tests
 ```
 
-The test fixtures are generated from CadQuery — no external downloads needed.
+The test fixtures are generated programmatically — no external downloads needed.
 Three tiers of increasing complexity:
 
 | Level | Parts | Tests |

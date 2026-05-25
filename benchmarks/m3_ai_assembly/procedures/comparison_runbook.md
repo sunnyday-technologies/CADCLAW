@@ -26,7 +26,7 @@ interventions.
 3. **Fresh CADCLAW spec driver**
    - Procedure: `benchmarks/m3_ai_assembly/procedures/cadclaw_spec_driver.md`
    - Example target: an AI driver edits CADCLAW YAML/spec metadata and uses
-     CadQuery through CADCLAW to compile the assembly.
+     CADCLAW to compile the assembly.
    - Output: generated STEP or dry-run plan, run log, CADCLAW report, and score.
 
 ## Required Inputs For Every Fresh Run

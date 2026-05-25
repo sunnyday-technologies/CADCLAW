@@ -25,13 +25,12 @@ checks them.
 
 **Default to placement, not generation.** The user authors complex
 geometry in a native CAD package, exports a
-STEP, and the project's CadQuery script (or whatever assembly driver is
+STEP, and the project's assembly script (whatever placement driver is
 in use) places copies of those authored parts into the assembly.
 CADCLAW then verifies the placement.
 
 When asked to add a part, your first move is **"where is the authored
-STEP for this?"** — not **"let me write a `cq.Workplane().rect(...)`
-recipe."**
+STEP for this?"** — not **"let me write a parametric recipe for it."**
 
 If no authored STEP exists yet, ask the user whether they want to
 author it before you build anything parametric.
@@ -56,26 +55,6 @@ in isolation and don't fit the assembly.
 
 ---
 
-## What you may generate
-
-A small, opinionated list. Anything outside this list, defer to
-authored STEP.
-
-- **Linear extrusion stock** — C-beam / V-slot bars cut to length.
-  These are genuinely parametric: cross-section is fixed, length is
-  the only variable. CADCLAW's typical projects label these as `cbeam`.
-- **V-wheels** — fixed-geometry rolling elements. Same argument.
-- **Belt segments** — already special-cased by `belt_heuristic`.
-- **Standard fastener stand-ins** — only if the project explicitly
-  declares it wants generated fastener bodies (most do not; CADCLAW's
-  BOM-audit does the fastener accounting from text, not geometry).
-
-Anything else — plates, brackets, mounts, gussets, motor adapters,
-spacers with bolt patterns, idler holders — author in the native CAD
-package and place via STEP.
-
----
-
 ## What you must not generate
 
 - **Plates with hole patterns.** "Make a 4mm plate with NEMA23 holes"
@@ -92,8 +71,8 @@ package and place via STEP.
   triangular gussets, etc. CADCLAW's `parity` gate exists to catch
   these; don't introduce them.
 
-If you find yourself reaching for `cq.Workplane().box(...).faces(...).
-hole(...)`, stop. Ask the user.
+If you find yourself writing a parametric solid-with-holes recipe, stop.
+Ask the user.
 
 ---
 
@@ -102,9 +81,8 @@ hole(...)`, stop. Ask the user.
 1. **User authors** the geometry in a native CAD or STEP-capable package.
 2. **User exports** a STEP — typically the whole assembly, or one
    sub-assembly per file.
-3. **Assembly script** (CadQuery / build123d / etc.) imports the
-   authored STEP, places copies via translation/rotation, and emits a
-   final assembly STEP.
+3. **Assembly script** imports the authored STEP, places copies via
+   translation/rotation, and emits a final assembly STEP.
 4. **CADCLAW runs** against the assembly STEP: inventory, interference,
    adjacency, BOM audit, etc.
 5. **Findings drive iteration.** Failed gates point at concrete fixes

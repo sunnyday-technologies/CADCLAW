@@ -8,7 +8,7 @@ M3-CRETE M3-2 target:
 - Native CAD driver: an LLM drives a native CAD or CAD-API workflow and exports
   STEP.
 - CADCLAW spec driver: an LLM edits CADCLAW assembly specs and connector
-  metadata, then CADCLAW compiles authored STEP assets with CadQuery.
+  metadata, then CADCLAW compiles authored STEP assets into an assembly.
 
 The benchmark grades exported artifacts with CADCLAW. It is decision support
 for assembly correctness and reproducibility; it does not certify physical
