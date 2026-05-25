@@ -22,6 +22,7 @@ from cadclaw.render import (
     _aim_camera,
     _color_for,
     _load_shapes,
+    _part_color_groups,
     quantize_gif_frames,
     render_radial_explode_gif,
 )
@@ -84,29 +85,33 @@ def _render_step_orbit_frames(
     renderer.GradientBackgroundOn()
 
     for shape in shapes:
-        poly = shape.toVtkPolyData(tolerance=tessellation_tol, angularTolerance=0.3)
-        mapper = vtk.vtkPolyDataMapper()
-        mapper.SetInputData(poly)
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
-        if reveal_2040 and _shape_is_x_2040_insert(shape):
-            actor.SetPosition(0.0, 0.0, REVEAL_2040_LIFT_MM)
-        prop = actor.GetProperty()
-        prop.SetColor(*_color_for(
+        base_color = _color_for(
             shape,
             labels=None,
             color_map=DEFAULT_COLOR_MAP,
             default_color=COLOR_PRINTED,
             step_colors=step_colors,
-        ))
-        prop.SetAmbient(1.0)
-        prop.SetDiffuse(0.0)
-        prop.SetSpecular(0.0)
-        if edges:
-            prop.EdgeVisibilityOn()
-            prop.SetEdgeColor(0.05, 0.06, 0.06)
-            prop.SetLineWidth(0.6)
-        renderer.AddActor(actor)
+        )
+        lift = reveal_2040 and _shape_is_x_2040_insert(shape)
+        # Perforated gantry plates render with dark bore faces (black holes).
+        for sub_shape, sub_color in _part_color_groups(shape, base_color):
+            poly = sub_shape.toVtkPolyData(tolerance=tessellation_tol, angularTolerance=0.3)
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInputData(poly)
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+            if lift:
+                actor.SetPosition(0.0, 0.0, REVEAL_2040_LIFT_MM)
+            prop = actor.GetProperty()
+            prop.SetColor(*sub_color)
+            prop.SetAmbient(1.0)
+            prop.SetDiffuse(0.0)
+            prop.SetSpecular(0.0)
+            if edges:
+                prop.EdgeVisibilityOn()
+                prop.SetEdgeColor(0.05, 0.06, 0.06)
+                prop.SetLineWidth(0.6)
+            renderer.AddActor(actor)
 
     head = vtk.vtkLight()
     head.SetLightTypeToHeadlight()

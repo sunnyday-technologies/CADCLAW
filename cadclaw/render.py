@@ -616,6 +616,58 @@ def render_frames_to_gif(frames_dir: str, output_gif: str,
     return len(frames)
 
 
+_HOLE_DARK = (0.03, 0.03, 0.03)
+
+
+def _is_perforated_plate(shape, min_holes=8, rmin=1.5, rmax=6.5):
+    """True if a shape has >= min_holes small cylindrical bore faces (a gantry
+    plate's mounting/wheel holes) - used to render hole interiors dark."""
+    from OCP.BRepAdaptor import BRepAdaptor_Surface
+    from OCP.GeomAbs import GeomAbs_Cylinder
+    found = 0
+    for face in shape.Faces():
+        try:
+            surf = BRepAdaptor_Surface(face.wrapped, True)
+            if surf.GetType() == GeomAbs_Cylinder and rmin <= surf.Cylinder().Radius() <= rmax:
+                found += 1
+                if found >= min_holes:
+                    return True
+        except Exception:
+            continue
+    return False
+
+
+def _plate_body_and_holes(shape, rmin=1.5, rmax=6.5):
+    """Split a perforated plate into (body_compound, bore_faces_compound)."""
+    from OCP.BRepAdaptor import BRepAdaptor_Surface
+    from OCP.GeomAbs import GeomAbs_Cylinder
+    from cadquery import Compound
+    bores, body = [], []
+    for face in shape.Faces():
+        is_bore = False
+        try:
+            surf = BRepAdaptor_Surface(face.wrapped, True)
+            if surf.GetType() == GeomAbs_Cylinder and rmin <= surf.Cylinder().Radius() <= rmax:
+                is_bore = True
+        except Exception:
+            is_bore = False
+        (bores if is_bore else body).append(face)
+    return Compound.makeCompound(body), Compound.makeCompound(bores)
+
+
+def _part_color_groups(shape, base_color, dark_holes=True):
+    """Return [(sub_shape, color), ...]: one (shape, base_color) normally, or a
+    body + dark-bore pair for perforated gantry plates so hole interiors render
+    black. Falls back to the single shape if the split fails."""
+    if dark_holes and _is_perforated_plate(shape):
+        try:
+            body, bores = _plate_body_and_holes(shape)
+            return [(body, base_color), (bores, _HOLE_DARK)]
+        except Exception:
+            pass
+    return [(shape, base_color)]
+
+
 def render_radial_explode_gif(step_path: str, output_gif: str,
                                 expansion: float = 0.5,
                                 explode_frames: int = 24,
@@ -820,44 +872,41 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
     renderer.SetBackground2(*background_top)
     renderer.GradientBackgroundOn()
 
+    # Mostly-flat shading: face_shading (0..1) trades ambient for diffuse so
+    # faces at different orientations read differently; specular always 0.
+    _amb = max(0.0, min(1.0, 1.0 - face_shading))
+    _dif = max(0.0, min(1.0, face_shading))
     for index, shape in enumerate(shapes):
-        poly = shape.toVtkPolyData(tolerance=tessellation_tol,
-                                     angularTolerance=0.3)
-        mapper = vtk.vtkPolyDataMapper()
-        mapper.SetInputData(poly)
-
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
-        prop = actor.GetProperty()
         if nested_reveal_color is not None and index in nested_indexes:
-            prop.SetColor(*nested_reveal_color)
+            base_color = nested_reveal_color
         else:
-            prop.SetColor(*_color_for(shape, labels, color_map, default_color,
-                                       step_colors=step_colors))
-        # Mostly-flat shading. `face_shading` (0..1) trades ambient for
-        # diffuse so faces oriented differently get visibly different
-        # shades — useful when surface details would otherwise be lost
-        # under fully-flat color blocks. 0.0 = fully flat (legacy CAD-
-        # illustration look). 0.15-0.25 = subtle face cues without
-        # specular sheen. Specular always 0 (no shiny highlights).
-        _amb = max(0.0, min(1.0, 1.0 - face_shading))
-        _dif = max(0.0, min(1.0, face_shading))
-        prop.SetAmbient(_amb)
-        prop.SetDiffuse(_dif)
-        prop.SetSpecular(0.0)
-        if edges:
-            prop.EdgeVisibilityOn()
-            prop.SetEdgeColor(*edge_color)
-            prop.SetLineWidth(0.6)
-
+            base_color = _color_for(shape, labels, color_map, default_color,
+                                    step_colors=step_colors)
         bb = shape.BoundingBox()
-        pcx = (bb.xmin + bb.xmax) / 2
-        pcy = (bb.ymin + bb.ymax) / 2
-        pcz = (bb.zmin + bb.zmax) / 2
-        offset = (pcx - cx, pcy - cy, pcz - cz)
-
-        renderer.AddActor(actor)
-        part_entries.append((actor, offset, nested_offsets[index]))
+        offset = ((bb.xmin + bb.xmax) / 2 - cx,
+                  (bb.ymin + bb.ymax) / 2 - cy,
+                  (bb.zmin + bb.zmax) / 2 - cz)
+        # Perforated gantry plates split into a colored body + dark bore faces so
+        # the hole interiors render black; everything else is one actor. Both
+        # sub-actors share the part's explode offset so they move together.
+        for sub_shape, sub_color in _part_color_groups(shape, base_color):
+            poly = sub_shape.toVtkPolyData(tolerance=tessellation_tol,
+                                           angularTolerance=0.3)
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInputData(poly)
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+            prop = actor.GetProperty()
+            prop.SetColor(*sub_color)
+            prop.SetAmbient(_amb)
+            prop.SetDiffuse(_dif)
+            prop.SetSpecular(0.0)
+            if edges:
+                prop.EdgeVisibilityOn()
+                prop.SetEdgeColor(*edge_color)
+                prop.SetLineWidth(0.6)
+            renderer.AddActor(actor)
+            part_entries.append((actor, offset, nested_offsets[index]))
 
     # Single headlight at full intensity. Combined with the per-actor
     # property (ambient = 1 - face_shading, diffuse = face_shading), the
