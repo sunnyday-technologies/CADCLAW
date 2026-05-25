@@ -116,8 +116,11 @@ Tooling quirks (from prior runs — operational, not solution hints):
 - A freshly-inserted **referenced occurrence's `boundingBox` returns zero in the
   same script call** (lazy geometry load). Re-read it on a *later* MCP call before
   using it to position anything.
-- The fuzzy document search can miss a kit file; do a **recursive walk of the
-  project's data folders** to enumerate all kit DataFiles.
+- **All 20 parts live in `M3-AI-Benchmark-Kit`** (a self-contained kit project).
+  Enumerate them by walking *that project's* data folders directly. Do **not** use
+  the cross-project fuzzy search — it can surface a same-named file from another
+  project (e.g. **M3-CRETE, which holds the reference design / answer key**). Stay
+  inside the kit project; **never open or pull from M3-CRETE.**
 
 In the run log, set `track: fusion_native_driver` and
 `host_application: Autodesk Fusion (via Fusion MCP)`.
