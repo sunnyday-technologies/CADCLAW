@@ -262,4 +262,8 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
+    try:  # avoid cp1252 mojibake of fix-vector arrows (->) on Windows stdout
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
     raise SystemExit(main())
