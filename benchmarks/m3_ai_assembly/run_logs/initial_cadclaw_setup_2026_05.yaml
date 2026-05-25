@@ -85,7 +85,6 @@ attempts:
     driver_action: Corrected X-to-Y gantry plate orientation and encoded the V-slot axis handoff stackup rule.
     artifact_paths:
       - examples/m3_crete/m3_reference_assembly.yaml
-      - docs/AUTO_ASSEMBLY_HARNESS_PLAN.md
     checks_run:
       - command: .venv/Scripts/python.exe -m cadclaw_cli.main assemble check-round examples/m3_crete/m3_reference_assembly.yaml --no-render-views
         result: warning

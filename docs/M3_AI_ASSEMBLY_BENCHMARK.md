@@ -261,8 +261,6 @@ manufacturing constraints.
 
 ## Local References
 
-- `docs/AUTO_ASSEMBLY_HARNESS_PLAN.md`
-- `docs/M3_CONFIGURATOR_PLAN.md`
 - `examples/m3_crete/m3_reference_assembly.yaml`
 - `examples/m3_crete/m3_testkit_assets.yaml`
 - `examples/m3_crete/m3_bom_audit.yaml`
