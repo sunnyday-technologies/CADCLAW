@@ -264,5 +264,4 @@ manufacturing constraints.
 - `examples/m3_crete/m3_reference_assembly.yaml`
 - `examples/m3_crete/m3_testkit_assets.yaml`
 - `examples/m3_crete/m3_bom_audit.yaml`
-- `docs/M3_BOM_PARITY_NOTES.md`
 - `examples/m3_crete/m3_component_manifest.yaml`
