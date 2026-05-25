@@ -23,6 +23,9 @@ bom_audit:
   warn_on_mojibake: true
   ignore_labels:
     - other
+    # CADCLAW places belts as cosmetic per-run STEP instances; the procurement
+    # BOM models belts as loops/strands by length, so they are not count-audited.
+    - belt
   rules:
     - id: 17
       expected_label: solid_v_wheel_standard
@@ -45,21 +48,20 @@ bom_audit:
 
     - id: 84
       expected_label: cbeam_gantry_plate_xlarge
-      expected_qty: 4
-      expected_design_qty: 4
+      expected_qty: 2
+      expected_design_qty: 2
       expected_mfg_type: buy
       required_terms:
         - X-axis
-        - 4 total
+        - 2 total
 
     - id: 69
       expected_label: vslot_gantry_plate_20_80
-      expected_qty: 6
-      expected_design_qty: 6
+      expected_qty: 10
+      expected_design_qty: 10
       expected_mfg_type: buy
       required_terms:
         - V-Slot 20-80
-        - top center spreader
       forbidden_terms:
         - 125x125
 

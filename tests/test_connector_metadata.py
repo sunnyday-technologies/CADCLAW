@@ -97,6 +97,8 @@ class TestConnectorMetadata(unittest.TestCase):
         self.assertTrue(any(c.id == "cbeam_40x80_1000" for c in metadata.components))
         self.assertFalse(any(c.id == "cbeam_linear_actuator_1000" for c in metadata.components))
         self.assertFalse(any(c.id == "m3_frame_shim_4080_6mm" for c in metadata.components))
+        # Restored 2026-05-23: XLarge is back for the X printhead-carriage plates
+        # (Nick's off-axis-force requirement), so its connector frames are present.
         xlarge = next(c for c in metadata.components if c.id == "cbeam_gantry_plate_xlarge")
         self.assertEqual(
             xlarge.source_path,

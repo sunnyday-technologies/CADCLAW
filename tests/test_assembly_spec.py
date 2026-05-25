@@ -223,12 +223,36 @@ class TestAssemblySpec(unittest.TestCase):
                 instance.source_path,
                 "CAD/Components/V-Slot/V-Slot 20x80x1000 Linear Rail.step",
             )
+        # Y gantries migrated to axis-only lock (M2): X is solved off the X-to-Y
+        # plate's outer face with the 1mm running gap; the kept transform supplies
+        # the free axes (Y span, Z height) and rotation. The locked X is authored
+        # 0.0 (ignored by the resolver).
         y_left = next(instance for instance in spec.instances if instance.id == "y_gantry_left")
         y_right = next(instance for instance in spec.instances if instance.id == "y_gantry_right")
-        self.assertEqual(y_left.transform.translate_mm, [REDACTED])
+        self.assertEqual(y_left.transform.translate_mm, [0.0, -500.0, 420.0])
         self.assertEqual(y_left.transform.rotate_deg, [-90.0, 0.0, 0.0])
-        self.assertEqual(y_right.transform.translate_mm, [REDACTED])
+        self.assertEqual(y_left.place_relative_to.lock, "axis")
+        self.assertEqual(y_left.place_relative_to.ref, "x_gantry_plate_left")
+        self.assertEqual(y_left.place_relative_to.parent_frame, "face_y3")
+        self.assertEqual(y_left.place_relative_to.frame, "open_channel_face")
+        self.assertEqual(y_left.place_relative_to.axis, "x")
+        self.assertEqual(y_left.place_relative_to.side, "negative")
+        self.assertEqual(y_left.place_relative_to.offset_mm, 1.0)
+        self.assertEqual(y_right.transform.translate_mm, [0.0, 500.0, 420.0])
         self.assertEqual(y_right.transform.rotate_deg, [-90.0, 0.0, 180.0])
+        self.assertEqual(y_right.place_relative_to.lock, "axis")
+        self.assertEqual(y_right.place_relative_to.ref, "x_gantry_plate_right")
+        self.assertEqual(y_right.place_relative_to.parent_frame, "face_y0")
+        self.assertEqual(y_right.place_relative_to.side, "positive")
+        self.assertEqual(y_right.place_relative_to.offset_mm, 1.0)
+        # Z-carriage plates cascade off their gantry (axis-lock x, offset 0) so
+        # the y_to_z hole_alignment survives the gantry move.
+        z_plates = [i for i in spec.instances if i.role == "z_carriage_plate"]
+        self.assertEqual(len(z_plates), 4)
+        for instance in z_plates:
+            self.assertEqual(instance.place_relative_to.lock, "axis")
+            self.assertEqual(instance.place_relative_to.axis, "x")
+            self.assertIn("y_gantry", instance.place_relative_to.ref)
         spreaders = [
             instance for instance in spec.instances
             if instance.role == "top_center_spreader_2040"
@@ -262,7 +286,9 @@ class TestAssemblySpec(unittest.TestCase):
             instance for instance in spec.instances
             if instance.role == "top_center_spreader_plate"
         ]
-        self.assertEqual(len(spreader_plates), 2)
+        # Four spreader bracket plates: a 2-plate (6mm) stack at each end of the
+        # top spanner (per Nick 2026-05-23), all on the 80mm frame datum at Z=960.
+        self.assertEqual(len(spreader_plates), 4)
         for instance in spreader_plates:
             self.assertEqual(instance.transform.translate_mm[2], 960.0)
         x_plate_instances = [
@@ -271,24 +297,50 @@ class TestAssemblySpec(unittest.TestCase):
         ]
         self.assertEqual(len(x_plate_instances), 2)
         for instance in x_plate_instances:
+            # Corrected 2026-05-22 to the small V-Slot 20-80 plate and migrated to
+            # constraint placement: position is solved by the relative-placement
+            # resolver from the X-beam end, so no transform is typed.
             self.assertEqual(
                 instance.source_path,
-                "CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP",
+                "CAD/Components/Plates/V-Slot Gantry Plate 20-80mm.step",
             )
-            self.assertEqual(instance.transform.source_origin_mm, [0.0, 0.0, 3.0])
-            self.assertEqual(instance.transform.rotate_deg, [0.0, 90.0, 0.0])
+            self.assertIsNotNone(instance.place_relative_to)
+            self.assertEqual(instance.place_relative_to.axis, "x")
+            self.assertEqual(instance.place_relative_to.offset_mm, 0.0)
+            self.assertEqual(instance.place_relative_to.rotate_deg, [0.0, 0.0, 90.0])
+            self.assertEqual(instance.transform.translate_mm, [0.0, 0.0, 0.0])
+        x_plate_left = next(
+            i for i in x_plate_instances if i.id == "x_gantry_plate_left"
+        )
+        self.assertEqual(x_plate_left.place_relative_to.ref, "x_gantry_beam_left")
+        self.assertEqual(x_plate_left.place_relative_to.parent_frame, "z_end_a")
+        self.assertEqual(x_plate_left.place_relative_to.frame, "face_y0")
+        self.assertEqual(x_plate_left.place_relative_to.side, "negative")
         x_carriage_instances = [
             instance for instance in spec.instances
             if instance.role == "x_carriage_plate"
         ]
         self.assertEqual(len(x_carriage_instances), 2)
         for instance in x_carriage_instances:
+            # Restored 2026-05-23 (Nick): the X printhead carriage uses the C-Beam
+            # Gantry Plate XLarge (125x125x6mm) for the toolhead's off-axis forces,
+            # intentionally diverging from the V1.0 source's 0-XLarge. rotate
+            # [-90,0,0] puts the 6mm thin axis along Y; the wheels are solved on
+            # the XLarge hole frames by the resolver.
             self.assertEqual(
                 instance.source_path,
                 "CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP",
             )
-            self.assertEqual(instance.transform.source_origin_mm, [0.0, 0.0, 3.0])
-            self.assertEqual(instance.transform.rotate_deg, [90.0, 0.0, 0.0])
+            self.assertEqual(instance.transform.rotate_deg, [-90.0, 0.0, 0.0])
+        # XLarge is placed ONLY at the two X printhead-carriage plates; all other
+        # gantry plates stay the small V-Slot 20-80.
+        xlarge_ids = {
+            instance.id for instance in spec.instances
+            if (instance.source_path or "").endswith("C-Beam Gantry Plate XLarge.STEP")
+        }
+        self.assertEqual(
+            xlarge_ids, {"x_carriage_plate_front", "x_carriage_plate_back"}
+        )
         z_plate_instances = [
             instance for instance in spec.instances
             if instance.role == "z_carriage_plate"
@@ -320,7 +372,7 @@ class TestAssemblySpec(unittest.TestCase):
         self.assertTrue(
             any(
                 handoff["id"] == "x_to_y_left"
-                and handoff["plate_thickness_mm"] == 6.0
+                and handoff["plate_thickness_mm"] == 3.0
                 for handoff in vslot_stackup["handoffs"]
             )
         )
@@ -437,6 +489,7 @@ class TestAssemblySpec(unittest.TestCase):
                 "z_carriages",
                 "z_posts",
                 "frame_completion",
+                "drive_train",
             ],
         )
         steps = {step.id: step for step in spec.assembly_sequence}
@@ -445,6 +498,206 @@ class TestAssemblySpec(unittest.TestCase):
         self.assertIn("x_left_y_neg_lower_wheel", steps["x_gantry"].instance_ids)
         self.assertIn("x_carriage_front_left_lower_wheel", steps["x_carriage"].instance_ids)
         self.assertIn("z_front_left_outer_lower_wheel", steps["z_carriages"].instance_ids)
+
+
+    def test_accepts_place_relative_to_without_transform(self):
+        spec_text = """
+schema_version: assembly_spec.v0.1
+meta:
+  project: P
+  assembly_id: r
+outputs:
+  step: build/out.step
+  views_dir: build/views
+instances:
+  - id: a
+    role: rail
+    source_path: CAD/a.step
+  - id: b
+    role: plate
+    source_path: CAD/b.step
+    place_relative_to:
+      ref: a
+      parent_frame: end
+      frame: inner
+      axis: x
+      offset_mm: 1.0
+"""
+        path = self._write_tmp(spec_text)
+        try:
+            spec = load_assembly_spec(path)
+            placement = spec.instances[1].place_relative_to
+            self.assertEqual(placement.ref, "a")
+            self.assertEqual(placement.axis, "x")
+            self.assertEqual(placement.side, "positive")
+            self.assertEqual(placement.offset_mm, 1.0)
+        finally:
+            Path(path).unlink()
+
+    def test_rejects_transform_with_place_relative_to(self):
+        spec_text = """
+schema_version: assembly_spec.v0.1
+meta:
+  project: P
+  assembly_id: r
+outputs:
+  step: build/out.step
+  views_dir: build/views
+instances:
+  - id: a
+    role: rail
+    source_path: CAD/a.step
+  - id: b
+    role: plate
+    source_path: CAD/b.step
+    transform:
+      translate_mm: [1.0, 0.0, 0.0]
+    place_relative_to:
+      ref: a
+      parent_frame: end
+      frame: inner
+      axis: x
+"""
+        path = self._write_tmp(spec_text)
+        try:
+            with self.assertRaises(ValidationError):
+                load_assembly_spec(path)
+        finally:
+            Path(path).unlink()
+
+    def test_rejects_place_relative_to_bad_axis(self):
+        spec_text = """
+schema_version: assembly_spec.v0.1
+meta:
+  project: P
+  assembly_id: r
+outputs:
+  step: build/out.step
+  views_dir: build/views
+instances:
+  - id: a
+    role: rail
+    source_path: CAD/a.step
+  - id: b
+    role: plate
+    source_path: CAD/b.step
+    place_relative_to:
+      ref: a
+      parent_frame: end
+      frame: inner
+      axis: w
+"""
+        path = self._write_tmp(spec_text)
+        try:
+            with self.assertRaises(ValidationError):
+                load_assembly_spec(path)
+        finally:
+            Path(path).unlink()
+
+    def test_axis_lock_allows_coexisting_transform(self):
+        # lock=axis keeps the instance transform (orientation + free axes); the
+        # resolver overrides only the handoff axis, so a transform is allowed.
+        spec_text = """
+schema_version: assembly_spec.v0.1
+meta:
+  project: P
+  assembly_id: r
+outputs:
+  step: build/out.step
+  views_dir: build/views
+instances:
+  - id: a
+    role: rail
+    source_path: CAD/a.step
+  - id: b
+    role: y_gantry_beam
+    source_path: CAD/b.step
+    transform:
+      translate_mm: [0.0, -500.0, 420.0]
+      rotate_deg: [-90.0, 0.0, 0.0]
+    place_relative_to:
+      ref: a
+      parent_frame: end
+      frame: face
+      axis: x
+      side: negative
+      offset_mm: 1.0
+      lock: axis
+"""
+        path = self._write_tmp(spec_text)
+        try:
+            spec = load_assembly_spec(path)
+            instance = spec.instances[1]
+            self.assertEqual(instance.place_relative_to.lock, "axis")
+            self.assertEqual(instance.transform.translate_mm, [0.0, -500.0, 420.0])
+            self.assertEqual(instance.transform.rotate_deg, [-90.0, 0.0, 0.0])
+        finally:
+            Path(path).unlink()
+
+    def test_axis_lock_rejects_orientation_on_placement(self):
+        # In lock=axis mode orientation lives in the transform; setting it on the
+        # placement block too is ambiguous and rejected.
+        spec_text = """
+schema_version: assembly_spec.v0.1
+meta:
+  project: P
+  assembly_id: r
+outputs:
+  step: build/out.step
+  views_dir: build/views
+instances:
+  - id: a
+    role: rail
+    source_path: CAD/a.step
+  - id: b
+    role: y_gantry_beam
+    source_path: CAD/b.step
+    transform:
+      rotate_deg: [-90.0, 0.0, 0.0]
+    place_relative_to:
+      ref: a
+      parent_frame: end
+      frame: face
+      axis: x
+      lock: axis
+      rotate_deg: [0.0, 0.0, 90.0]
+"""
+        path = self._write_tmp(spec_text)
+        try:
+            with self.assertRaises(ValidationError):
+                load_assembly_spec(path)
+        finally:
+            Path(path).unlink()
+
+    def test_rejects_unknown_lock_mode(self):
+        spec_text = """
+schema_version: assembly_spec.v0.1
+meta:
+  project: P
+  assembly_id: r
+outputs:
+  step: build/out.step
+  views_dir: build/views
+instances:
+  - id: a
+    role: rail
+    source_path: CAD/a.step
+  - id: b
+    role: plate
+    source_path: CAD/b.step
+    place_relative_to:
+      ref: a
+      parent_frame: end
+      frame: inner
+      axis: x
+      lock: wobble
+"""
+        path = self._write_tmp(spec_text)
+        try:
+            with self.assertRaises(ValidationError):
+                load_assembly_spec(path)
+        finally:
+            Path(path).unlink()
 
 
 if __name__ == "__main__":

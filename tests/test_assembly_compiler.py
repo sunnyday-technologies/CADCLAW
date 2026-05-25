@@ -8,11 +8,12 @@ from cadclaw.assembly_compiler import (
     inspect_component,
     plan_assembly_build,
     render_review_views,
+    resolve_relative_placements,
     run_assembly_build,
     run_assembly_check_round,
     run_assembly_sequence,
 )
-from cadclaw.assembly_spec import Transform
+from cadclaw.assembly_spec import Transform, load_assembly_spec
 
 
 class TestAssemblyCompiler(unittest.TestCase):
@@ -1615,6 +1616,390 @@ assembly_sequence:
                 any(f.id == "assemble.sequence_blocked" for f in report.findings)
             )
             self.assertFalse((out_dir / "steps" / "03_later.step").exists())
+
+    def _write_resolver_spec(self, root: Path, instances_yaml: str) -> Path:
+        meta = self._write(root, "connectors.yaml", """
+schema_version: connector_metadata.v0.1
+components:
+  - id: rail
+    source_path: CAD/rail.step
+    frames:
+      - id: end
+        kind: extrusion_end
+        origin_mm: [50.0, 0.0, 0.0]
+  - id: plate
+    source_path: CAD/plate.step
+    frames:
+      - id: inner
+        kind: mount_face
+        origin_mm: [-1.5, 0.0, 0.0]
+      - id: outer
+        kind: mount_face
+        origin_mm: [1.5, 0.0, 0.0]
+  - id: wheel
+    source_path: CAD/wheel.step
+    frames:
+      - id: hub
+        kind: wheel_contact
+        origin_mm: [5.0, 0.0, 0.0]
+""")
+        return self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: P
+  assembly_id: r
+connector_metadata: {meta.as_posix()}
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+instances:
+{instances_yaml}
+""")
+
+    def test_resolve_relative_placement_seats_child_on_parent_frame(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_path = self._write_resolver_spec(root, """
+  - id: rail
+    role: rail
+    source_path: CAD/rail.step
+    transform:
+      translate_mm: [10.0, 0.0, 0.0]
+  - id: plate
+    role: plate
+    source_path: CAD/plate.step
+    place_relative_to:
+      ref: rail
+      parent_frame: end
+      frame: inner
+      axis: x
+      side: positive
+      offset_mm: 1.0
+""")
+            spec = load_assembly_spec(spec_path)
+            resolved, findings = resolve_relative_placements(spec, spec_path)
+            self.assertEqual(findings, [])
+            plate = next(i for i in resolved.instances if i.id == "plate")
+            # rail end world = 10 + 50 = 60; +1 offset => 61; child inner local
+            # -1.5 => translate = 61 - (-1.5) = 62.5
+            self.assertEqual(plate.transform.translate_mm, [62.5, 0.0, 0.0])
+            self.assertIsNone(plate.place_relative_to)
+
+    def test_resolve_relative_placement_chains_through_datum(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_path = self._write_resolver_spec(root, """
+  - id: rail
+    role: rail
+    source_path: CAD/rail.step
+    transform:
+      translate_mm: [0.0, 0.0, 0.0]
+  - id: plate
+    role: plate
+    source_path: CAD/plate.step
+    place_relative_to:
+      ref: rail
+      parent_frame: end
+      frame: inner
+      axis: x
+      side: positive
+      offset_mm: 0.0
+  - id: wheel
+    role: v_wheel
+    source_path: CAD/wheel.step
+    place_relative_to:
+      ref: plate
+      parent_frame: outer
+      frame: hub
+      axis: x
+      side: positive
+      offset_mm: 7.0
+""")
+            spec = load_assembly_spec(spec_path)
+            resolved, findings = resolve_relative_placements(spec, spec_path)
+            self.assertEqual(findings, [])
+            by_id = {i.id: i for i in resolved.instances}
+            # plate inner seats on rail end (50); translate = 50 - (-1.5) = 51.5
+            self.assertEqual(by_id["plate"].transform.translate_mm, [51.5, 0.0, 0.0])
+            # plate outer world = 51.5 + 1.5 = 53; +7 => 60; hub local 5 => 55
+            self.assertEqual(by_id["wheel"].transform.translate_mm, [55.0, 0.0, 0.0])
+
+    def test_resolve_relative_placement_reports_missing_ref(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_path = self._write_resolver_spec(root, """
+  - id: plate
+    role: plate
+    source_path: CAD/plate.step
+    place_relative_to:
+      ref: nonexistent
+      parent_frame: end
+      frame: inner
+      axis: x
+""")
+            spec = load_assembly_spec(spec_path)
+            _, findings = resolve_relative_placements(spec, spec_path)
+            self.assertTrue(
+                any(f.id == "assemble.relative_placement_ref_missing" for f in findings)
+            )
+
+    def test_resolve_relative_placement_reports_missing_frames(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_path = self._write_resolver_spec(root, """
+  - id: rail
+    role: rail
+    source_path: CAD/rail.step
+  - id: plate
+    role: plate
+    source_path: CAD/plate.step
+    place_relative_to:
+      ref: rail
+      parent_frame: no_such_frame
+      frame: inner
+      axis: x
+  - id: wheel
+    role: v_wheel
+    source_path: CAD/wheel.step
+    place_relative_to:
+      ref: rail
+      parent_frame: end
+      frame: no_such_child_frame
+      axis: x
+""")
+            spec = load_assembly_spec(spec_path)
+            _, findings = resolve_relative_placements(spec, spec_path)
+            ids = {f.id for f in findings}
+            self.assertIn("assemble.relative_placement_parent_frame_missing", ids)
+            self.assertIn("assemble.relative_placement_frame_missing", ids)
+
+    def test_resolve_relative_placement_detects_cycle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_path = self._write_resolver_spec(root, """
+  - id: plate
+    role: plate
+    source_path: CAD/plate.step
+    place_relative_to:
+      ref: wheel
+      parent_frame: hub
+      frame: inner
+      axis: x
+  - id: wheel
+    role: v_wheel
+    source_path: CAD/wheel.step
+    place_relative_to:
+      ref: plate
+      parent_frame: outer
+      frame: hub
+      axis: x
+""")
+            spec = load_assembly_spec(spec_path)
+            _, findings = resolve_relative_placements(spec, spec_path)
+            self.assertTrue(
+                any(f.id == "assemble.relative_placement_cycle" for f in findings)
+            )
+
+    def test_resolve_axis_lock_solves_only_handoff_axis(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_path = self._write_resolver_spec(root, """
+  - id: rail
+    role: rail
+    source_path: CAD/rail.step
+    transform:
+      translate_mm: [10.0, 0.0, 0.0]
+  - id: gantry
+    role: y_gantry_beam
+    source_path: CAD/plate.step
+    transform:
+      translate_mm: [999.0, 7.0, 9.0]
+    place_relative_to:
+      ref: rail
+      parent_frame: end
+      frame: inner
+      axis: x
+      side: positive
+      offset_mm: 1.0
+      lock: axis
+""")
+            spec = load_assembly_spec(spec_path)
+            resolved, findings = resolve_relative_placements(spec, spec_path)
+            self.assertEqual(findings, [])
+            gantry = next(i for i in resolved.instances if i.id == "gantry")
+            # rail end world = 10 + 50 = 60; +1 offset => 61. Child inner local
+            # -1.5 (no rotation) seats under the kept transform, so solved X =
+            # 61 - (-1.5) = 62.5. The free Y/Z axes stay authored.
+            self.assertEqual(gantry.transform.translate_mm, [62.5, 7.0, 9.0])
+            self.assertIsNone(gantry.place_relative_to)
+
+    def test_axis_lock_independent_of_authored_locked_axis(self):
+        # The authored value of the locked axis must cancel out: only the free
+        # axes and the constraint determine the result.
+        results = []
+        for authored_x in (999.0, -500.0):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                spec_path = self._write_resolver_spec(root, f"""
+  - id: rail
+    role: rail
+    source_path: CAD/rail.step
+    transform:
+      translate_mm: [10.0, 0.0, 0.0]
+  - id: gantry
+    role: y_gantry_beam
+    source_path: CAD/plate.step
+    transform:
+      translate_mm: [{authored_x}, 7.0, 9.0]
+    place_relative_to:
+      ref: rail
+      parent_frame: end
+      frame: inner
+      axis: x
+      side: positive
+      offset_mm: 1.0
+      lock: axis
+""")
+                spec = load_assembly_spec(spec_path)
+                resolved, _ = resolve_relative_placements(spec, spec_path)
+                gantry = next(i for i in resolved.instances if i.id == "gantry")
+                results.append(gantry.transform.translate_mm)
+        self.assertEqual(results[0], results[1])
+        self.assertEqual(results[0], [62.5, 7.0, 9.0])
+
+    def test_axis_lock_cascades_and_preserves_free_axes(self):
+        # An axis-locked child resolves off an axis-locked parent's *resolved*
+        # transform, so a sub-assembly follows its datum on the handoff axis
+        # while each part keeps its own free axes.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec_path = self._write_resolver_spec(root, """
+  - id: rail
+    role: rail
+    source_path: CAD/rail.step
+    transform:
+      translate_mm: [10.0, 0.0, 0.0]
+  - id: gantry
+    role: y_gantry_beam
+    source_path: CAD/plate.step
+    transform:
+      translate_mm: [0.0, 7.0, 0.0]
+    place_relative_to:
+      ref: rail
+      parent_frame: end
+      frame: inner
+      axis: x
+      side: positive
+      offset_mm: 0.0
+      lock: axis
+  - id: carriage_wheel
+    role: v_wheel
+    source_path: CAD/wheel.step
+    transform:
+      translate_mm: [0.0, 88.0, 5.0]
+    place_relative_to:
+      ref: gantry
+      parent_frame: outer
+      frame: hub
+      axis: x
+      side: positive
+      offset_mm: 0.0
+      lock: axis
+""")
+            spec = load_assembly_spec(spec_path)
+            resolved, findings = resolve_relative_placements(spec, spec_path)
+            self.assertEqual(findings, [])
+            by_id = {i.id: i for i in resolved.instances}
+            # rail end world = 50 + 10 = 60. gantry inner (-1.5) seats there =>
+            # X 61.5; Y kept 7.
+            self.assertEqual(by_id["gantry"].transform.translate_mm, [61.5, 7.0, 0.0])
+            # gantry outer world = 61.5 + 1.5 = 63; wheel hub local 5 must land
+            # there => wheel X 58; the wheel's own Y/Z (88, 5) are preserved.
+            self.assertEqual(
+                by_id["carriage_wheel"].transform.translate_mm, [58.0, 88.0, 5.0]
+            )
+
+    def test_check_round_resolves_relative_placement_for_vslot_stackup(self):
+        try:
+            import cadquery  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"CadQuery unavailable: {exc}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._export_box_step(root / "CAD" / "rail.step", dims=(100.0, 20.0, 20.0))
+            self._export_box_step(root / "CAD" / "plate.step", dims=(3.0, 40.0, 40.0))
+            metadata = self._write(root, "connectors.yaml", """
+schema_version: connector_metadata.v0.1
+components:
+  - id: rail
+    source_path: CAD/rail.step
+    frames:
+      - id: end
+        kind: extrusion_end
+        origin_mm: [50.0, 0.0, 0.0]
+  - id: plate
+    source_path: CAD/plate.step
+    frames:
+      - id: inner
+        kind: mount_face
+        origin_mm: [-1.5, 0.0, 0.0]
+""")
+            spec = self._write(root, "spec.yaml", f"""
+schema_version: assembly_spec.v0.1
+meta:
+  project: Example
+  assembly_id: relative_round
+connector_metadata: {metadata.as_posix()}
+component_roots:
+  - {root.as_posix()}
+outputs:
+  step: {root.as_posix()}/build/out.step
+  views_dir: {root.as_posix()}/build/views
+validation:
+  run_checks: [vslot_stackup]
+  vslot_stackup:
+    plate_thickness_mm: 3.0
+    position_tolerance_mm: 0.25
+    handoffs:
+      - id: rail_to_plate
+        current_instance: rail
+        plate_instance: plate
+        axis: x
+        side: positive
+instances:
+  - id: rail
+    role: x_gantry_beam
+    source_path: CAD/rail.step
+  - id: plate
+    role: gantry_plate
+    source_path: CAD/plate.step
+    place_relative_to:
+      ref: rail
+      parent_frame: end
+      frame: inner
+      axis: x
+      side: positive
+      offset_mm: 0.0
+""")
+
+            report = run_assembly_check_round(
+                spec,
+                dry_run=False,
+                render_views=False,
+                write_inventory=False,
+            )
+            self.assertFalse(
+                any(f.id.startswith("vslot_stackup.") for f in report.findings),
+                msg=[f.id for f in report.findings],
+            )
+            self.assertTrue(report.meta["validation"]["vslot_stackup"]["checked"])
+            # the plate's flush position was solved, not typed
+            resolved = next(
+                i for i in report.meta["build"]["resolved_instances"]
+                if i["id"] == "plate"
+            )
+            self.assertAlmostEqual(resolved["transform"]["translate_mm"][0], 51.5, places=3)
 
     def test_run_assembly_sequence_dry_run_reports_sequence_without_export(self):
         with tempfile.TemporaryDirectory() as tmp:

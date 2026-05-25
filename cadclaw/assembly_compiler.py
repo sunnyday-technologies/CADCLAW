@@ -330,7 +330,7 @@ def plan_assembly_build(
 ) -> AssemblyBuildPlan:
     spec_file = Path(spec_path)
     spec_dir = spec_file.resolve().parent
-    spec = load_assembly_spec(spec_file)
+    spec = _resolved_spec(spec_file)
     manifest_sources = _load_manifest_sources(spec.manifests, spec_dir)
     metadata_value = connector_metadata_path or spec.connector_metadata
     metadata_path = (
@@ -517,6 +517,240 @@ def _connector_frame_origin(
         if frame.id == frame_id:
             return _apply_transform_to_point(frame.origin_mm, instance.transform)
     return None
+
+
+def _component_for_instance(
+    component_by_key: Dict[str, object],
+    manifest_sources: Dict[str, str],
+    instance: Instance,
+) -> Optional[object]:
+    keys: List[str] = []
+    if instance.component_id:
+        keys.append(instance.component_id)
+    source_ref = _instance_source_ref_for_matching(instance, manifest_sources)
+    if source_ref:
+        keys.append(source_ref)
+    for key in keys:
+        component = component_by_key.get(key)
+        if component is not None:
+            return component
+    return None
+
+
+def _frame_local_origin(component: object, frame_id: str) -> Optional[Tuple[float, float, float]]:
+    for frame in component.frames:
+        if frame.id == frame_id:
+            return tuple(float(value) for value in frame.origin_mm)
+    return None
+
+
+def _topo_order_instances(
+    instances: List[Instance],
+) -> Tuple[List[str], set[str]]:
+    """Return (resolved_order, cycle_ids): parents (place_relative_to.ref) first."""
+    by_id = {instance.id: instance for instance in instances}
+    state: Dict[str, int] = {}
+    order: List[str] = []
+    cycle_ids: set[str] = set()
+
+    def visit(instance_id: str, stack: List[str]) -> None:
+        status = state.get(instance_id, 0)
+        if status == 2:
+            return
+        if status == 1:
+            start = stack.index(instance_id) if instance_id in stack else 0
+            cycle_ids.update(stack[start:] + [instance_id])
+            return
+        instance = by_id.get(instance_id)
+        if instance is None:
+            return
+        state[instance_id] = 1
+        placement = instance.place_relative_to
+        if placement is not None and placement.ref in by_id:
+            visit(placement.ref, stack + [instance_id])
+        state[instance_id] = 2
+        order.append(instance_id)
+
+    for instance in instances:
+        visit(instance.id, [])
+    return order, cycle_ids
+
+
+def resolve_relative_placements(
+    spec: AssemblySpec,
+    spec_path: str | Path,
+) -> Tuple[AssemblySpec, List[Finding]]:
+    """Solve absolute transforms for instances that declare place_relative_to.
+
+    Walks the datum chain in topological order (each parent resolved before its
+    children) and computes each relatively-placed instance's transform from the
+    parent's resolved transform + connector frames + the declared tolerance
+    offset. Instances that keep an absolute ``transform`` are passed through, so
+    migration to constraint placement is incremental. Returns the resolved spec
+    plus findings for unresolved references, frames, or cycles.
+    """
+    instances = list(spec.instances)
+    if not any(instance.place_relative_to is not None for instance in instances):
+        return spec, []
+
+    spec_file = Path(spec_path)
+    spec_dir = spec_file.resolve().parent
+    manifest_sources = _load_manifest_sources(spec.manifests, spec_dir)
+    component_by_key = _connector_components_by_source(spec, spec_file)
+    by_id = {instance.id: instance for instance in instances}
+    order, cycle_ids = _topo_order_instances(instances)
+
+    findings: List[Finding] = []
+    resolved_by_id: Dict[str, Instance] = {}
+
+    def _passthrough(instance: Instance) -> None:
+        resolved_by_id[instance.id] = instance
+
+    for instance_id in order:
+        instance = by_id[instance_id]
+        placement = instance.place_relative_to
+        if placement is None:
+            _passthrough(instance)
+            continue
+        if instance_id in cycle_ids:
+            findings.append(Finding(
+                id="assemble.relative_placement_cycle",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=f"{instance_id}: place_relative_to forms a dependency cycle",
+                suggested_fix=(
+                    "Break the datum cycle so each instance places from a part "
+                    "that is itself rooted in an absolute transform."
+                ),
+                evidence={"instance": instance_id, "ref": placement.ref},
+            ))
+            _passthrough(instance)
+            continue
+        parent = resolved_by_id.get(placement.ref)
+        if parent is None:
+            findings.append(Finding(
+                id="assemble.relative_placement_ref_missing",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=(
+                    f"{instance_id}: place_relative_to.ref {placement.ref!r} "
+                    "is not a known instance"
+                ),
+                suggested_fix="Point place_relative_to.ref at an existing instance id.",
+                evidence={"instance": instance_id, "ref": placement.ref},
+            ))
+            _passthrough(instance)
+            continue
+
+        parent_world = _connector_frame_origin(
+            spec, spec_file, component_by_key, manifest_sources,
+            parent, placement.parent_frame,
+        )
+        if parent_world is None:
+            findings.append(Finding(
+                id="assemble.relative_placement_parent_frame_missing",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=(
+                    f"{instance_id}: parent frame {placement.parent_frame!r} "
+                    f"was not found on {placement.ref}"
+                ),
+                suggested_fix=(
+                    "Add the connector frame to the parent's component in the "
+                    "connector metadata, or fix place_relative_to.parent_frame."
+                ),
+                evidence={
+                    "instance": instance_id,
+                    "ref": placement.ref,
+                    "parent_frame": placement.parent_frame,
+                },
+            ))
+            _passthrough(instance)
+            continue
+
+        child_component = _component_for_instance(
+            component_by_key, manifest_sources, instance
+        )
+        child_local = (
+            _frame_local_origin(child_component, placement.frame)
+            if child_component is not None else None
+        )
+        if child_local is None:
+            findings.append(Finding(
+                id="assemble.relative_placement_frame_missing",
+                category="assemble",
+                severity=Severity.FAIL,
+                message=(
+                    f"{instance_id}: connector frame {placement.frame!r} was "
+                    "not found on this instance's component"
+                ),
+                suggested_fix=(
+                    "Add the connector frame to this instance's component in "
+                    "the connector metadata, or fix place_relative_to.frame."
+                ),
+                evidence={"instance": instance_id, "frame": placement.frame},
+            ))
+            _passthrough(instance)
+            continue
+
+        axis_idx = _axis_index(placement.axis)
+        sign = -1.0 if placement.side == "negative" else 1.0
+        target_axis = parent_world[axis_idx] + sign * placement.offset_mm
+
+        if placement.lock == "axis":
+            # Axis-only lock: keep the instance's authored transform for
+            # orientation and the two free (non-handoff) axes; solve ONLY the
+            # handoff-axis translation so the child's mating frame sits
+            # offset_mm off the parent frame along axis. The authored value of
+            # the locked axis cancels out (the result depends only on the
+            # child frame and the target), so it may be left at 0.0.
+            base = instance.transform
+            child_world = _apply_transform_to_point(child_local, base)
+            translate = list(base.translate_mm)
+            translate[axis_idx] += target_axis - child_world[axis_idx]
+            resolved_transform = Transform(
+                translate_mm=translate,
+                rotate_deg=list(base.rotate_deg),
+                scale=base.scale,
+                source_origin_mm=list(base.source_origin_mm),
+            )
+        else:
+            # Full frame lock: seat the child frame origin on the parent frame
+            # origin in all three axes, then offset along the handoff axis.
+            rotation_only = Transform(
+                translate_mm=[0.0, 0.0, 0.0],
+                rotate_deg=list(placement.rotate_deg),
+                scale=placement.scale,
+                source_origin_mm=list(placement.source_origin_mm),
+            )
+            child_seated = _apply_transform_to_point(child_local, rotation_only)
+            target = list(parent_world)
+            target[axis_idx] = target_axis
+            translate = [target[i] - child_seated[i] for i in range(3)]
+            resolved_transform = Transform(
+                translate_mm=translate,
+                rotate_deg=list(placement.rotate_deg),
+                scale=placement.scale,
+                source_origin_mm=list(placement.source_origin_mm),
+            )
+        resolved_by_id[instance_id] = instance.model_copy(update={
+            "transform": resolved_transform,
+            "place_relative_to": None,
+        })
+
+    new_instances = [resolved_by_id[instance.id] for instance in instances]
+    return spec.model_copy(update={"instances": new_instances}), findings
+
+
+def _load_resolved_spec(spec_path: str | Path) -> Tuple[AssemblySpec, List[Finding]]:
+    spec_file = Path(spec_path)
+    spec = load_assembly_spec(spec_file)
+    return resolve_relative_placements(spec, spec_file)
+
+
+def _resolved_spec(spec_path: str | Path) -> AssemblySpec:
+    spec, _ = _load_resolved_spec(spec_path)
+    return spec
 
 
 def _export_step(
@@ -2496,7 +2730,7 @@ def inspect_component(
     start = time.time()
     spec_file = Path(spec_path)
     spec_dir = spec_file.resolve().parent
-    spec = load_assembly_spec(spec_file)
+    spec = _resolved_spec(spec_file)
     manifest_sources = _load_manifest_sources(spec.manifests, spec_dir)
 
     findings: List[Finding] = []
@@ -2715,7 +2949,7 @@ def run_assembly_sequence(
 ) -> Report:
     start = time.time()
     spec_file = Path(spec_path)
-    spec = load_assembly_spec(spec_file)
+    spec, resolve_findings = _load_resolved_spec(spec_file)
     out_dir = _sequence_output_dir(spec, output_dir)
     steps_dir = out_dir / "steps"
     views_dir = out_dir / "views"
@@ -2734,6 +2968,7 @@ def run_assembly_sequence(
     plan = plan_assembly_build(spec_file, dry_run=dry_run)
     shape_cache = GeometryShapeCache() if not dry_run else None
     findings: List[Finding] = []
+    findings.extend(resolve_findings)
     findings.extend(_protected_output_findings(spec, spec_file.resolve().parent))
     findings.extend(_generation_policy_findings(plan))
     missing = [instance for instance in plan.instances if not instance.exists]
@@ -3362,7 +3597,7 @@ def render_review_views(
 ) -> Report:
     start = time.time()
     spec_file = Path(spec_path)
-    spec = load_assembly_spec(spec_file)
+    spec = _resolved_spec(spec_file)
     step = Path(step_path) if step_path is not None else _resolve_output_path(spec.outputs.step)
     if not step.is_absolute():
         step = _resolve_output_path(str(step))
@@ -3469,7 +3704,7 @@ def run_assembly_build(
 ) -> Report:
     start = time.time()
     spec_file = Path(spec_path)
-    spec = load_assembly_spec(spec_file)
+    spec, resolve_findings = _load_resolved_spec(spec_file)
     metadata_value = connector_metadata_path or spec.connector_metadata
     plan = plan_assembly_build(
         spec_file,
@@ -3478,6 +3713,7 @@ def run_assembly_build(
     )
 
     findings: List[Finding] = []
+    findings.extend(resolve_findings)
     findings.extend(_protected_output_findings(spec, spec_file.resolve().parent))
     findings.extend(_generation_policy_findings(plan))
     missing = [instance for instance in plan.instances if not instance.exists]
@@ -3599,7 +3835,7 @@ def run_assembly_check_round(
 ) -> Report:
     start = time.time()
     spec_file = Path(spec_path)
-    spec = load_assembly_spec(spec_file)
+    spec = _resolved_spec(spec_file)
     build_report = run_assembly_build(
         spec_file,
         connector_metadata_path=connector_metadata_path,
@@ -3927,6 +4163,7 @@ __all__ = [
     "inspect_component",
     "plan_assembly_build",
     "render_review_views",
+    "resolve_relative_placements",
     "run_assembly_sequence",
     "resolve_source_path",
     "run_assembly_check_round",
