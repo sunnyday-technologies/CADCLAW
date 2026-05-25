@@ -93,6 +93,30 @@ Your job is steps 3 and 4. You may also help interpret the findings in
 step 5 — propose specific shifts, label new bbox signatures, propose
 BOM updates. You should not be doing step 1.
 
+### Build order matters: assemble inside-out from a datum
+
+A whole machine is placed in steps, not all at once. Establish the
+**structural datum part** first — the member every tolerance references — then
+build **outward** around it, one subsystem at a time, re-checking after each
+step.
+
+- **M3-CRETE** starts from the **X-axis gantry extrusion** (out of necessity:
+  the printhead travels along it, and each gantry's end plates must keep their
+  movement tolerance *relative to it*). End plates, the two-sided carriage, the
+  Y gantries, the Y-to-Z / Z-post carriages, then the Z posts and outer frame
+  are added *around* that datum — so clearances propagate from the datum
+  instead of fighting fixed absolute coordinates.
+- Other machines choose their own datum and grow outward the same way (a frame
+  corner, a base rail, a spindle axis).
+
+Run the relevant gates on the **partial** assembly after each step
+(inventory-so-far, interference, seating, clearance) before adding the next
+subsystem. This is what keeps a generative, step-wise build **autonomous**:
+each increment is verified, so a fault is caught at the step that introduced it,
+not at the end. The self-correction loop (**L1-resolved@k**) runs per step where
+a check fails — k small for a simple frame, very large for a deep assembly tree
+(e.g. a spacecraft).
+
 ---
 
 ## Honesty extensions for agents
