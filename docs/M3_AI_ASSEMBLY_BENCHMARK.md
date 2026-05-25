@@ -33,15 +33,14 @@ used to create it.
 
 Initial local sources:
 
-- Reference image: `../M3-CRETE/docs/M3-CRETE_render.jpg`.
+- Reference image: the M3-CRETE project render (topology and proportions only).
 - Minimal test-kit asset declaration:
   `examples/m3_crete/m3_testkit_assets.yaml`.
 - CADCLAW assembly spec seed:
   `examples/m3_crete/m3_reference_assembly.yaml`.
 - CADCLAW broad component manifest, for internal discovery only:
   `examples/m3_crete/m3_component_manifest.yaml`.
-- Public BOM source, if included in a run:
-  `../M3-CRETE/bom/data.json`.
+- Public BOM source, if included in a run: the M3-CRETE public interactive BOM.
 
 The reference image is for topology, proportions, and human review only. Exact
 dimensions must come from the target spec, authored STEP assets, or validated
@@ -61,11 +60,8 @@ discovery but should not be treated as the public input package. Cite the
 upstream OpenBuilds STEP Parts Library for provenance rather than vendoring
 unused catalog files.
 
-Protected authoritative exports must not be overwritten:
-
-- `../M3-CRETE/CAD/M3-2_Assembly.step`
-- `../M3-CRETE/CAD/M3-2_Assembly_latest.step`
-- `../M3-CRETE/CAD/M3-2_Assembly-latest.step`
+Protected authoritative exports (the upstream M3-CRETE native-CAD assembly
+exports) must not be overwritten by a benchmark run.
 
 ## Allowed Geometry Policy
 
@@ -152,18 +148,13 @@ Secondary metrics:
 - Claim hygiene: no unsupported production-readiness, validation, compliance,
   carbon, durability, patent, or guarantee claims.
 
-Suggested score breakdown:
+The authoritative rubric — the per-axis L1 weights and the cumulative full-stack
+ARB scale (L0-L7) — lives in `benchmarks/m3_ai_assembly/benchmark.yaml`. Effort
+and autonomy are reported from the run log, not folded into the artifact score. A
+flawless L1 build scores ~15/100 on the full stack, reflecting how early L1 is on
+the road to autonomous assembly.
 
-| Area | Weight |
-|---|---:|
-| CADCLAW gate results | 35 |
-| Assembly completeness and authored-asset fidelity | 25 |
-| Dimensional/topology match | 15 |
-| Reproducibility and provenance | 10 |
-| Human effort | 10 |
-| Claim hygiene and packaging readiness | 5 |
-
-Hard fails override weighted score for secret exposure, protected-path
+Hard fails override the weighted score for secret exposure, protected-path
 overwrite, non-loadable STEP output, or uncontrolled generation of contextual
 plates/brackets.
 
@@ -240,24 +231,6 @@ CADCLAW checks configured rules against STEP/BOM/text artifacts. Passing the
 benchmark means the run passed those gates for this fixture; it does not prove
 the physical machine, native CAD source, procurement state, or all possible
 manufacturing constraints.
-
-## Next Implementation Steps
-
-- [ ] Preserve the exact native-CAD-driver test procedure and prompt variant
-      used for any published run.
-- [ ] Audit which M3-CRETE STEP assets and reference images can be redistributed
-      publicly.
-- [x] Freeze an initial M3-2 seed spec and component manifest for benchmark use.
-- [x] Add a benchmark fixture directory scaffold with asset checksum and
-      license-note placeholders.
-- [x] Implement `run_grader.py` to run the CADCLAW gates and emit normalized
-      JSON.
-- [x] Implement `score_report.py` with the metric weights and hard-fail rules
-      above.
-- [ ] Run at least one native-CAD-driver and one CADCLAW-spec-driver dry run
-      against the same fixture.
-- [ ] Publish a prerelease fixture package, then archive the first stable test
-      kit on Zenodo.
 
 ## Local References
 

@@ -207,4 +207,4 @@ After the driver exports the STEP:
 ```
 
 Then summarize the run log and fill the comparison row (CADCLAW track =
-95/100 black-box; Fusion track = this result) + effort metrics from the runbook.
+~15/100 on the full ARB stack, L1 sub-grade 100/100; Fusion track = this result) + effort metrics from the runbook.
