@@ -81,3 +81,23 @@ scoring:
   hard_fail_notes:
     - Secret exposure, protected-path overwrite, non-loadable STEP, or uncontrolled generated contextual geometry overrides weighted score.
     - The early scorer is intentionally conservative and should be version-pinned with each benchmark release.
+
+# ---------------------------------------------------------------------------
+# Full-stack ARB scale (cumulative). 100 = a fully autonomous assembly system
+# (rung L7). The current grader measures L0 (component truth) + L1 (assembly
+# correctness); L2-L7 are not yet gate-verified, so a flawless build today earns
+# only ~15/100 -- deliberately honest about how early this is on the road to
+# autonomous assembly. The 'scoring.weights' above grade the QUALITY of L1; that
+# L1 sub-grade (0-100%) scales into L1's point allocation here.
+full_stack_ladder:
+  total: 100
+  currently_scored: [L0, L1]
+  rungs:
+    - {id: L0, label: Component truth,                       points: 5,  status: measured}
+    - {id: L1, label: Assemble the kit,                      points: 10, status: measured}
+    - {id: L2, label: Constraint-robust assembly,            points: 12, status: emerging}
+    - {id: L3, label: Mechanically valid (kinematics + FEA), points: 15, status: partial}
+    - {id: L4, label: Engineering change,                    points: 15, status: open}
+    - {id: L5, label: Design from intent,                    points: 15, status: open}
+    - {id: L6, label: Optimize and invent,                   points: 14, status: open}
+    - {id: L7, label: Autonomous certified loop,             points: 14, status: open}

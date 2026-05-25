@@ -139,19 +139,53 @@ def score_report(report_data: dict[str, Any], benchmark: dict[str, Any]) -> dict
     hard_failed = bool(hard_fail_findings)
     final_score = 0.0 if hard_failed else weighted_total
 
+    # ---- Full-stack ARB scale (cumulative ladder) -------------------------
+    # 100 = a fully autonomous assembly system (rung L7). The current grader
+    # measures L0 (component truth) + L1 (assembly correctness); L2-L7 are not
+    # yet gate-verified. 'weighted_total' is the L1 SUB-GRADE (how well L1 is
+    # done, 0-100%); it scales into L1's point allocation, so a flawless build
+    # today earns only ~15/100 -- honest about how early this is.
+    weighted_max = (
+        gate_weight + completeness_weight + topology_weight
+        + repro_weight + claims_weight
+    )
+    l1_subgrade = final_score
+    l1_fraction = (l1_subgrade / weighted_max) if weighted_max else 0.0
+    _ladder = benchmark.get("full_stack_ladder", {})
+    _ladder = _ladder if isinstance(_ladder, dict) else {}
+    _rungs = _ladder.get("rungs", []) if isinstance(_ladder.get("rungs"), list) else []
+    full_stack_max = float(_ladder.get("total", 100) or 100)
+    full_stack_score = 0.0
+    arb_rungs = []
+    for _rung in _rungs:
+        if not isinstance(_rung, dict):
+            continue
+        _rid = _rung.get("id")
+        _pts = float(_rung.get("points", 0) or 0)
+        if _rid == "L1":
+            _completion = l1_fraction
+        elif _rid == "L0":
+            _completion = 0.0 if hard_failed else 1.0
+        else:
+            _completion = 0.0  # L2-L7 not yet gate-verified by the current grader
+        _earned = round(_pts * _completion, 3)
+        full_stack_score += _earned
+        arb_rungs.append({
+            "id": _rid, "label": _rung.get("label"), "status": _rung.get("status"),
+            "points": _pts, "earned": _earned,
+        })
+    full_stack_score = round(full_stack_score, 3)
+
     return {
-        "schema_version": "m3_ai_assembly_score.v0.1",
+        "schema_version": "m3_ai_assembly_score.v0.2",
         "benchmark_id": benchmark.get("benchmark_id", "m3_ai_assembly"),
         "hard_failed": hard_failed,
-        "score": final_score,
-        "weighted_score_before_hard_fail": weighted_total,
-        "max_score": sum([
-            gate_weight,
-            completeness_weight,
-            topology_weight,
-            repro_weight,
-            claims_weight,
-        ]),
+        "scale": "arb_full_stack",
+        "score": full_stack_score,
+        "max_score": full_stack_max,
+        "l1_subgrade": round(l1_subgrade, 3),
+        "l1_subgrade_max": round(weighted_max, 3),
+        "arb_rungs": arb_rungs,
         "subscores": {
             "cadclaw_gate_results": round(gate_score, 3),
             "completeness_and_authored_asset_fidelity": round(completeness_score, 3),
@@ -176,6 +210,7 @@ def score_report(report_data: dict[str, Any], benchmark: dict[str, Any]) -> dict
             for finding in hard_fail_findings
         ],
         "limitations": [
+            "Headline 'score' is on the full ARB stack (L0-L7 = 100); only L0+L1 are gate-verified today, so a flawless build scores ~15. 'l1_subgrade' (0-100) is how well L1 itself is done.",
             "Early scorer; weights and penalties must be version-pinned with benchmark releases.",
             "Effort/autonomy (interventions, retries, time, tokens) is reported separately from the run log (see summarize_run_log.py), not folded into the artifact score.",
             "Dry-run reports cannot prove STEP loadability or visual alignment.",
