@@ -1,6 +1,6 @@
 # M3 benchmark redistributable asset checksums (SHA-256).
 # Format: <sha256>  <relative/path>
-b9d63f5997f4c1e038810c82e470686b8120eae5152bf04d06be78d624fb49f5  benchmarks/m3_ai_assembly/assets/reference/reference_overview.png
+d6cb825999d74ed92dd29135565600c87375786e6dc4dad67d04f524fa1264b7  benchmarks/m3_ai_assembly/assets/reference/reference_overview.png
 10a85bd27248507b7f1d85e300f04c4f53a4e13422937661d3b5355da79349a6  benchmarks/m3_ai_assembly/assets/reference/reference_front.png
 c5c93c953fb5fb4e905dfc456b6d1a7a94e24ba76b77fcb3df49f01d37b99622  benchmarks/m3_ai_assembly/assets/reference/reference_side.png
 98c3d0e8f91fd8bda4bb78bcd5f819af4fd1d96ca5aa11d54c9bff93c8c59d49  benchmarks/m3_ai_assembly/assets/reference/reference_top.png

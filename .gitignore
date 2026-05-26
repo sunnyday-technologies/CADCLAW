@@ -23,6 +23,7 @@ media/
 docs/fonts/
 docs/media/*.gif
 benchmarks/m3_ai_assembly/results/*.json
+benchmarks/m3_ai_assembly/run_logs/*_native_driver.yaml
 
 # Secrets / environment files
 .env

@@ -12,13 +12,15 @@ redistribution review is complete.
 
 Reference images (bundled, redistributable):
 
-- `benchmarks/m3_ai_assembly/assets/reference/reference_{overview,front,top,side}.png`
-- Sunnyday-authored renders of the M3 target, generated reproducibly by
-  `benchmarks/m3_ai_assembly/scripts/make_reference_images.py` from the canonical
-  assembly using CADCLAW's own renderer.
-- They show the target's *arrangement* only — no dimensions, no coordinates, no
-  spec, and no redistributed OpenBuilds source geometry — so they stay inside the
-  benchmark fairness wall (a picture of the goal, like a human builder gets).
+- `reference_overview.png` — authored Sunnyday **Fusion** hero render of the M3
+  target (non-canonical 3/4 angle, the primary reference).
+- `reference_{front,top,side}.png` — orthographic supplements, generated
+  reproducibly by `benchmarks/m3_ai_assembly/scripts/make_reference_images.py`
+  from the canonical assembly using CADCLAW's own renderer.
+- All are Sunnyday-authored and show the target's *arrangement* only — no
+  dimensions, no coordinates, no spec, and no redistributed OpenBuilds source
+  geometry — so they stay inside the benchmark fairness wall (a picture of the
+  goal, like a human builder gets).
 - Shipped in the blind kit so a driver can compare its build against the target;
   excluded from the text-only scaffold.
 

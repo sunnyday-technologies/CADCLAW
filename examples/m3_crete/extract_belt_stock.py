@@ -17,6 +17,12 @@ Source frame is corner-origin (X 0..2080, Y 0..1040); the CADCLAW reference
 spec is center-origin, so positions are reported in both frames using OFFSET.
 
 Run: ``.venv\\Scripts\\python.exe examples\\m3_crete\\extract_belt_stock.py``
+
+NOTE (2026-05-25): the seven per-instance ``M3_NEMA23_motor_src*.step`` exports
+this script once wrote are SUPERSEDED. The kit now ships one generic
+``M3_NEMA23_motor.step`` placed seven times via per-instance ``rotate_deg`` in the
+reference assembly (one motor SKU, not seven pre-rotated files). The motor-export
+path below is retained only as historical provenance of how those exports were made.
 """
 from __future__ import annotations
 
