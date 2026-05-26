@@ -574,3 +574,16 @@ a:hover,
   color: #071421;
   border-color: #97d700;
 }
+
+/* 2026-05-26 readability pass: body-level text (captions, sub-heads, emphasis
+   lead-ins) must be dark, high-contrast, and in the readable body font. Green
+   stays for NON-text accents only (borders, dots, badges, the "//" h2 marker).
+   Green text on white/grey is hard to read; this keeps learning material legible. */
+.section h3 { color: #013a73; }
+.callout strong { color: #013a73; }
+.caption,
+.output-media .caption,
+.muted-strip {
+  color: #33404a;
+  font-family: var(--sans);
+}
