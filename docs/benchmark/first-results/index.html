@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>How well can AI assemble a machine? The first Assembly Readiness Benchmark results</title>
+  <meta name="description" content="Three AI workflows — Claude (Fusion and CadQuery) and OpenAI Codex — each assembled a 100-part machine from the same kit, graded by one automatic checker. Full method, metrics, results, and honest limitations." />
+  <meta property="og:title" content="The first Assembly Readiness Benchmark results — how well can AI assemble a machine?" />
+  <meta property="og:description" content="Three AIs built the same 100-part machine; all complete, none buildable yet. Score-vs-time, the failure modes, and what it means." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://cadclaw.io/benchmark/first-results/" />
+  <meta property="og:image" content="https://cadclaw.io/media/hero_score_vs_time.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/CADCLAW_logo.jpg" type="image/jpeg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="canonical" href="https://cadclaw.io/benchmark/first-results/" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "headline": "How well can AI assemble a machine? The first Assembly Readiness Benchmark results",
+    "description": "Three AI workflows each assembled a 100-part machine from the same kit, graded identically by the CADCLAW engine on the ARB benchmark.",
+    "url": "https://cadclaw.io/benchmark/first-results/",
+    "datePublished": "2026-05-26",
+    "dateModified": "2026-05-26",
+    "author": { "@type": "Organization", "name": "Sunnyday Technologies", "url": "https://sunn3d.com/" },
+    "publisher": { "@type": "Organization", "name": "Sunnyday Technologies", "logo": { "@type": "ImageObject", "url": "https://cadclaw.io/CADCLAW_logo.jpg" } },
+    "image": "https://cadclaw.io/media/hero_score_vs_time.png",
+    "keywords": "AI CAD benchmark, assembly readiness benchmark, agentic CAD, Claude, OpenAI Codex, CadQuery, Fusion, mechanical design AI, TRL MRL IRL"
+  }
+  </script>
+  <style>
+  main.pillar-content{max-width:780px;margin:0 auto;padding:3.5rem 1.5rem 5rem;line-height:1.7;font-size:1rem;}
+  main.pillar-content h1{font-size:clamp(1.8rem,3.6vw,2.6rem);line-height:1.15;margin:0 0 1.2rem;}
+  main.pillar-content .dek{font-size:1.2rem;color:var(--ink-dim);margin:0 0 1.5rem;}
+  main.pillar-content h2{font-size:clamp(1.35rem,2.4vw,1.75rem);margin:2.5rem 0 1rem;}
+  main.pillar-content h3{font-size:1.12rem;margin:1.6rem 0 .6rem;color:#013a73;}
+  main.pillar-content p{margin:0 0 1.1rem;}
+  main.pillar-content ul,main.pillar-content ol{margin:0 0 1.2rem 1.4rem;}
+  main.pillar-content li{margin-bottom:.4rem;}
+  main.pillar-content figure{margin:1.8rem 0;}
+  main.pillar-content figure img{width:100%;border:1px solid var(--rule);border-radius:6px;display:block;background:var(--code-bg);}
+  main.pillar-content figcaption{font-family:var(--sans);font-size:.88rem;color:#33404a;text-align:center;margin-top:.6rem;line-height:1.55;}
+  main.pillar-content table{border-collapse:collapse;width:100%;margin:1.2rem 0 1.6rem;font-size:.9rem;}
+  main.pillar-content th,main.pillar-content td{border:1px solid var(--rule);padding:.5rem .7rem;text-align:left;vertical-align:top;}
+  main.pillar-content thead th{background:var(--navy);color:#fff;font-family:var(--display);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;}
+  main.pillar-content blockquote{margin:1.5rem 0;padding:.6rem 1.25rem;border-left:3px solid var(--green);background:var(--navy-glow);font-style:italic;}
+  main.pillar-content code{font-family:var(--mono);font-size:.88em;background:var(--code-bg);padding:.1em .35em;border-radius:3px;}
+  main.pillar-content a{color:var(--green);text-decoration:underline;text-underline-offset:2px;}
+  main.pillar-content .note{color:var(--ink-faint);font-size:.92rem;}
+  </style>
+</head>
+<body>
+
+<header class="nav">
+  <a class="brand" href="/" aria-label="CADCLAW home">
+    <img src="/CADCLAW_logo.jpg" alt="CADCLAW" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'" />
+    <span class="brand-text" style="display:none">CADCLAW</span>
+  </a>
+  <nav>
+    <a href="/benchmark/">The benchmark</a>
+    <a href="/#results">Results</a>
+    <a href="/#engine">The engine</a>
+    <a class="ghost" href="https://github.com/sunnyday-technologies/CADCLAW">GitHub →</a>
+  </nav>
+</header>
+
+<main class="pillar-content">
+  <h1>How well can AI assemble a machine? The first benchmark results.</h1>
+  <p class="dek">We gave three AI workflows the same box of parts and the same picture of a finished machine, and asked each to build it, with no instructions on <em>how</em>. We then graded all three the same way. Each placed every part on its own; none is buildable yet.</p>
+
+  <figure>
+    <img src="/media/hero_score_vs_time.png" alt="Score versus build time for three AI runs; all near the floor, OpenAI Codex fastest at 13 minutes">
+    <figcaption>Three AIs, one ~100-part machine each. A clean build scores 100; all three sit well below it. OpenAI Codex was fastest by a wide margin.</figcaption>
+  </figure>
+
+  <h2>1. The task — the goal, not the method</h2>
+  <p>The target is the gantry frame of <a href="https://m3-crete.com">M3-CRETE</a>, an open-source large-format 3D printer / CNC frame: a ~2-metre machine of roughly <strong>100 parts</strong> — aluminium extrusions, gantry plates, V-wheels, belts, pulleys, and seven NEMA-23 motors.</p>
+  <p>Each AI received only two things: <strong>the parts kit</strong> (the authored CAD files) and <strong>one reference image</strong> of the finished machine, plus a short list of design constraints. Critically, we did <strong>not</strong> give the build sequence. The original human-guided build specified an inside-out order — X axis, then Y, then Z-posts — and detailed steps; here we withheld all of that. The AI had to figure out how to reach the pictured result on its own.</p>
+  <figure>
+    <img src="/media/m3_target.png" alt="The reference image of the finished M3-CRETE frame given to each AI">
+    <figcaption>The goal image. The only picture each AI was given — no steps, just this plus the box of parts.</figcaption>
+  </figure>
+  <p>That design choice is the point: ARB tests whether a model <strong>understands the mechanical system</strong> — here, a V-slot-and-roller gantry, a basic and well-documented pattern — not whether it can follow a recipe. A <strong>fairness wall</strong> kept each run honest: the driver worked only from the brief and kit, never the reference solution.</p>
+
+  <h2>2. The grader — one checker, any tool</h2>
+  <p>Every build was graded by <strong>CADCLAW</strong>, our open-source engine, as a <strong>black box</strong>: it loads the exported STEP file — no roles, no metadata — labels each solid by its shape signature, and runs three host-agnostic gates:</p>
+  <ul>
+    <li><strong>Inventory</strong> — are all the right parts present, in the right count?</li>
+    <li><strong>Interference</strong> — do any two solids overlap (a collision)?</li>
+    <li><strong>Floating</strong> — is every part connected, or is something loose?</li>
+  </ul>
+  <p>Because it grades the <em>exported file</em> rather than a vendor's feature tree, the same procedure judges Fusion, CadQuery, and any AI agent on equal footing. The result feeds the <strong>ARB capability ladder</strong> (L0–L7) and a <strong>buildability factor</strong>: interference scales the score down, because a self-intersecting frame cannot be built. A clean build earns an L1 sub-grade of 100; the ladder then maps onto the TRL / MRL / IRL readiness scales industry already uses.</p>
+  <figure>
+    <img src="/media/arb_flowchart.png" alt="The ARB pipeline from inputs to AI driver to exported STEP to grader to score">
+    <figcaption>One task, any tool, one grader. The only variable is the driver.</figcaption>
+  </figure>
+
+  <h2>3. The three drivers</h2>
+  <p>Each ran in a <strong>fresh, prompt-only session</strong> (no project memory, no answer key):</p>
+  <ul>
+    <li><strong>Claude-Fusion</strong> — Claude Opus 4.7 driving a live Autodesk Fusion via its MCP connection.</li>
+    <li><strong>Claude-CadQuery</strong> — Claude Opus 4.7 writing a CadQuery (Python) build script.</li>
+    <li><strong>Codex-CadQuery</strong> — <strong>OpenAI Codex (GPT-5)</strong>, the coding agent (not the chat app), also writing CadQuery.</li>
+  </ul>
+
+  <h2>4. Results</h2>
+  <table>
+    <thead><tr><th>Track</th><th>Parts</th><th>Interference</th><th>L1 / 100</th><th>Full-stack</th><th>Time</th><th>Attempts</th></tr></thead>
+    <tbody>
+      <tr><td>CADCLAW reference <em>(answer key)</em></td><td>100/100</td><td>✓ clean</td><td><strong>100</strong></td><td>15.0</td><td>—</td><td>—</td></tr>
+      <tr><td>Claude-CadQuery</td><td>100/100</td><td>✗ 35 clips · 248 cm³</td><td><strong>15.2</strong></td><td>6.52</td><td>48.8 min</td><td>9</td></tr>
+      <tr><td>Claude-Fusion</td><td>100/100</td><td>✗ 44 clips · 323 cm³</td><td><strong>12.4</strong></td><td>6.24</td><td>33.7 min</td><td>12</td></tr>
+      <tr><td>Codex-CadQuery <em>(OpenAI Codex)</em></td><td>100/100</td><td>✗ 50 clips · 288 cm³</td><td><strong>11.9</strong></td><td>6.19</td><td><strong>13.0 min</strong></td><td><strong>1</strong></td></tr>
+    </tbody>
+  </table>
+  <p>All three got every part in and connected — a real result. None cleared interference, so none is buildable. The spread is the story: <strong>OpenAI Codex one-shot the build in 13 minutes</strong> (one attempt, no retries) — three to four times faster than either Claude run — but with the most clips and the lowest score. <strong>Claude-CadQuery iterated hardest</strong> (nine attempts, re-extracting the real plate hole patterns from the STEP files) and made the cleanest build, but took the longest. More self-review buys accuracy at the cost of time and tokens — and the benchmark makes that trade visible. (Claude token use, recovered from the run transcripts: 22M and 34M billed; Codex did not expose its count.)</p>
+  <p>These low scores sit on top of a real result. From a single image and a parts box, with no build sequence, every model produced a coherent ~100-part machine, and <strong>one did it in 13 minutes on the first attempt, with no retries.</strong> The scores are low because the bar is a buildable assembly, not one that looks about right. The remaining gap is precise, non-overlapping placement, and that is what the benchmark tracks as the models improve.</p>
+
+  <h2>5. What went wrong — the same failure class</h2>
+  <p>The grader skips accessories (motors, belts, wheels), so every flagged clip is <strong>structural metal overlapping structural metal</strong>. All three shared the same mistakes: beams placed coincident at the splice joints and post/frame junctions instead of end-to-end, and the centred insert rails overlapping the beams they splice. They got the inventory and the topology right, but not the precise, non-overlapping placement.</p>
+  <p>There was also an error the current gates do <strong>not</strong> yet catch: in every run, the <strong>Z-posts were turned the wrong way</strong> versus the reference. A part that is present, connected, and non-overlapping but mis-oriented passes all three gates today. That is a real defect and a clear next step — an <strong>orientation/pose gate</strong> — which will rank builds more critically still.</p>
+
+  <h2>6. Watch them build it</h2>
+  <p>Both CadQuery drivers produced their own review renders as they worked. The Fusion driver inspected via live screenshots that weren't saved — so we recovered its build order afterward by driving the live model through its MCP, revealing the placed parts in sequence under a fixed camera (the design carries no parametric timeline).</p>
+  <figure>
+    <img src="/media/fusion_build_progression.png" alt="Claude-Fusion build progression from 10 to 100 parts">
+    <figcaption>Claude-Fusion, 10 → 100 parts — recovered from the live model via the Fusion MCP.</figcaption>
+  </figure>
+  <figure>
+    <img src="/media/cadquery_review_collage.png" alt="Grid of in-process review renders generated by the Claude-CadQuery driver">
+    <figcaption>Claude-CadQuery's own in-process checks. These orthographic + isometric renders are the human-reviewable output that lets a watcher stop a bad run early to save tokens.</figcaption>
+  </figure>
+
+  <h2>7. Limitations &amp; honesty</h2>
+  <ul>
+    <li><strong>A tooling-maturity bias to disclose.</strong> CADCLAW and its placement resolver were first built around CadQuery, before the Fusion connection (MCP) existed. The CadQuery runs may therefore carry a home-field edge. We flag it so the comparison stays honest; an orientation gate and more reference tasks will tighten it.</li>
+    <li><strong>The reference "100" is our own method.</strong> The clean baseline is the spec-driven build (our home workflow) shown as the <em>target</em>, not a neutral third party. We publish the grader and the benchmark scaffold openly so anyone can reproduce — or challenge — these scores.</li>
+    <li><strong>Verification is not physical certification.</strong> ARB grades geometry and buildability, not real-world performance.</li>
+    <li><strong>The scorer is early</strong> and version-pinned; effort metrics (time, tokens, attempts) are reported separately and never folded into the artifact score.</li>
+    <li><strong>One task, three models</strong> — a starting line, not a verdict. More drivers and tasks are coming.</li>
+    <li>To our knowledge no prior benchmark grades whole-assembly buildability tool-independently; pairwise-joint datasets (JoinABLe, AutoMate) are the nearest neighbours and address a sub-problem.</li>
+  </ul>
+
+  <h2>8. Why it matters, and what's next</h2>
+  <p>Until recently there was no way to measure this. An AI that can drive CAD, and an automatic checker that confirms whether the result is correct, only recently became usable together. With both in place, the same task can be scored the same way for any tool or model, so improvement is measurable rather than anecdotal.</p>
+  <p>Next on the curve: a top <strong>local</strong> model as a low-capability anchor, more frontier drivers, the orientation gate, and additional reference tasks — each plotted as capability vs. ARB score. We are publishing the ladder, the scoring, and the readiness correlation as a <strong>candidate standard</strong> and inviting labs, CAD vendors, and standards bodies to measure against it.</p>
+  <p class="note">Reproduce or review: the benchmark scaffold (prompt, scoring, run procedures) and the CADCLAW engine are open. Method overview: <a href="/benchmark/">cadclaw.io/benchmark</a>. Engine: <a href="https://github.com/sunnyday-technologies/CADCLAW">GitHub</a>. Reviewers welcome — <a href="mailto:info@sunn3d.com">info@sunn3d.com</a>.</p>
+</main>
+
+<footer>
+  <div class="foot-grid">
+    <div><h4>CADCLAW</h4><p>The AI-CAD assembly benchmark, and the open engine behind it.</p><p class="muted">MIT License · © 2026 <a href="https://sunn3d.com">Sunnyday Technologies</a></p></div>
+    <div><h4>Benchmark</h4><a href="/benchmark/">Overview</a><a href="/benchmark/first-results/">Deep dive</a></div>
+    <div><h4>Engine</h4><a href="https://github.com/sunnyday-technologies/CADCLAW">GitHub</a><a href="/ci-for-cad/">CI for CAD</a><a href="https://doi.org/10.5281/zenodo.19647391">Zenodo DOI</a></div>
+    <div><h4>Contact</h4><a href="mailto:info@sunn3d.com">info@sunn3d.com</a><a href="https://sunn3d.com">sunn3d.com</a></div>
+  </div>
+  <p class="muted" style="max-width:1180px;margin:16px auto 0;padding:0 40px;font-size:11.5px;text-align:center;">M3-CRETE™ and CEMFORGE™ are trademarks of Sunnyday Technologies. Other product and company names (including Autodesk Fusion, SolidWorks, Claude, OpenAI Codex, and CadQuery) are trademarks of their respective owners.</p>
+</footer>
+
+</body>
+</html>
