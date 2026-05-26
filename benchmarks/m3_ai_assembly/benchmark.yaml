@@ -52,7 +52,7 @@ asset_policy:
 
 grader:
   default_dry_run: true
-  default_render_views: false
+  default_render_views: true
   required_report_schema: "0.7"
   hard_fail_finding_ids:
     - assemble.protected_output_path

@@ -95,6 +95,12 @@ BOM updates. You should not be doing step 1.
 
 ### Build order matters: assemble inside-out from a datum
 
+> **Scope — keep off the benchmark driver path.** This is guidance for contributors
+> and the *informed* resolver. It is deliberately **not** given to a blind benchmark
+> driver: the driver brief is self-contained and prescribes no build order, so this
+> section (and `AGENTS.md` generally) must never sit in a driver's working folder —
+> it would leak an answer-shaped build order and void the run's fairness wall.
+
 A whole machine is placed in steps, not all at once. Establish the
 **structural datum part** first — the member every tolerance references — then
 build **outward** around it, one subsystem at a time, re-checking after each

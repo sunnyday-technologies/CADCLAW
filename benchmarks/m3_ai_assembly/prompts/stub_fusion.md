@@ -12,7 +12,9 @@ Build in a live Fusion via the Fusion MCP tools available in this session.
    `featureType:"script"` (Fusion Python API: `Occurrences.addByInsert`,
    `transformBy` / `Matrix3D`). Look up the exact API via `fusion_mcp_read`
    `queryType:"apiDocumentation"`.
-4. Sanity-check as you go with `fusion_mcp_read` `queryType:"screenshot"`.
+4. To inspect your work, you can capture the live viewport with `fusion_mcp_read`
+   `queryType:"screenshot"` from any camera orientation — front, top, right, or
+   isometric (drive the viewport via the Fusion API / named views).
 5. Export the design to a single STEP via `ExportManager` / `STEPExportOptions` to
    `fusion_native_export.step` in your run folder.
 

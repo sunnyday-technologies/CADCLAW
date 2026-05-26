@@ -83,16 +83,15 @@ active_reference_assets:
     generated_by_cadclaw: true
     exception_scope: M3 belt stock lifted from the authored source assembly; not general CADCLAW geometry generation.
   - id: nema23_motor
-    source_path: examples/m3_crete/generated/M3_NEMA23_motor_src5.step
+    source_path: examples/m3_crete/generated/M3_NEMA23_motor.step
     use: >
-      NEMA 23 stepper motor, 7 placed - four Z-drive at the post tops, two
-      Y-drive at the rail ends, one X-drive for the belt-pinion. Extracted
-      read-only from the protected M3-2 source assembly, each preserving its
-      source orientation so the motor holes register to the ZPMM mounts and the
-      C-beam slots; not parametrically generated. The reference places seven
-      source-oriented files (M3_NEMA23_motor_src{5,6,7,143,8,58,74}.step). A
-      single generic NEMA 23 that the AI must orient itself is the harder
-      benchmark variant - see provenance_review.
+      NEMA 23 stepper motor - ONE shared model, placed 7 times (four Z-drive at
+      the post tops, two Y-drive at the rail ends, one X-drive for the
+      belt-pinion). Each instance is oriented by its own rotate_deg in the
+      reference assembly (90-degree multiples about Z), so the kit carries a
+      single motor SKU the driver must orient itself - the honest real-world BOM,
+      not seven pre-rotated exports. Extracted read-only from the protected M3-2
+      source assembly; not parametrically generated.
     current_reference_quantity: 7
     generated_by_cadclaw: true
     exception_scope: M3 motor stock lifted from the authored source assembly; not general CADCLAW geometry generation.
@@ -131,10 +130,11 @@ provenance_review:
     assets). They are fine for local development now.
   fusion_kit_action: >
     The Fusion benchmark project (M3-AI-Benchmark-Kit) was staged with the 12
-    structural/stock assets only; it must also receive nema23_motor (x7, or 1
-    generic) and VS_Belt_Pinion before the native-track build, or the Fusion
-    driver cannot place the drive train.
+    structural/stock assets only; it must also receive the single nema23_motor
+    model and VS_Belt_Pinion before the native-track build, or the Fusion driver
+    cannot place the drive train.
   benchmark_variant_decision: >
-    Open benchmark-design question: hand the AI seven pre-oriented motor files
-    (easier) or one generic NEMA 23 it must orient (harder, and the more honest
-    test). Recommend the generic variant for the published benchmark.
+    RESOLVED (Nick, 2026-05-25): adopt the single generic NEMA 23 the AI must
+    orient itself - the honest real-world BOM. The reference assembly now places
+    one M3_NEMA23_motor.step seven times via per-instance rotate_deg; the kit
+    ships one motor file, not seven pre-oriented exports.

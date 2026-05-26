@@ -39,6 +39,11 @@ interventions.
 - The same approved STEP assets and reference image, with checksums where
   redistribution is allowed.
 
+**Pre-run hygiene (blind tracks):** start the driver in a neutral working folder that
+contains **no CADCLAW checkout, no `AGENTS.md`, and no project memory** — these can
+carry build-order guidance or answer-key hints that void the run. The brief + kit are
+the only design inputs.
+
 ## Measurement Rules
 
 - Start timer when the shared prompt is given to the AI driver.
@@ -92,7 +97,7 @@ Use these fields for the comparison table:
 .venv\Scripts\python.exe benchmarks\m3_ai_assembly\scripts\run_grader.py `
   --spec examples\m3_crete\m3_reference_assembly.yaml `
   --no-dry-run `
-  --no-render-views `
+  --render-views `
   --out benchmarks\m3_ai_assembly\results\fresh_cadclaw_driver_report.json
 
 .venv\Scripts\python.exe benchmarks\m3_ai_assembly\scripts\score_report.py `

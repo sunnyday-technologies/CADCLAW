@@ -305,57 +305,9 @@ components:
         kind: reference
         origin_mm: [0.0, 0.0, 0.0]
         tags: [drive, belt, center]
-  - id: nema23_motor_src5
-    source_path: examples/m3_crete/generated/M3_NEMA23_motor_src5.step
-    notes: NEMA 23 (Z front-left), source-recentered.
-    frames:
-      - id: center
-        kind: reference
-        origin_mm: [0.0, 0.0, 0.0]
-        tags: [drive, motor, center]
-  - id: nema23_motor_src6
-    source_path: examples/m3_crete/generated/M3_NEMA23_motor_src6.step
-    notes: NEMA 23 (Z back-left), source-recentered.
-    frames:
-      - id: center
-        kind: reference
-        origin_mm: [0.0, 0.0, 0.0]
-        tags: [drive, motor, center]
-  - id: nema23_motor_src7
-    source_path: examples/m3_crete/generated/M3_NEMA23_motor_src7.step
-    notes: NEMA 23 (Z back-right), source-recentered.
-    frames:
-      - id: center
-        kind: reference
-        origin_mm: [0.0, 0.0, 0.0]
-        tags: [drive, motor, center]
-  - id: nema23_motor_src143
-    source_path: examples/m3_crete/generated/M3_NEMA23_motor_src143.step
-    notes: NEMA 23 (Z front-right), source-recentered.
-    frames:
-      - id: center
-        kind: reference
-        origin_mm: [0.0, 0.0, 0.0]
-        tags: [drive, motor, center]
-  - id: nema23_motor_src8
-    source_path: examples/m3_crete/generated/M3_NEMA23_motor_src8.step
-    notes: NEMA 23 (Y left), source-recentered.
-    frames:
-      - id: center
-        kind: reference
-        origin_mm: [0.0, 0.0, 0.0]
-        tags: [drive, motor, center]
-  - id: nema23_motor_src58
-    source_path: examples/m3_crete/generated/M3_NEMA23_motor_src58.step
-    notes: NEMA 23 (Y right), source-recentered.
-    frames:
-      - id: center
-        kind: reference
-        origin_mm: [0.0, 0.0, 0.0]
-        tags: [drive, motor, center]
-  - id: nema23_motor_src74
-    source_path: examples/m3_crete/generated/M3_NEMA23_motor_src74.step
-    notes: NEMA 23 (X belt-pinion drive), source-recentered.
+  - id: nema23_motor
+    source_path: examples/m3_crete/generated/M3_NEMA23_motor.step
+    notes: NEMA 23 stepper - one shared model placed seven times in the assembly (oriented per-instance via rotate_deg). Source-recentered; center frame only.
     frames:
       - id: center
         kind: reference

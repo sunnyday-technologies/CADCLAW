@@ -16,8 +16,15 @@ Build the assembly in CadQuery from the STEP files in `kit/`.
 4. Export the assembly to a single STEP — `cadquery_native_export.step` in your run
    folder — e.g. `cq.exporters.export(asm.toCompound(), "cadquery_native_export.step")`.
 
+To inspect your work, a viewer is available: `pip install cadclaw`, then
+`from cadclaw.render import render_step_to_png` and render a temp export from any
+preset — `render_step_to_png("partial.step", "iso.png", view="iso")` (presets:
+`front`, `top`, `side`, `iso`, `iso_below`). It is only a viewer — do **not** fetch
+any reference spec.
+
 The kit parts are the `.step` files in `kit/` (filenames match the kit table above;
-the four Z / two Y / one X motors are `M3_NEMA23_motor_src*.step`).
+all seven NEMA 23 motors are one model — `M3_NEMA23_motor.step` — placed seven times,
+oriented by you).
 
 In the run log, set `track: cadquery_native_driver` and
 `host_application: CadQuery (Python)`.

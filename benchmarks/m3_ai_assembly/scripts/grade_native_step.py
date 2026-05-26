@@ -174,6 +174,9 @@ def main(argv=None) -> int:
                     help="Reference spec for expected inventory; defaults to benchmark seed.")
     ap.add_argument("--benchmark", default=str(DEFAULT_BENCHMARK))
     ap.add_argument("--out", default=None)
+    ap.add_argument("--render-views", action=argparse.BooleanOptionalAction, default=None,
+                    help="Render review views of the submitted STEP for human/AI review "
+                         "(defaults to benchmark grader.default_render_views).")
     args = ap.parse_args(argv)
 
     t0 = time.time()
@@ -208,6 +211,31 @@ def main(argv=None) -> int:
     hr = harness.run()
 
     observed = observed_inventory(step_path, sig_to_label)
+
+    # Review views: render the submitted STEP so a blind native run leaves a
+    # reviewable visual artifact (otherwise the only output is the JSON report).
+    # Best-effort and never fails the grade. The native track exports a single
+    # STEP, so these are the only record of the assembly's geometry/positions.
+    grader_cfg = benchmark.get("grader", {}) if isinstance(benchmark, dict) else {}
+    render_views = (
+        bool(grader_cfg.get("default_render_views", False))
+        if args.render_views is None else args.render_views
+    )
+    review_views: list[str] = []
+    if render_views and args.out:
+        try:
+            from cadclaw.render import render_step_to_png
+            views_dir = Path(args.out).parent / f"{Path(args.out).stem}_views"
+            views_dir.mkdir(parents=True, exist_ok=True)
+            for view in ("iso", "front", "side", "top", "iso_below"):
+                png = views_dir / f"{step_path.stem}_{view}.png"
+                render_step_to_png(str(step_path), str(png), view=view)
+                review_views.append(png.as_posix())
+            print(f"wrote {len(review_views)} review views -> {views_dir}")
+        except Exception as exc:  # rendering is best-effort; never fail the grade
+            print(f"review render skipped: {exc}")
+    elif render_views and not args.out:
+        print("review render skipped: --out is required to place review views")
 
     report = hr.report
     report.meta = dict(report.meta or {})

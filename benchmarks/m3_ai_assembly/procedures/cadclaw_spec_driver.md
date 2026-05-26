@@ -22,7 +22,7 @@ Procedure:
 .venv\Scripts\python.exe benchmarks\m3_ai_assembly\scripts\run_grader.py `
   --spec examples\m3_crete\m3_reference_assembly.yaml `
   --no-dry-run `
-  --no-render-views `
+  --render-views `
   --out benchmarks\m3_ai_assembly\results\cadclaw_spec_driver_report.json
 ```
 

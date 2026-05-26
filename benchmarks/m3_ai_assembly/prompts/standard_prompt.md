@@ -3,7 +3,10 @@
 > **CANONICAL SHARED CORE.** This block is **identical across every track** (Fusion,
 > CadQuery, …); only the per-backend "How to drive" stub differs. Edit *this* file,
 > then regenerate the driver briefs with `prompts/build_briefs.py`. Frozen +
-> versioned per ARB release — **do not tune it to make a run pass.**
+> versioned per ARB release — **do not tune it to make a run pass.** It deliberately
+> states the target (the "what"), never a build method or order (the "how") —
+> contributor build-order guidance (e.g. `AGENTS.md`) is intentionally kept out of
+> this driver-facing brief.
 
 ## Task
 
@@ -73,14 +76,24 @@ graded answer key; using them invalidates the run.
 | Smooth Idler Pulley Wheel | 4 | Z-axis return idler, one per post bottom |
 | GT2 belt, Z run (942 mm) | 8 | Z-axis belt runs (2 per post) |
 | GT2 belt, Y run (958 mm) | 4 | Y-axis belt runs (2 per Y gantry, inside channel) |
-| NEMA 23 motor (4 distinct Z exports) | 4 | Z-axis motors (post tops) |
-| NEMA 23 motor (2 distinct Y exports) | 2 | Y-axis motors |
-| NEMA 23 motor (1 X export) | 1 | X-axis motor (drives the VS_Belt_Pinion) |
+| NEMA 23 motor | 7 | one motor model, placed 7× — 4 Z (post tops), 2 Y, 1 X (drives the VS_Belt_Pinion); orient each instance yourself |
 | VS_Belt_Pinion | 1 | X-axis belt + pulley actuator |
 
-Total ≈ 100 placed instances. The motor exports preserve their source orientation,
-so importing them un-rotated lands them close to their mounting attitude. (Your
-backend stub names the exact file/data-source for each part.)
+Total ≈ 100 placed instances. Repeated parts (extrusions, plates, wheels, and the
+**single NEMA 23 motor model**) are one authored file each — place multiple
+instances and orient them yourself; nothing is pre-rotated. (Your backend stub
+names the exact file/data-source for each part.)
+
+## Verify your work (as you go)
+
+Inspect the in-progress assembly while you build, not only at the end — a single
+viewpoint hides placement errors (a flipped part, the wrong rotation axis, a gap that
+reads as solid contact head-on), and a fault is cheapest to fix before other parts
+depend on it. Your backend stub lists the viewer available to you. Your kit also
+includes reference images of the assembled target — a 3/4 `reference_overview.png`
+(all components visible, a non-canonical angle) plus orthographic
+`reference_front/top/side.png` — compare your build against them to check overall
+arrangement and alignment. This is your own check; grading is a separate session.
 
 <!--BACKEND_STUB-->
 
