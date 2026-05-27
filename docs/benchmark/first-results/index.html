@@ -106,15 +106,15 @@
 
   <h2>4. Results</h2>
   <table>
-    <thead><tr><th>Track</th><th>Parts</th><th>Interference</th><th>L1 / 100</th><th>Full-stack</th><th>Time</th><th>Attempts</th></tr></thead>
+    <thead><tr><th>Track</th><th>Parts</th><th>Interference</th><th>L1 / 100</th><th>Full-stack</th><th>Time</th><th>Attempts</th><th>Cost (est.)</th></tr></thead>
     <tbody>
-      <tr><td>CADCLAW reference <em>(answer key)</em></td><td>100/100</td><td>✓ clean</td><td><strong>100</strong></td><td>15.0</td><td>—</td><td>—</td></tr>
-      <tr><td>Claude-CadQuery</td><td>100/100</td><td>✗ 35 clips · 248 cm³</td><td><strong>15.2</strong></td><td>6.52</td><td>48.8 min</td><td>9</td></tr>
-      <tr><td>Claude-Fusion</td><td>100/100</td><td>✗ 44 clips · 323 cm³</td><td><strong>12.4</strong></td><td>6.24</td><td>33.7 min</td><td>12</td></tr>
-      <tr><td>Codex-CadQuery <em>(OpenAI Codex)</em></td><td>100/100</td><td>✗ 50 clips · 288 cm³</td><td><strong>11.9</strong></td><td>6.19</td><td><strong>13.0 min</strong></td><td><strong>1</strong></td></tr>
+      <tr><td>CADCLAW reference <em>(answer key)</em></td><td>100/100</td><td>✓ clean</td><td><strong>100</strong></td><td>15.0</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Claude-CadQuery</td><td>100/100</td><td>✗ 35 clips · 248 cm³</td><td><strong>15.2</strong></td><td>6.52</td><td>48.8 min</td><td>9</td><td>~$68</td></tr>
+      <tr><td>Claude-Fusion</td><td>100/100</td><td>✗ 44 clips · 323 cm³</td><td><strong>12.4</strong></td><td>6.24</td><td>33.7 min</td><td>12</td><td>~$174</td></tr>
+      <tr><td>Codex-CadQuery <em>(OpenAI Codex)</em></td><td>100/100</td><td>✗ 50 clips · 288 cm³</td><td><strong>11.9</strong></td><td>6.19</td><td><strong>13.0 min</strong></td><td><strong>1</strong></td><td><em>not reported</em></td></tr>
     </tbody>
   </table>
-  <p>All three got every part in and connected — a real result. None cleared interference, so none is buildable. The spread is the story: <strong>OpenAI Codex one-shot the build in 13 minutes</strong> (one attempt, no retries) — three to four times faster than either Claude run — but with the most clips and the lowest score. <strong>Claude-CadQuery iterated hardest</strong> (nine attempts, re-extracting the real plate hole patterns from the STEP files) and made the cleanest build, but took the longest. More self-review buys accuracy at the cost of time and tokens — and the benchmark makes that trade visible. (Claude token use, recovered from the run transcripts: 22M and 34M billed; Codex did not expose its count.)</p>
+  <p>All three got every part in and connected — a real result. None cleared interference, so none is buildable. The spread is the story: <strong>OpenAI Codex one-shot the build in 13 minutes</strong> (one attempt, no retries) — three to four times faster than either Claude run — but with the most clips and the lowest score. <strong>Claude-CadQuery iterated hardest</strong> (nine attempts, re-extracting the real plate hole patterns from the STEP files) and made the cleanest build, but took the longest. More self-review buys accuracy at the cost of time and tokens — and the benchmark makes that trade visible. (Claude token use, recovered from the run transcripts: 22M and 34M billed — roughly <strong>$68 and $174 per run</strong> at Anthropic Opus list price; Codex did not expose its count, so its cost is unreported.)</p>
   <p>These low scores sit on top of a real result. From a single image and a parts box, with no build sequence, every model produced a coherent ~100-part machine, and <strong>one did it in 13 minutes on the first attempt, with no retries.</strong> The scores are low because the bar is a buildable assembly, not one that looks about right. The remaining gap is precise, non-overlapping placement, and that is what the benchmark tracks as the models improve.</p>
 
   <h2>5. What went wrong — the same failure class</h2>
