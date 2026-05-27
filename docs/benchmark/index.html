@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>The Assembly Readiness Benchmark (ARB) — measuring AI-built machines | CADCLAW</title>
+  <title>The Mechanical Assembly Readiness Benchmark (MARB) — measuring AI-built machines | CADCLAW</title>
   <meta name="description" content="A tool-independent, automated benchmark for whether an AI assembled a correct, buildable machine — graded by CADCLAW and mapped onto the TRL, MRL, and IRL readiness scales industry already trusts." />
-  <meta property="og:title" content="The Assembly Readiness Benchmark (ARB) — CADCLAW" />
+  <meta property="og:title" content="The Mechanical Assembly Readiness Benchmark (MARB) — CADCLAW" />
   <meta property="og:description" content="A tool-independent, automated readiness benchmark for AI-built machine assemblies, mapped onto TRL / MRL / IRL." />
   <meta property="og:type" content="article" />
   <meta property="og:url" content="https://cadclaw.io/benchmark/" />
@@ -21,6 +21,11 @@
     .restable tbody tr:nth-child(even){background:var(--paper);}
     .restable td em{color:var(--ink-faint);font-style:italic;}
     .restable td strong{color:var(--navy);}
+    .restable.leaderboard td:first-child{text-align:center;font-family:'Orbitron',sans-serif;color:var(--navy);font-weight:700;width:36px;}
+    .restable .score strong{font-size:16px;}
+    .restable tr.top td{background:rgba(151,215,0,.10);}
+    .restable tr.ref td,.restable tr.ref td strong{color:var(--ink-faint);}
+    .restable .th-sub{font-weight:400;text-transform:none;opacity:.75;}
   </style>
 </head>
 <body>
@@ -43,14 +48,14 @@
 <main>
   <section class="hero">
     <div>
-      <h1>Assembly Readiness Benchmark</h1>
-      <p class="tag">AI can assemble machines in CAD. <strong>ARB</strong> is the missing yardstick for whether the result is <strong>correct and buildable</strong> — a tool-independent, automated benchmark graded by <a href="/">CADCLAW</a> and mapped onto the readiness scales industry already trusts: <strong>TRL, MRL, IRL</strong>.</p>
+      <h1>Mechanical Assembly Readiness Benchmark</h1>
+      <p class="tag">AI can assemble machines in CAD. <strong>MARB</strong> is the missing yardstick for whether the result is <strong>correct and buildable</strong> — a tool-independent, automated benchmark graded by <a href="/">CADCLAW</a> and mapped onto the readiness scales industry already trusts: <strong>TRL, MRL, IRL</strong>.</p>
       <div class="cta-row">
         <a class="cta primary" href="#chart">See the readiness chart</a>
         <a class="cta" href="#summary">Plain-English summary</a>
         <a class="cta" href="https://github.com/sunnyday-technologies/CADCLAW">CADCLAW on GitHub</a>
       </div>
-      <p class="sub">White paper — review copies on request: <a href="mailto:info@sunn3d.com?subject=ARB%20white%20paper%20review">info@sunn3d.com</a></p>
+      <p class="sub">White paper — review copies on request: <a href="mailto:info@sunn3d.com?subject=MARB%20white%20paper%20review">info@sunn3d.com</a></p>
     </div>
     <div class="hero-mark">
       <img src="/media/sdt.png" alt="Sunnyday Technologies" onerror="this.style.display='none'" />
@@ -67,7 +72,7 @@
   <section class="section" id="gap">
     <h2>The gap</h2>
     <p class="lede">AI-CAD benchmarking is an active field — there are strong public benchmarks for <strong>generating</strong> geometry (ABC, DeepCAD, Fusion 360 Gallery, CADBench, Text2CAD-Bench), classifying parts (MCB), and predicting how <em>two</em> parts join (JoinABLe, AutoMate). None grade the thing a builder needs.</p>
-    <p class="lede">No public benchmark asks whether a <strong>complete, multi-part machine an AI assembled is correct and buildable</strong> — right parts, no collisions, nothing floating, every interface aligned across the whole system — judged automatically, independent of the authoring tool, and tied to a <strong>readiness level</strong>. That is the niche ARB fills.</p>
+    <p class="lede">No public benchmark asks whether a <strong>complete, multi-part machine an AI assembled is correct and buildable</strong> — right parts, no collisions, nothing floating, every interface aligned across the whole system — judged automatically, independent of the authoring tool, and tied to a <strong>readiness level</strong>. That is the niche MARB fills.</p>
     <div class="callout"><strong>Honest scope.</strong> Joint-prediction datasets score part pairs; generation benchmarks score single-part fidelity; none map to TRL/MRL/IRL. Prior-art survey current as of 2026-05.</div>
   </section>
 
@@ -89,7 +94,7 @@
 
   <section class="section" id="chart">
     <h2>Capability × Readiness</h2>
-    <p class="lede">The most useful artifact ARB offers: every rung mapped onto <strong>TRL</strong> (Technology Readiness), <strong>MRL</strong> (Manufacturing Readiness), and the integration-focused <strong>IRL</strong> — so anyone who already speaks readiness-levels can place an AI result instantly.</p>
+    <p class="lede">The most useful artifact MARB offers: every rung mapped onto <strong>TRL</strong> (Technology Readiness), <strong>MRL</strong> (Manufacturing Readiness), and the integration-focused <strong>IRL</strong> — so anyone who already speaks readiness-levels can place an AI result instantly.</p>
     <div class="output-media">
       <img src="/media/trl_mrl_irl_chart.png" alt="The CADCLAW capability ladder (L0–L7) mapped to TRL, MRL, and IRL evidence bands" />
       <p class="caption">CADCLAW capability ladder ↔ TRL / MRL / IRL — indicative evidence bands, not equivalence.</p>
@@ -102,8 +107,8 @@
     <h2>How the benchmark runs</h2>
     <p class="lede">One task, any tool, one grader. Every AI workflow gets the same prompt + kit and is judged on its exported STEP by the same automated, tool-independent gates — the score is the only thing that differs.</p>
     <div class="output-media">
-      <img src="/media/arb_flowchart.png" alt="ARB pipeline: inputs to AI driver to exported STEP to CADCLAW gates to ARB score and readiness to human review" />
-      <p class="caption">The ARB pipeline — inputs → AI driver → exported STEP → CADCLAW gates → ARB score + readiness → human review, with a read-fix-rerun loop.</p>
+      <img src="/media/arb_flowchart.png" alt="MARB pipeline: inputs to AI driver to exported STEP to CADCLAW gates to MARB score and readiness to human review" />
+      <p class="caption">The MARB pipeline — inputs → AI driver → exported STEP → CADCLAW gates → MARB score + readiness → human review, with a read-fix-rerun loop.</p>
     </div>
   </section>
 
@@ -113,10 +118,10 @@
     <div class="gates">
       <div class="gate"><h3>Gates</h3><p>Black-box, on the exported STEP: <b>Inventory</b> (right parts) · <b>Interference</b> (no overlaps) · <b>Floating</b> (all connected) · <b>Orientation</b> (correct pose — <i>v-next</i>).</p></div>
       <div class="gate"><h3>L1 sub-grade · 0–100</h3><p>How well the kit is assembled, &times; a <b>buildability factor</b> that falls with interference (clip count + overlap volume). A self-intersecting frame can't be built, so it can't score high.</p></div>
-      <div class="gate"><h3>ARB full-stack · 0–100</h3><p>Rung on the L0–L7 capability ladder. A clean L1 ≈ 15 today; the rest of the scale is the road to autonomous design. Mapped to TRL / MRL / IRL.</p></div>
+      <div class="gate"><h3>MARB full-stack · 0–100</h3><p>Rung on the L0–L7 capability ladder. A clean L1 ≈ 15 today; the rest of the scale is the road to autonomous design. Mapped to TRL / MRL / IRL.</p></div>
       <div class="gate"><h3>Effort (reported separately)</h3><p>Wall-clock, tokens, attempts, retries, corrections, human interventions — measured from the run log, <b>never folded into the score</b>.</p></div>
     </div>
-    <div class="callout"><strong>Same task, same kit, same grader — the only variable is the driver.</strong> That makes ARB a clean <em>performance-vs-model-capability</em> axis: every model (frontier, local, or agentic system) is one point on the same graph.</div>
+    <div class="callout"><strong>Same task, same kit, same grader — the only variable is the driver.</strong> That makes MARB a clean <em>performance-vs-model-capability</em> axis: every model (frontier, local, or agentic system) is one point on the same graph.</div>
   </section>
 
   <section class="section dark">
@@ -140,15 +145,16 @@
       <img src="/media/hero_score_vs_time.png" alt="Score vs build time for the three AI runs; all near the floor, OpenAI Codex fastest" />
       <p class="caption">How good vs. how fast. All three sit near the floor (a clean build = 100); <strong>OpenAI Codex did it in 13 minutes</strong> — far faster, slightly lower score.</p>
     </div>
-    <table class="restable">
-      <thead><tr><th>Track</th><th>Parts</th><th>Inv / Float</th><th>Interference</th><th>L1</th><th>Full&#8209;stack</th><th>Time</th><th>Tokens</th></tr></thead>
+    <table class="restable leaderboard">
+      <thead><tr><th>#</th><th>Model · tool</th><th>MARB score</th><th>Parts</th><th>Interference</th><th>Time</th><th>Cost <span class="th-sub">est.</span></th></tr></thead>
       <tbody>
-        <tr><td>CADCLAW reference <em>(answer key)</em></td><td>100/100</td><td>✓ / ✓</td><td>✓ clean</td><td><strong>100</strong></td><td>15.0</td><td>—</td><td>—</td></tr>
-        <tr><td><strong>Claude&#8209;CadQuery</strong></td><td>100/100</td><td>✓ / ✓</td><td>✗ 35 clips · 248 cm³</td><td><strong>15.2</strong></td><td>6.52</td><td>48.8 min</td><td>22.1M</td></tr>
-        <tr><td><strong>Claude&#8209;Fusion</strong></td><td>100/100</td><td>✓ / ✓</td><td>✗ 44 clips · 323 cm³</td><td><strong>12.4</strong></td><td>6.24</td><td>33.7 min</td><td>34.2M</td></tr>
-        <tr><td><strong>Codex&#8209;CadQuery</strong> <em>(OpenAI Codex / GPT-5)</em></td><td>100/100</td><td>✓ / ✓</td><td>✗ 50 clips · 288 cm³</td><td><strong>11.9</strong></td><td>6.19</td><td>13.0 min</td><td><em>n/a</em></td></tr>
+        <tr class="top"><td>1</td><td><strong>Claude Opus 4.7</strong> · CadQuery</td><td class="score"><strong>15.2</strong></td><td>100/100</td><td>35 clips · 248 cm³</td><td>48.8 min</td><td>~$68</td></tr>
+        <tr><td>2</td><td><strong>Claude Opus 4.7</strong> · Fusion</td><td class="score"><strong>12.4</strong></td><td>100/100</td><td>44 clips · 323 cm³</td><td>33.7 min</td><td>~$174</td></tr>
+        <tr><td>3</td><td><strong>GPT&#8209;5 Codex</strong> · CadQuery</td><td class="score"><strong>11.9</strong></td><td>100/100</td><td>50 clips · 288 cm³</td><td><strong>13.0 min</strong></td><td><em>not reported</em></td></tr>
+        <tr class="ref"><td>—</td><td>CADCLAW reference <em>(answer key)</em></td><td class="score"><strong>100</strong></td><td>100/100</td><td>✓ clean</td><td>resolver</td><td>—</td></tr>
       </tbody>
     </table>
+    <p class="caption" style="text-align:left;max-width:74ch;">MARB score = the L1 buildability sub-grade (0–100; a clean, fully-buildable assembly scores 100). <strong>Cost</strong> is estimated at Anthropic Opus list price (~$15 / $75 per million input / output tokens, $1.50 per million cache-read) applied to measured token usage; the Codex CLI did not report tokens (a one-shot run, so the lowest of the three). Effort — time, cost, attempts — is reported alongside the score, never folded into it.</p>
     <p class="lede">Every flagged clip is structural — beams overlapping at splice joints and post/frame junctions, and the centered 2040 inserts overlapping their beams. <strong>Both also placed the Z-posts in the wrong rotation</strong> versus the reference — an orientation error the current gates don't yet catch, and the next gate we're adding.</p>
     <div class="callout"><strong>Interference is the buildability gate.</strong> A self-intersecting frame can't be built, so it scales the L1 score down — a near-miss outranks a mess. Effort (time, tokens, attempts) is reported separately, never folded into the artifact score.</div>
     <div class="callout"><strong>Fairness note.</strong> CADCLAW and its placement resolver were first built around CadQuery, before the Fusion connection (MCP) existed — so the CadQuery runs may carry a home-field edge in tooling maturity. We flag it so the comparison stays honest; an orientation gate and more reference tasks will tighten it.</div>
@@ -165,16 +171,16 @@
   <section class="section dark" id="method">
     <h2>What we asked — and what we didn't</h2>
     <p class="lede">We gave the <strong>goal, not the method</strong>. The driver got the target — the pictured assembly plus design constraints — and the kit, but <em>not</em> the build sequence. The original human-guided build specified an inside-out order (X axis → Y → Z-posts) and detailed steps; here we deliberately withheld that and let the AI decide how to reach the pictured result.</p>
-    <p class="lede">So ARB really tests whether a model <strong>understands the mechanical system</strong> — here a V-slot-and-roller gantry, a basic, well-documented pattern. Placing all 100 parts but self-intersecting, with mis-oriented posts, says a model recognizes the <em>parts</em> but not yet how they <em>go together</em>.</p>
+    <p class="lede">So MARB really tests whether a model <strong>understands the mechanical system</strong> — here a V-slot-and-roller gantry, a basic, well-documented pattern. Placing all 100 parts but self-intersecting, with mis-oriented posts, says a model recognizes the <em>parts</em> but not yet how they <em>go together</em>.</p>
     <p class="lede"><strong>Human-reviewable throughout.</strong> Both drivers emitted orthographic + isometric renders as they built, so a person could watch the assembly take shape and abort a bad run early to save tokens. (Fusion didn't persist its in-session views, so we recovered the progression afterward straight from the live model via its MCP — see above.)</p>
-    <p class="lede"><strong>One point on a bigger graph — and the spread is instructive.</strong> The three frontier runs took <strong>13–49 minutes</strong> for one ~100-part assembly. The model that <em>iterated</em> most — reviewing its own renders, re-extracting real hole patterns — scored highest but ran longest; the <em>one-shot</em> run was 4× faster and scored lowest. More careful self-review buys accuracy at the cost of time and tokens. Next on the curve: a top <strong>local</strong> model as a low-capability anchor — same task, same grader, plotted as capability vs ARB score.</p>
+    <p class="lede"><strong>One point on a bigger graph — and the spread is instructive.</strong> The three frontier runs took <strong>13–49 minutes</strong> for one ~100-part assembly. The model that <em>iterated</em> most — reviewing its own renders, re-extracting real hole patterns — scored highest but ran longest; the <em>one-shot</em> run was 4× faster and scored lowest. More careful self-review buys accuracy at the cost of time and tokens. Next on the curve: a top <strong>local</strong> model as a low-capability anchor — same task, same grader, plotted as capability vs MARB score.</p>
   </section>
 
   <section class="section" id="summary">
     <h2>Why it matters — in plain English</h2>
     <p class="lede">Checking a design for mistakes is one of the most common — and costly — jobs in engineering. The longer a mistake hides, the more it costs. A widely-used rule of thumb, the <strong>1-10-100 rule</strong>: a mistake caught while <em>designing</em> costs about <strong>$1</strong> to fix; caught while <em>building</em>, about <strong>$10</strong>; caught after it <em>ships</em>, <strong>$100 or more</strong>.</p>
     <p class="lede">Today that checking is mostly done by hand — an engineer rotating a model on screen, hunting for parts that overlap or don't line up. It's slow, easy to miss things, and it doesn't scale. The hours and the escaped mistakes are pure <strong>lost value</strong>.</p>
-    <p class="lede"><strong>Why now, and not a year ago?</strong> Two things just arrived at the same time: AI that can actually drive CAD and assemble parts, and an automated checker (CADCLAW) that can prove an assembly is right — instantly, the same way every time. Put them together and you can both build <em>and</em> verify by machine. ARB is the scoreboard that keeps it honest.</p>
+    <p class="lede"><strong>Why now, and not a year ago?</strong> Two things just arrived at the same time: AI that can actually drive CAD and assemble parts, and an automated checker (CADCLAW) that can prove an assembly is right — instantly, the same way every time. Put them together and you can both build <em>and</em> verify by machine. MARB is the scoreboard that keeps it honest.</p>
     <div class="audience">
       <div><h3>For engineers</h3><p>A pytest-style, tool-independent check that an assembly is buildable — on every change, not just at sign-off.</p></div>
       <div><h3>For programs</h3><p>Automated, auditable readiness evidence that plugs into the TRL/MRL/IRL gate reviews you already run.</p></div>
@@ -183,7 +189,7 @@
 
   <section class="section" id="different">
     <h2>What makes it different</h2>
-    <p class="lede">ARB is not "a CAD checker." Specifics separate it from CAD-vendor tooling and from prior benchmarks:</p>
+    <p class="lede">MARB is not "a CAD checker." Specifics separate it from CAD-vendor tooling and from prior benchmarks:</p>
     <ul class="not-prove-list">
       <li><strong>Grades the shipped STEP, not a vendor's feature tree.</strong> Fusion, SolidWorks, and an AI agent are scored the same way — the only fair cross-tool yardstick.</li>
       <li><strong>Scores the whole machine, not part pairs.</strong> System-level integrity across every interface at once, where joint/mate datasets stop at two parts.</li>
@@ -191,14 +197,14 @@
       <li><strong>Traces to a real, built machine.</strong> The reference target is a physical prototype that exists in metal, not only pixels.</li>
       <li><strong>Audits its own claims.</strong> CADCLAW ships honesty tooling and refuses to assert a head-to-head it hasn't run.</li>
     </ul>
-    <div class="callout"><strong>Open standard, proprietary engine.</strong> The ladder, rubric, schemas, and chart are open to measure and audit against; the gate algorithms and resolver are the engine. Adopt the standard without the IP — and trust the score because the method is open. ARB sits on top of every CAD tool; it doesn't compete with where designs are drawn. CADCLAW reads and proposes fixes — it never edits your model. The human stays the engineer.</div>
+    <div class="callout"><strong>Open standard, proprietary engine.</strong> The ladder, rubric, schemas, and chart are open to measure and audit against; the gate algorithms and resolver are the engine. Adopt the standard without the IP — and trust the score because the method is open. MARB sits on top of every CAD tool; it doesn't compete with where designs are drawn. CADCLAW reads and proposes fixes — it never edits your model. The human stays the engineer.</div>
   </section>
 
   <section class="section dark">
     <h2>Read &amp; review</h2>
     <p class="lede">We are publishing the ladder and the readiness correlation as a <strong>candidate standard</strong> and inviting the field to measure against it.</p>
     <div class="cta-row">
-      <a class="cta primary" href="mailto:info@sunn3d.com?subject=ARB%20white%20paper%20review">Request the white paper</a>
+      <a class="cta primary" href="mailto:info@sunn3d.com?subject=MARB%20white%20paper%20review">Request the white paper</a>
       <a class="cta" href="https://github.com/sunnyday-technologies/CADCLAW">CADCLAW on GitHub</a>
       <a class="cta" href="/ci-for-cad/">How CADCLAW works</a>
     </div>

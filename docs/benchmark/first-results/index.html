@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>How well can AI assemble a machine? The first Assembly Readiness Benchmark results</title>
+  <title>How well can AI assemble a machine? The first Mechanical Assembly Readiness Benchmark results</title>
   <meta name="description" content="Three AI workflows — Claude (Fusion and CadQuery) and OpenAI Codex — each assembled a 100-part machine from the same kit, graded by one automatic checker. Full method, metrics, results, and honest limitations." />
-  <meta property="og:title" content="The first Assembly Readiness Benchmark results — how well can AI assemble a machine?" />
+  <meta property="og:title" content="The first Mechanical Assembly Readiness Benchmark results — how well can AI assemble a machine?" />
   <meta property="og:description" content="Three AIs built the same 100-part machine; all complete, none buildable yet. Score-vs-time, the failure modes, and what it means." />
   <meta property="og:type" content="article" />
   <meta property="og:url" content="https://cadclaw.io/benchmark/first-results/" />
@@ -18,8 +18,8 @@
   {
     "@context": "https://schema.org",
     "@type": "TechArticle",
-    "headline": "How well can AI assemble a machine? The first Assembly Readiness Benchmark results",
-    "description": "Three AI workflows each assembled a 100-part machine from the same kit, graded identically by the CADCLAW engine on the ARB benchmark.",
+    "headline": "How well can AI assemble a machine? The first Mechanical Assembly Readiness Benchmark results",
+    "description": "Three AI workflows each assembled a 100-part machine from the same kit, graded identically by the CADCLAW engine on the MARB benchmark.",
     "url": "https://cadclaw.io/benchmark/first-results/",
     "datePublished": "2026-05-26",
     "dateModified": "2026-05-26",
@@ -81,7 +81,7 @@
     <img src="/media/m3_target.png" alt="The reference image of the finished M3-CRETE frame given to each AI">
     <figcaption>The goal image. The only picture each AI was given — no steps, just this plus the box of parts.</figcaption>
   </figure>
-  <p>That design choice is the point: ARB tests whether a model <strong>understands the mechanical system</strong> — here, a V-slot-and-roller gantry, a basic and well-documented pattern — not whether it can follow a recipe. A <strong>fairness wall</strong> kept each run honest: the driver worked only from the brief and kit, never the reference solution.</p>
+  <p>That design choice is the point: MARB tests whether a model <strong>understands the mechanical system</strong> — here, a V-slot-and-roller gantry, a basic and well-documented pattern — not whether it can follow a recipe. A <strong>fairness wall</strong> kept each run honest: the driver worked only from the brief and kit, never the reference solution.</p>
 
   <h2>2. The grader — one checker, any tool</h2>
   <p>Every build was graded by <strong>CADCLAW</strong>, our open-source engine, as a <strong>black box</strong>: it loads the exported STEP file — no roles, no metadata — labels each solid by its shape signature, and runs three host-agnostic gates:</p>
@@ -90,9 +90,9 @@
     <li><strong>Interference</strong> — do any two solids overlap (a collision)?</li>
     <li><strong>Floating</strong> — is every part connected, or is something loose?</li>
   </ul>
-  <p>Because it grades the <em>exported file</em> rather than a vendor's feature tree, the same procedure judges Fusion, CadQuery, and any AI agent on equal footing. The result feeds the <strong>ARB capability ladder</strong> (L0–L7) and a <strong>buildability factor</strong>: interference scales the score down, because a self-intersecting frame cannot be built. A clean build earns an L1 sub-grade of 100; the ladder then maps onto the TRL / MRL / IRL readiness scales industry already uses.</p>
+  <p>Because it grades the <em>exported file</em> rather than a vendor's feature tree, the same procedure judges Fusion, CadQuery, and any AI agent on equal footing. The result feeds the <strong>MARB capability ladder</strong> (L0–L7) and a <strong>buildability factor</strong>: interference scales the score down, because a self-intersecting frame cannot be built. A clean build earns an L1 sub-grade of 100; the ladder then maps onto the TRL / MRL / IRL readiness scales industry already uses.</p>
   <figure>
-    <img src="/media/arb_flowchart.png" alt="The ARB pipeline from inputs to AI driver to exported STEP to grader to score">
+    <img src="/media/arb_flowchart.png" alt="The MARB pipeline from inputs to AI driver to exported STEP to grader to score">
     <figcaption>One task, any tool, one grader. The only variable is the driver.</figcaption>
   </figure>
 
@@ -136,7 +136,7 @@
   <ul>
     <li><strong>A tooling-maturity bias to disclose.</strong> CADCLAW and its placement resolver were first built around CadQuery, before the Fusion connection (MCP) existed. The CadQuery runs may therefore carry a home-field edge. We flag it so the comparison stays honest; an orientation gate and more reference tasks will tighten it.</li>
     <li><strong>The reference "100" is our own method.</strong> The clean baseline is the spec-driven build (our home workflow) shown as the <em>target</em>, not a neutral third party. We publish the grader and the benchmark scaffold openly so anyone can reproduce — or challenge — these scores.</li>
-    <li><strong>Verification is not physical certification.</strong> ARB grades geometry and buildability, not real-world performance.</li>
+    <li><strong>Verification is not physical certification.</strong> MARB grades geometry and buildability, not real-world performance.</li>
     <li><strong>The scorer is early</strong> and version-pinned; effort metrics (time, tokens, attempts) are reported separately and never folded into the artifact score.</li>
     <li><strong>One task, three models</strong> — a starting line, not a verdict. More drivers and tasks are coming.</li>
     <li>To our knowledge no prior benchmark grades whole-assembly buildability tool-independently; pairwise-joint datasets (JoinABLe, AutoMate) are the nearest neighbours and address a sub-problem.</li>
@@ -144,7 +144,7 @@
 
   <h2>8. Why it matters, and what's next</h2>
   <p>Until recently there was no way to measure this. An AI that can drive CAD, and an automatic checker that confirms whether the result is correct, only recently became usable together. With both in place, the same task can be scored the same way for any tool or model, so improvement is measurable rather than anecdotal.</p>
-  <p>Next on the curve: a top <strong>local</strong> model as a low-capability anchor, more frontier drivers, the orientation gate, and additional reference tasks — each plotted as capability vs. ARB score. We are publishing the ladder, the scoring, and the readiness correlation as a <strong>candidate standard</strong> and inviting labs, CAD vendors, and standards bodies to measure against it.</p>
+  <p>Next on the curve: a top <strong>local</strong> model as a low-capability anchor, more frontier drivers, the orientation gate, and additional reference tasks — each plotted as capability vs. MARB score. We are publishing the ladder, the scoring, and the readiness correlation as a <strong>candidate standard</strong> and inviting labs, CAD vendors, and standards bodies to measure against it.</p>
   <p class="note">Reproduce or review: the benchmark scaffold (prompt, scoring, run procedures) and the CADCLAW engine are open. Method overview: <a href="/benchmark/">cadclaw.io/benchmark</a>. Engine: <a href="https://github.com/sunnyday-technologies/CADCLAW">GitHub</a>. Reviewers welcome — <a href="mailto:info@sunn3d.com">info@sunn3d.com</a>.</p>
 </main>
 

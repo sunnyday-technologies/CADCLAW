@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>CADCLAW — Can AI assemble real machines? The AI-CAD assembly benchmark</title>
-  <meta name="description" content="The Assembly Readiness Benchmark (ARB): give AIs the same parts and the same goal, then grade what they build with one automatic checker. Powered by CADCLAW, an open-source CAD verification engine." />
-  <meta property="og:title" content="Can AI assemble real machines? — the ARB benchmark, powered by CADCLAW" />
+  <meta name="description" content="The Mechanical Assembly Readiness Benchmark (MARB): give AIs the same parts and the same goal, then grade what they build with one automatic checker. Powered by CADCLAW, an open-source CAD verification engine." />
+  <meta property="og:title" content="Can AI assemble real machines? — the MARB benchmark, powered by CADCLAW" />
   <meta property="og:description" content="Three AIs each built a 100-part machine from the same kit. We graded all three identically. See the scoreboard." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://cadclaw.io" />
@@ -20,21 +20,21 @@
       {
         "@type": "Dataset",
         "@id": "https://cadclaw.io/#arb",
-        "name": "Assembly Readiness Benchmark (ARB)",
-        "alternateName": "ARB",
+        "name": "Mechanical Assembly Readiness Benchmark (MARB)",
+        "alternateName": "MARB",
         "description": "A tool-independent benchmark that measures how well AI workflows assemble a real multi-part machine in CAD: right parts, no collisions, nothing floating, correctly aligned — graded automatically and mapped onto the TRL/MRL/IRL readiness scales.",
         "url": "https://cadclaw.io/benchmark/",
         "keywords": "AI CAD benchmark, assembly readiness, mechanical design AI, STEP assembly grading, TRL MRL IRL, agentic CAD",
         "creator": { "@id": "https://sunn3d.com/#org" },
         "isBasedOn": { "@id": "https://cadclaw.io/#software" },
-        "measurementTechnique": "Automated black-box geometry grading (inventory, interference, floating) on the exported STEP, scored on the ARB L0-L7 capability ladder."
+        "measurementTechnique": "Automated black-box geometry grading (inventory, interference, floating) on the exported STEP, scored on the MARB L0-L7 capability ladder."
       },
       {
         "@type": "SoftwareApplication",
         "@id": "https://cadclaw.io/#software",
         "name": "CADCLAW",
         "alternateName": "cadclaw",
-        "description": "CADCLAW is an automated check suite for STEP-based CAD assemblies — pytest-style geometric, kinematic, tolerance, and BOM-vs-CAD validation, with an honesty toolchain (doctor, publish-audit, claim-audit) and an included MCP server. It is the open verification engine behind the ARB benchmark.",
+        "description": "CADCLAW is an automated check suite for STEP-based CAD assemblies — pytest-style geometric, kinematic, tolerance, and BOM-vs-CAD validation, with an honesty toolchain (doctor, publish-audit, claim-audit) and an included MCP server. It is the open verification engine behind the MARB benchmark.",
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "CAD validation / mechanical engineering QA",
         "operatingSystem": "Cross-platform (Windows, macOS, Linux)",
@@ -74,7 +74,7 @@
         "@id": "https://cadclaw.io/#website",
         "url": "https://cadclaw.io/",
         "name": "CADCLAW — AI-CAD assembly benchmark",
-        "description": "The Assembly Readiness Benchmark and the open CADCLAW verification engine behind it.",
+        "description": "The Mechanical Assembly Readiness Benchmark and the open CADCLAW verification engine behind it.",
         "publisher": { "@id": "https://sunn3d.com/#org" },
         "inLanguage": "en"
       }
@@ -103,7 +103,7 @@
   <section class="hero">
     <div class="hero-copy">
       <h1>Can AI assemble<br/>real machines?</h1>
-      <p class="tag">We give different AIs the <strong>same parts</strong> and the <strong>same goal</strong>, then grade what each one builds with <strong>one automatic checker</strong>. It's the <strong>Assembly Readiness Benchmark</strong> — and it runs on <a href="#engine">CADCLAW</a>, our open-source verification engine.</p>
+      <p class="tag">We give different AIs the <strong>same parts</strong> and the <strong>same goal</strong>, then grade what each one builds with <strong>one automatic checker</strong>. It's the <strong>Mechanical Assembly Readiness Benchmark</strong> — and it runs on <a href="#engine">CADCLAW</a>, our open-source verification engine.</p>
       <div class="cta-row">
         <a class="cta primary" href="#results">See the results</a>
         <a class="cta" href="/benchmark/first-results/">Read the deep dive</a>
@@ -137,18 +137,18 @@
   </section>
 
   <section id="benchmark" class="section dark">
-    <h2>What ARB measures</h2>
+    <h2>What MARB measures</h2>
     <p class="lede">A capability ladder, L0–L7, from "place one part correctly" up to "design, build, and certify a machine autonomously." Today's frontier sits at <strong>L1 — assemble the kit</strong>. The benchmark is graded on what the exported geometry proves, so any tool — Fusion, CadQuery, or an AI agent — is judged on equal footing, and scored against the readiness scales industry already uses.</p>
     <div class="cta-row">
       <a class="cta" href="/benchmark/">The benchmark + readiness chart</a>
       <a class="cta" href="/benchmark/first-results/">The deep dive</a>
     </div>
-    <p class="muted">Prior art exists for AI <em>generating</em> CAD; ARB is, to our knowledge, the first tool-independent benchmark for whether a whole assembled machine is <em>correct and buildable</em>.</p>
+    <p class="muted">Prior art exists for AI <em>generating</em> CAD; MARB is, to our knowledge, the first tool-independent benchmark for whether a whole assembled machine is <em>correct and buildable</em>.</p>
   </section>
 
   <section id="engine" class="section">
     <h2>The engine: CADCLAW <span class="badge">open source</span></h2>
-    <p class="lede">ARB runs on <strong>CADCLAW</strong> — an open-source check suite for STEP assemblies. It's the same engine you can <code>pip install</code> and run in your own CI: a chain of automated gates that pass only when every configured check passes. Like <code>pytest</code> for mechanical design — in spirit.</p>
+    <p class="lede">MARB runs on <strong>CADCLAW</strong> — an open-source check suite for STEP assemblies. It's the same engine you can <code>pip install</code> and run in your own CI: a chain of automated gates that pass only when every configured check passes. Like <code>pytest</code> for mechanical design — in spirit.</p>
 
     <div class="gates">
       <div class="gate"><h3>Inventory</h3><p>Missing or extra parts, by bounding-box signature, against expected counts.</p></div>
@@ -188,7 +188,7 @@ cadclaw bom-audit --rules cadclaw.yaml           <span class="g"># or a single g
 
   <section class="section dark">
     <h2>Origin</h2>
-    <p class="lede">CADCLAW was built alongside the <a href="https://m3-crete.com">M3-CRETE</a> open-source concrete 3D printer — the large, part-dense machine that is also ARB's first reference target. Across that project the harness:</p>
+    <p class="lede">CADCLAW was built alongside the <a href="https://m3-crete.com">M3-CRETE</a> open-source concrete 3D printer — the large, part-dense machine that is also MARB's first reference target. Across that project the harness:</p>
     <ul class="origin">
       <li>Caught <strong>53 solid-solid interferences</strong> in a single run</li>
       <li>Reduced STEP file size from <strong>70&nbsp;MB to 13&nbsp;MB</strong> by finding geometry bloat</li>
@@ -199,7 +199,7 @@ cadclaw bom-audit --rules cadclaw.yaml           <span class="g"># or a single g
 
   <section id="cite" class="section">
     <h2>Citation</h2>
-    <p>If you use CADCLAW or ARB in published research or derivative work, please cite:</p>
+    <p>If you use CADCLAW or MARB in published research or derivative work, please cite:</p>
 <pre class="code">Sonnentag, N. (2026). CADCLAW: Automated validation framework for
 STEP-based CAD assemblies. Sunnyday Technologies.
 https://github.com/sunnyday-technologies/CADCLAW
