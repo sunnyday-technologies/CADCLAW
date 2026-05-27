@@ -587,3 +587,14 @@ a:hover,
   color: #33404a;
   font-family: var(--sans);
 }
+
+/* 2026-05-27 readability pass 2 — code chips + muted text on the light theme.
+   Inline code was bright green (--green-hi) on a light-grey chip; the syntax
+   classes and muted strips were tuned for the old dark theme. Recolor for high
+   contrast on white/grey while keeping a code feel. */
+code { color: #013a73; }              /* inline code: navy on grey (was bright green) */
+.muted { color: #33404a; }            /* e.g. the "Exit codes:" line */
+pre.code .g { color: #4a5560; }       /* comments */
+pre.code .k { color: #013a73; }       /* keywords (was bright green) */
+pre.code .c { color: #2f6b1e; }       /* values / strings (was bright green) */
+pre.code .o { color: #9a6a00; }       /* numbers / operators (was pale tan) */
