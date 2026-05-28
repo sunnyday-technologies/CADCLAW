@@ -71,7 +71,7 @@
 
   <figure>
     <img src="/media/hero_score_vs_time.png" alt="Score versus build time for three AI runs; all near the floor, OpenAI Codex fastest at 13 minutes">
-    <figcaption>Three AIs, one ~100-part machine each. A clean build scores 100; all three sit well below it. OpenAI Codex was fastest by a wide margin.</figcaption>
+    <figcaption>Three AIs, one ~100-part machine each. GAP median (mm) — lower is closer to the answer key's intended interface gaps. Claude·CadQuery hit the target; OpenAI Codex was fastest by a wide margin.</figcaption>
   </figure>
 
   <h2>1. The task — the goal, not the method</h2>
@@ -90,7 +90,7 @@
     <li><strong>Interference</strong> — do any two solids overlap (a collision)?</li>
     <li><strong>Floating</strong> — is every part connected, or is something loose?</li>
   </ul>
-  <p>Because it grades the <em>exported file</em> rather than a vendor's feature tree, the same procedure judges Fusion, CadQuery, and any AI agent on equal footing. The result feeds the <strong>MARB capability ladder</strong> (L0–L7) and a <strong>buildability factor</strong>: interference scales the score down, because a self-intersecting frame cannot be built. A clean build earns an L1 sub-grade of 100; the ladder then maps onto the TRL / MRL / IRL readiness scales industry already uses.</p>
+  <p>Because it grades the <em>exported file</em> rather than a vendor's feature tree, the same procedure judges Fusion, CadQuery, and any AI agent on equal footing. The result feeds the <strong>MARB capability ladder</strong> (L0–L7) and three positional metrics: <strong>GAP</strong> (error vs the intended interface gap — ≈0 mm bolted, ≈1 mm motion clearance), <strong>ORIENT</strong> (% of asymmetric parts in the correct rotation), and <strong>POS</strong> (position error vs the answer key, both absolute and neighbour‑relative). The ladder then maps onto the TRL / MRL / IRL readiness scales industry already uses.</p>
   <figure>
     <img src="/media/arb_flowchart.png" alt="The MARB pipeline from inputs to AI driver to exported STEP to grader to score">
     <figcaption>One task, any tool, one grader. The only variable is the driver.</figcaption>
@@ -106,16 +106,16 @@
 
   <h2>4. Results</h2>
   <table>
-    <thead><tr><th>Track</th><th>Parts</th><th>Interference</th><th>L1 / 100</th><th>Full-stack</th><th>Time</th><th>Attempts</th><th>Cost (est.)</th></tr></thead>
+    <thead><tr><th>#</th><th>Driver</th><th>GAP median ↓</th><th>ORIENT aligned ↑</th><th>POS rel median ↓</th><th>Time</th><th>Attempts</th><th>Cost (est.)</th></tr></thead>
     <tbody>
-      <tr><td>CADCLAW reference <em>(answer key)</em></td><td>100/100</td><td>✓ clean</td><td><strong>100</strong></td><td>15.0</td><td>—</td><td>—</td><td>—</td></tr>
-      <tr><td>Claude-CadQuery</td><td>100/100</td><td>✗ 35 clips · 248 cm³</td><td><strong>15.2</strong></td><td>6.52</td><td>48.8 min</td><td>9</td><td>~$68</td></tr>
-      <tr><td>Claude-Fusion</td><td>100/100</td><td>✗ 44 clips · 323 cm³</td><td><strong>12.4</strong></td><td>6.24</td><td>33.7 min</td><td>12</td><td>~$174</td></tr>
-      <tr><td>Codex-CadQuery <em>(OpenAI Codex)</em></td><td>100/100</td><td>✗ 50 clips · 288 cm³</td><td><strong>11.9</strong></td><td>6.19</td><td><strong>13.0 min</strong></td><td><strong>1</strong></td><td><em>not reported</em></td></tr>
+      <tr><td>—</td><td>CADCLAW reference <em>(answer key)</em></td><td><strong>0.0 mm</strong></td><td>100%</td><td>0.0 mm</td><td>resolver</td><td>—</td><td>—</td></tr>
+      <tr><td>1</td><td>Claude-CadQuery</td><td><strong>0.0 mm</strong></td><td>51%</td><td>49.9 mm</td><td>48.8 min</td><td>9</td><td>~$68</td></tr>
+      <tr><td>2</td><td>Claude-Fusion</td><td><strong>2.0 mm</strong></td><td>47%</td><td>47.7 mm</td><td>33.7 min</td><td>12</td><td>~$174</td></tr>
+      <tr><td>3</td><td>Codex-CadQuery <em>(OpenAI Codex)</em></td><td><strong>7.8 mm</strong></td><td style="color:#4e7a00;font-weight:700">69%</td><td style="color:#4e7a00;font-weight:700">47.2 mm</td><td><strong>13.0 min</strong></td><td><strong>1</strong></td><td><em>not reported</em></td></tr>
     </tbody>
   </table>
-  <p>All three got every part in and connected — a real result. None cleared interference, so none is buildable. The spread is the story: <strong>OpenAI Codex one-shot the build in 13 minutes</strong> (one attempt, no retries) — three to four times faster than either Claude run — but with the most clips and the lowest score. <strong>Claude-CadQuery iterated hardest</strong> (nine attempts, re-extracting the real plate hole patterns from the STEP files) and made the cleanest build, but took the longest. More self-review buys accuracy at the cost of time and tokens — and the benchmark makes that trade visible. (Claude token use, recovered from the run transcripts: 22M and 34M billed — roughly <strong>$68 and $174 per run</strong> at Anthropic Opus list price; Codex did not expose its count, so its cost is unreported.)</p>
-  <p>These low scores sit on top of a real result. From a single image and a parts box, with no build sequence, every model produced a coherent ~100-part machine, and <strong>one did it in 13 minutes on the first attempt, with no retries.</strong> The scores are low because the bar is a buildable assembly, not one that looks about right. The remaining gap is precise, non-overlapping placement, and that is what the benchmark tracks as the models improve.</p>
+  <p>All three got every part in and connected — a real result. None is buildable yet, but the spread shows different models leading different dimensions. <strong>Claude‑CadQuery iterated hardest</strong> (nine attempts, re‑extracting real hole patterns from the STEPs) and hit the answer key's interface gaps almost exactly — <strong>0 mm median gap error</strong> — but took 49 minutes. <strong>OpenAI Codex one‑shot the build in 13 minutes</strong> (one attempt) — fastest by 3–4×, loosest gaps (7.8 mm median), but the <strong>most rotations correct (69%)</strong>. <strong>Claude‑Fusion</strong> sat in the middle on every axis. More self‑review buys gap precision at the cost of time; Codex shows a single confident pass can still land most parts in the right rotation. (Claude token use, recovered from the run transcripts: 22M and 34M billed — roughly <strong>$68 and $174 per run</strong> at Anthropic Opus list price; Codex CLI did not expose its count, so its cost is unreported.)</p>
+  <p>These numbers sit on top of a real result. From a single image and a parts box, with no build sequence, every model produced a coherent ~100‑part machine, and <strong>one did it in 13 minutes on the first attempt, with no retries.</strong> Tolerances are tight by design — ≤5 mm is "located," ≤5° is "aligned" — because real equipment runs on fractions of a millimetre. The remaining gap is precision: getting every interface to its intended gap (0 mm bolted, ~1 mm motion) and every part to the correct rotation. That is what MARB tracks as the models improve.</p>
 
   <h2>5. What went wrong — the same failure class</h2>
   <p>The grader skips accessories (motors, belts, wheels), so every flagged clip is <strong>structural metal overlapping structural metal</strong>. All three shared the same mistakes: beams placed coincident at the splice joints and post/frame junctions instead of end-to-end, and the centred insert rails overlapping the beams they splice. They got the inventory and the topology right, but not the precise, non-overlapping placement.</p>
