@@ -1,0 +1,6 @@
+# RFC 9116 — security disclosure contacts for CADCLAW
+Contact: mailto:security@sunn3d.com
+Contact: mailto:info@sunn3d.com
+Expires: 2027-05-28T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://cadclaw.io/.well-known/security.txt
