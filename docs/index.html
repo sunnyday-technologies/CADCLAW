@@ -120,11 +120,11 @@
 
   <section id="results" class="section">
     <h2>The first results</h2>
-    <p class="lede">Three AI workflows — Claude (Fusion and CadQuery) and OpenAI Codex (CadQuery) — each placed <strong>all ~100 parts with zero human help</strong>. None is buildable yet: in every run some parts overlapped and the corner posts faced the wrong way. A clean build scores 100; these first tries scored <strong>12–15</strong>.</p>
-    <p class="lede">Even with low scores, the underlying result is real. From one picture and a box of parts, with no build sequence, each model produced a coherent two-metre machine. One finished in 13 minutes with no retries. The scores are low because the bar is a buildable machine, not one that merely looks right. Placing the parts is now the easy part; fitting them together without overlaps is the hard part, and that is what these scores measure.</p>
+    <p class="lede">Three AI workflows — Claude (Fusion and CadQuery) and OpenAI Codex (CadQuery) — each placed <strong>all ~100 parts with zero human help</strong>. None is buildable yet, but different models led different dimensions: <strong>Claude · CadQuery</strong> hit the answer key's interface gaps almost exactly (<strong>0 mm median</strong> error); <strong>OpenAI Codex</strong> got the most rotations right (<strong>69%</strong> aligned).</p>
+    <p class="lede">Even with that, the underlying result is real. From one picture and a box of parts, with no build sequence, each model produced a coherent two‑metre machine — and Codex did it in 13 minutes on the first attempt. Tolerances are tight by design (≤5 mm = located, ≤5° = aligned) because real equipment runs on fractions of a millimetre. Placing the parts is the easy part now; getting the gaps and rotations correct is the hard part, and that is what these scores measure.</p>
     <div class="output-media">
-      <img src="media/hero_score_vs_time.png" alt="Score versus build time for three AI runs; all near the floor, OpenAI Codex fastest at 13 minutes" />
-      <p class="caption">How good vs. how fast. OpenAI Codex one-shot it in 13 minutes; the slower, more iterative run was the cleanest. A clean build = 100 — the whole field is near the floor today.</p>
+      <img src="media/hero_score_vs_time.png" alt="Gap correctness versus build time for three AI runs; Claude·CadQuery hit the answer key's gaps in 49 minutes, OpenAI Codex was loosest on gaps but fastest at 13 minutes" />
+      <p class="caption">Gap correctness vs. speed. Claude · CadQuery hit the answer key's interface gaps (0 mm median error) but took 49 minutes; OpenAI Codex one‑shot it in 13 minutes with the loosest gaps and the strongest rotation. More iteration buys precision at the cost of time.</p>
     </div>
     <div class="callout">Until recently there was no way to measure this. The two pieces — an AI that drives CAD, and an automatic checker that confirms whether the result is correct — only recently became usable together. With both in place, every attempt gets a score that can be compared and tracked over time. <a href="/benchmark/first-results/">Read the full comparison →</a></div>
   </section>
