@@ -139,7 +139,6 @@ otherwise be a throwaway probe script.
 ## Pointers
 
 - **README.md** — what CADCLAW is, top-level.
-- **HANDOFF.md** — current release status, version-by-version notes.
 - **cadclaw.yaml** — declarative project config (labels, regions,
   expected inventory, BOM rules, interference clearance).
 - **examples/init_rules.py** — scaffolds a starter `cadclaw.yaml` from

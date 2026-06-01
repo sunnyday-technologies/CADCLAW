@@ -10,10 +10,13 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+_REPO = os.path.join(os.path.dirname(__file__), "..", "..")
+sys.path.insert(0, _REPO)
 
-STEP = r"[local-path-redacted]
-OUTDIR = r"[local-path-redacted]
+# Configurable paths. Defaults assume a sibling M3-CRETE checkout next to this repo and
+# write into this repo's docs/media. Override with the env vars for any other layout.
+STEP   = os.environ.get("M3_ASSEMBLY_STEP", os.path.join(_REPO, "..", "M3-CRETE", "CAD", "M3-2_Assembly.step"))
+OUTDIR = os.environ.get("M3_RENDER_OUTDIR", os.path.join(_REPO, "docs", "media"))
 
 LABELS = {
     (40.0, 80.0, 1000.0): "cbeam",
