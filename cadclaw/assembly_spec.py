@@ -115,12 +115,92 @@ class Transform(_Strict):
         return float(value)
 
 
+class RelativePlacement(_Strict):
+    """Constraint-based placement: solve this instance's transform from a parent.
+
+    The instance's connector frame ``frame`` is seated onto the parent
+    instance's connector frame ``parent_frame``: the frame origins are offset by
+    ``offset_mm`` along the global ``axis`` in the ``side`` direction. This is the
+    datum-chain alternative to an absolute :class:`Transform`.
+
+    ``lock`` selects how many axes the resolver solves:
+
+    - ``"frame"`` (default): a full 3-axis seat. The child frame origin is made
+      to coincide with the parent frame origin (then offset along ``axis``), so
+      all three translation components are solved. The instance must NOT carry an
+      explicit ``transform``; orientation is authored here via ``rotate_deg`` /
+      ``scale`` / ``source_origin_mm``.
+    - ``"axis"``: an axis-only lock. The resolver solves ONLY the ``axis``
+      translation component (seating the child frame ``offset_mm`` off the parent
+      frame along that axis); the instance keeps its own ``transform`` for
+      orientation and the two free (non-handoff) translation axes. The authored
+      value of the locked axis is ignored — it is solved — so it may be left at
+      0.0. ``rotate_deg`` / ``scale`` / ``source_origin_mm`` here must stay unset:
+      orientation lives in the instance ``transform`` so there is one source of
+      truth. This is the lightweight mode for a gantry that hands off along one
+      axis while spanning the others (e.g. the Y-gantry off the X-to-Y plate).
+    """
+
+    ref: str
+    parent_frame: str
+    frame: str
+    axis: str
+    side: str = "positive"
+    offset_mm: float = 0.0
+    lock: str = "frame"
+    rotate_deg: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
+    scale: float = 1.0
+    source_origin_mm: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
+    notes: Optional[str] = None
+
+    @field_validator("axis")
+    @classmethod
+    def _check_axis(cls, value: str) -> str:
+        axis = value.lower()
+        if axis not in {"x", "y", "z"}:
+            raise ValueError("axis must be one of x, y, z")
+        return axis
+
+    @field_validator("lock")
+    @classmethod
+    def _check_lock(cls, value: str) -> str:
+        lock = value.lower()
+        if lock not in {"frame", "axis"}:
+            raise ValueError("lock must be 'frame' (full seat) or 'axis' (axis-only)")
+        return lock
+
+    @field_validator("side")
+    @classmethod
+    def _check_side(cls, value: str) -> str:
+        side = value.lower()
+        if side not in {"positive", "negative"}:
+            raise ValueError("side must be positive or negative")
+        return side
+
+    @field_validator("rotate_deg", "source_origin_mm")
+    @classmethod
+    def _check_vec3(cls, value: List[float]) -> List[float]:
+        if not isinstance(value, list) or len(value) != 3:
+            raise ValueError("placement vectors must be 3-element lists")
+        if not all(isinstance(v, (int, float)) for v in value):
+            raise ValueError("placement vector elements must be numbers")
+        return [float(v) for v in value]
+
+    @field_validator("scale")
+    @classmethod
+    def _check_scale(cls, value: float) -> float:
+        if not isinstance(value, (int, float)) or value <= 0:
+            raise ValueError("placement scale must be a positive number")
+        return float(value)
+
+
 class Instance(_Strict):
     id: str
     role: str
     component_id: Optional[str] = None
     source_path: Optional[str] = None
     transform: Transform = Field(default_factory=Transform)
+    place_relative_to: Optional[RelativePlacement] = None
     color_label: Optional[str] = None
     notes: Optional[str] = None
 
@@ -128,6 +208,37 @@ class Instance(_Strict):
     def _component_or_source(self) -> "Instance":
         if not self.component_id and not self.source_path:
             raise ValueError("instance requires component_id or source_path")
+        return self
+
+    @model_validator(mode="after")
+    def _placement_is_exclusive(self) -> "Instance":
+        placement = self.place_relative_to
+        if placement is None:
+            return self
+        has_transform = self.transform.model_dump() != Transform().model_dump()
+        if placement.lock == "axis":
+            # Axis-only lock keeps the instance transform for orientation and the
+            # two free axes; the resolver overrides only the handoff axis. So a
+            # transform is expected here, but orientation must NOT also be set on
+            # the placement block (one source of truth for orientation).
+            placement_orients = (
+                placement.rotate_deg != [0.0, 0.0, 0.0]
+                or placement.scale != 1.0
+                or placement.source_origin_mm != [0.0, 0.0, 0.0]
+            )
+            if placement_orients:
+                raise ValueError(
+                    "place_relative_to.lock=axis takes orientation/scale/"
+                    "source_origin from the instance transform; leave "
+                    "rotate_deg/scale/source_origin unset on the placement"
+                )
+        elif has_transform:
+            raise ValueError(
+                "instance cannot set both an explicit transform and "
+                "place_relative_to; author orientation in "
+                "place_relative_to.rotate_deg and let the resolver solve "
+                "the translation"
+            )
         return self
 
 
@@ -264,6 +375,7 @@ __all__ = [
     "NotBuiltYet",
     "Outputs",
     "ReferenceAsset",
+    "RelativePlacement",
     "ReviewView",
     "Transform",
     "dump_assembly_spec",
