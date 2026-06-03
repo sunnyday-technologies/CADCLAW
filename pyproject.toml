@@ -31,6 +31,11 @@ dependencies = [
     "vtk>=9.3",
 ]
 
+[project.optional-dependencies]
+# Structural frame FEA gate (cadclaw.fea). PyniteFEA core only — the gate does not
+# use the VTK-based visualization path.
+fea = ["PyniteFEA>=2.4,<3"]  # tested with PyniteFEA 2.4.1 (import name: Pynite)
+
 [project.scripts]
 cadclaw     = "cadclaw_cli.main:main"
 cadclaw-mcp = "cadclaw_mcp.server:main"
