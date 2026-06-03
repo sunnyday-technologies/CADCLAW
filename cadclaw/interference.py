@@ -80,8 +80,11 @@ def _suggest_clear_shift(bb_a: BBox, bb_b: BBox,
     """Pick the cheapest axis to push A clear of B.
 
     Returns (axis, signed_shift_mm, overlap_dims). The shift magnitude
-    is `overlap_on_axis + clearance_mm`; the sign points away from B
-    along that axis.
+    is the minimum interval translation that separates A from B with
+    the requested clearance. For edge overlaps this equals
+    `overlap_on_axis + clearance_mm`; for containment/nested overlaps
+    it is larger, because the contained interval has to move all the way
+    past one side of the containing interval.
     """
     ax_min, ay_min, az_min, ax_max, ay_max, az_max = bb_a
     bx_min, by_min, bz_min, bx_max, by_max, bz_max = bb_b
@@ -90,17 +93,25 @@ def _suggest_clear_shift(bb_a: BBox, bb_b: BBox,
     oy = max(0.0, min(ay_max, by_max) - max(ay_min, by_min))
     oz = max(0.0, min(az_max, bz_max) - max(az_min, bz_min))
 
-    # Pick the axis with smallest positive overlap. Ties broken X<Y<Z.
-    candidates = [("x", ox), ("y", oy), ("z", oz)]
-    candidates.sort(key=lambda p: p[1])
-    axis, overlap = candidates[0]
+    def _axis_shift(a_min: float, a_max: float,
+                    b_min: float, b_max: float) -> float:
+        move_negative = b_min - clearance_mm - a_max
+        move_positive = b_max + clearance_mm - a_min
+        if abs(move_negative) < abs(move_positive):
+            return move_negative
+        if abs(move_positive) < abs(move_negative):
+            return move_positive
+        center_a = (a_min + a_max) / 2.0
+        center_b = (b_min + b_max) / 2.0
+        return move_positive if center_a >= center_b else move_negative
 
-    # Sign: push A in the direction of (center_a - center_b) along the axis.
-    ca = ((ax_min + ax_max) / 2, (ay_min + ay_max) / 2, (az_min + az_max) / 2)
-    cb = ((bx_min + bx_max) / 2, (by_min + by_max) / 2, (bz_min + bz_max) / 2)
-    idx = {"x": 0, "y": 1, "z": 2}[axis]
-    sign = 1.0 if ca[idx] >= cb[idx] else -1.0
-    shift = sign * (overlap + clearance_mm)
+    candidates = [
+        ("x", _axis_shift(ax_min, ax_max, bx_min, bx_max)),
+        ("y", _axis_shift(ay_min, ay_max, by_min, by_max)),
+        ("z", _axis_shift(az_min, az_max, bz_min, bz_max)),
+    ]
+    candidates.sort(key=lambda p: abs(p[1]))
+    axis, shift = candidates[0]
 
     return axis, shift, (ox, oy, oz)
 

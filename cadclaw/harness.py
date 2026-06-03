@@ -108,9 +108,9 @@ class Harness:
         """Add an interference gate.
 
         `min_clearance_mm` controls the suggested fix-vector: when a
-        clip is reported, the suggestion shifts part A by
-        `overlap_on_axis + min_clearance_mm` along the cheapest axis so
-        it lands clear of part B with that running clearance.
+        clip is reported, the suggestion shifts part A by the minimum
+        interval translation along the cheapest axis so it lands clear
+        of part B with that running clearance.
         """
         self._gates.append(('interference', {
             'skip_labels': skip_labels or set(),

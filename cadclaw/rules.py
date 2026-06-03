@@ -207,8 +207,8 @@ class InterferenceModel(_Strict):
 
     `min_clearance_mm` is the running clearance added to the suggested
     fix-vector when a clip is reported. The suggestion shifts part A by
-    `overlap_on_axis + min_clearance_mm` along the cheapest axis so the
-    moved part lands clear of the other rather than tangent to it.
+    the minimum interval translation along the cheapest axis so the moved
+    part lands clear of the other rather than tangent to it.
     """
     skip_labels: List[str] = Field(default_factory=list)
     min_volume_mm3: float = 1.0
