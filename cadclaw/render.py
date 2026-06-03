@@ -54,6 +54,72 @@ def _warn_if_gif_too_large(output_gif: str) -> int:
     return size
 
 
+def _rgb255(color: tuple) -> tuple[int, int, int]:
+    return tuple(
+        int(round(max(0.0, min(1.0, channel)) * 255))
+        for channel in color
+    )
+
+
+def _gif_palette_image(gif_colors: int) -> Image.Image:
+    """Return a fixed CADCLAW GIF palette.
+
+    Adaptive GIF palettes are efficient, but small green parts can be rare
+    enough in a frame that the encoder maps them toward gray. This fixed
+    palette keeps functional CAD colors exact while still using a small
+    palette for shareable artifacts.
+    """
+    palette_colors = max(2, min(256, gif_colors))
+    fixed = [
+        _rgb255(COLOR_PRINTED),
+        _rgb255(COLOR_WHEEL),
+        (112, 160, 0),
+        (128, 184, 0),
+        (170, 230, 28),
+        _rgb255(COLOR_EXTRUSION),
+        (32, 34, 38),
+        (48, 52, 58),
+        (64, 70, 78),
+        _rgb255(COLOR_METAL),
+        (150, 154, 160),
+        (188, 192, 196),
+        _rgb255(COLOR_MOTOR),
+        _rgb255(COLOR_BELT),
+        (97, 107, 120),
+        (122, 134, 145),
+        (146, 157, 168),
+        (158, 168, 179),
+        (180, 188, 196),
+        (255, 255, 255),
+        (0, 0, 0),
+    ]
+    bottom = (97, 107, 120)
+    top = (158, 168, 179)
+    ramp_slots = max(0, palette_colors - len(fixed))
+    for index in range(ramp_slots):
+        t = index / max(1, ramp_slots - 1)
+        fixed.append(tuple(
+            int(round(bottom[channel] * (1.0 - t) + top[channel] * t))
+            for channel in range(3)
+        ))
+    fixed = fixed[:palette_colors]
+    while len(fixed) < 256:
+        fixed.append(fixed[-1])
+
+    palette = Image.new("P", (1, 1))
+    palette.putpalette([channel for rgb in fixed for channel in rgb])
+    return palette
+
+
+def quantize_gif_frames(frames: list[Image.Image], gif_colors: int) -> list[Image.Image]:
+    """Quantize RGB frames with CADCLAW's fixed functional palette."""
+    palette = _gif_palette_image(gif_colors)
+    return [
+        frame.convert("RGB").quantize(palette=palette, dither=Image.NONE)
+        for frame in frames
+    ]
+
+
 def _load_shapes(step_path: str):
     """Return the list of renderable Shapes in a STEP file.
 
@@ -95,10 +161,10 @@ def _combined_polydata(shapes, tolerance: float = 0.5, angular: float = 0.3):
 
 # Sunnyday M3-CRETE palette.
 COLOR_EXTRUSION = (0.08, 0.08, 0.09)   # anodized black extrusions
-COLOR_PRINTED = (0.59, 0.84, 0.0)      # Sunnyday green printed parts
+COLOR_PRINTED = (151 / 255, 215 / 255, 0.0)  # Sunnyday brand green #97d700
 COLOR_METAL = (0.72, 0.74, 0.76)       # aluminum plates / brackets
 COLOR_MOTOR = (0.30, 0.30, 0.32)       # stepper body
-COLOR_WHEEL = (0.13, 0.13, 0.14)       # V-wheels / delrin
+COLOR_WHEEL = COLOR_PRINTED            # brand-green V-wheels for review
 COLOR_BELT = (0.15, 0.15, 0.15)        # GT2 belt
 
 # Label -> color defaults keyed on the M3-CRETE naming scheme.
@@ -109,6 +175,8 @@ COLOR_BELT = (0.15, 0.15, 0.15)        # GT2 belt
 DEFAULT_COLOR_MAP = {
     'cbeam': COLOR_EXTRUSION, 'beam': COLOR_EXTRUSION,
     'extrusion': COLOR_EXTRUSION, 'post': COLOR_EXTRUSION,
+    'rail': COLOR_EXTRUSION, 'vslot_2040': COLOR_EXTRUSION,
+    'vslot_2080': COLOR_EXTRUSION,
     'motor': COLOR_MOTOR,
     'vwheel': COLOR_WHEEL, 'wheel': COLOR_WHEEL, 'pulley': COLOR_WHEEL,
     'idler': COLOR_WHEEL,
@@ -531,11 +599,7 @@ def render_frames_to_gif(frames_dir: str, output_gif: str,
         if (gw, gh) != img.size:
             img = img.resize((gw, gh), Image.LANCZOS)
         rgb_frames.append(img)
-    palette_colors = max(2, min(256, gif_colors))
-    master = rgb_frames[len(rgb_frames) // 2].convert(
-        "P", palette=Image.ADAPTIVE, colors=palette_colors,
-        dither=Image.NONE)
-    frames = [f.quantize(palette=master, dither=Image.NONE) for f in rgb_frames]
+    frames = quantize_gif_frames(rgb_frames, gif_colors)
     duration_ms = max(1, int(1000 / max(fps, 1)))
     frames[0].save(output_gif, save_all=True, append_images=frames[1:],
                     duration=duration_ms, loop=0, optimize=optimize,
@@ -550,6 +614,58 @@ def render_frames_to_gif(frames_dir: str, output_gif: str,
                 pass
 
     return len(frames)
+
+
+_HOLE_DARK = (0.03, 0.03, 0.03)
+
+
+def _is_perforated_plate(shape, min_holes=8, rmin=1.5, rmax=6.5):
+    """True if a shape has >= min_holes small cylindrical bore faces (a gantry
+    plate's mounting/wheel holes) - used to render hole interiors dark."""
+    from OCP.BRepAdaptor import BRepAdaptor_Surface
+    from OCP.GeomAbs import GeomAbs_Cylinder
+    found = 0
+    for face in shape.Faces():
+        try:
+            surf = BRepAdaptor_Surface(face.wrapped, True)
+            if surf.GetType() == GeomAbs_Cylinder and rmin <= surf.Cylinder().Radius() <= rmax:
+                found += 1
+                if found >= min_holes:
+                    return True
+        except Exception:
+            continue
+    return False
+
+
+def _plate_body_and_holes(shape, rmin=1.5, rmax=6.5):
+    """Split a perforated plate into (body_compound, bore_faces_compound)."""
+    from OCP.BRepAdaptor import BRepAdaptor_Surface
+    from OCP.GeomAbs import GeomAbs_Cylinder
+    from cadquery import Compound
+    bores, body = [], []
+    for face in shape.Faces():
+        is_bore = False
+        try:
+            surf = BRepAdaptor_Surface(face.wrapped, True)
+            if surf.GetType() == GeomAbs_Cylinder and rmin <= surf.Cylinder().Radius() <= rmax:
+                is_bore = True
+        except Exception:
+            is_bore = False
+        (bores if is_bore else body).append(face)
+    return Compound.makeCompound(body), Compound.makeCompound(bores)
+
+
+def _part_color_groups(shape, base_color, dark_holes=True):
+    """Return [(sub_shape, color), ...]: one (shape, base_color) normally, or a
+    body + dark-bore pair for perforated gantry plates so hole interiors render
+    black. Falls back to the single shape if the split fails."""
+    if dark_holes and _is_perforated_plate(shape):
+        try:
+            body, bores = _plate_body_and_holes(shape)
+            return [(body, base_color), (bores, _HOLE_DARK)]
+        except Exception:
+            pass
+    return [(shape, base_color)]
 
 
 def render_radial_explode_gif(step_path: str, output_gif: str,
@@ -574,7 +690,14 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
                                 gif_colors: int = 64,
                                 optimize: bool = True,
                                 keep_pngs: bool = False,
-                                use_step_colors: bool = True):
+                                use_step_colors: bool = True,
+                                separate_nested: bool = False,
+                                nested_separation_mm: float = 45.0,
+                                nested_lift_mm: float = 0.0,
+                                nested_reveal_color: tuple = None,
+                                nested_containment_tol_mm: float = 0.5,
+                                reveal_bbox_signatures: list = None,
+                                reveal_long_axes: list = None):
     """Build a 'cooler' exploded-view GIF in two phases:
 
       1. Every part moves outward from the assembly centroid simultaneously
@@ -604,6 +727,21 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         gif_width/height/colors, optimize: GIF encoding knobs.
         keep_pngs: If True, preserve the per-frame PNGs (written to a temp
             dir next to the GIF).
+        separate_nested: If True, parts whose bounding boxes are contained
+            inside larger parts are pulled out along +Y during the explode.
+            This is intended for review artifacts where nested insert rails
+            would otherwise remain hidden inside host extrusions.
+        nested_separation_mm: Extra +Y reveal offset for nested parts.
+        nested_lift_mm: Extra +Z reveal offset for nested parts.
+        nested_reveal_color: Optional override color for nested parts in the
+            review artifact.
+        nested_containment_tol_mm: Bounding-box tolerance for nested detection.
+        reveal_bbox_signatures: Optional list of sorted bbox length signatures
+            such as (20, 40, 1000). Matching parts receive the same reveal
+            offset as nested parts even when containment heuristics are
+            ambiguous in an exploded assembly view.
+        reveal_long_axes: Optional list of bbox long-axis indexes to limit
+            reveal signatures to. Axis indexes are X=0, Y=1, Z=2.
     """
     import tempfile as _tmp
     import vtk
@@ -620,47 +758,155 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
     cy = (ymin + ymax) / 2
     cz = (zmin + zmax) / 2
 
-    part_entries = []  # list of (actor, offset_vector)
+    def _shape_bbox(shape):
+        bb = shape.BoundingBox()
+        return (bb.xmin, bb.ymin, bb.zmin, bb.xmax, bb.ymax, bb.zmax)
+
+    def _bbox_volume(bbox):
+        return max(0.0, bbox[3] - bbox[0]) * max(0.0, bbox[4] - bbox[1]) * max(0.0, bbox[5] - bbox[2])
+
+    def _bbox_contained(inner, outer, tol):
+        return (
+            inner[0] >= outer[0] - tol and inner[3] <= outer[3] + tol
+            and inner[1] >= outer[1] - tol and inner[4] <= outer[4] + tol
+            and inner[2] >= outer[2] - tol and inner[5] <= outer[5] + tol
+        )
+
+    def _bbox_lengths(bbox):
+        return (bbox[3] - bbox[0], bbox[4] - bbox[1], bbox[5] - bbox[2])
+
+    def _bbox_signature(bbox):
+        return tuple(round(length, 1) for length in sorted(_bbox_lengths(bbox)))
+
+    def _normalise_signature(signature):
+        return tuple(round(float(length), 1) for length in sorted(signature))
+
+    def _long_axis(bbox):
+        lengths = _bbox_lengths(bbox)
+        return max(range(3), key=lambda axis: lengths[axis])
+
+    def _cross_section_contained(inner, outer, long_axis, tol):
+        axes = [axis for axis in range(3) if axis != long_axis]
+        return all(
+            inner[axis] >= outer[axis] - tol
+            and inner[axis + 3] <= outer[axis + 3] + tol
+            for axis in axes
+        )
+
+    def _interval_coverage(intervals, start, end, tol):
+        if not intervals:
+            return 0.0
+        clipped = []
+        for lo, hi in intervals:
+            clipped_lo = max(start, lo)
+            clipped_hi = min(end, hi)
+            if clipped_hi > clipped_lo + tol:
+                clipped.append((clipped_lo, clipped_hi))
+        if not clipped:
+            return 0.0
+        clipped.sort()
+        merged = [clipped[0]]
+        for lo, hi in clipped[1:]:
+            last_lo, last_hi = merged[-1]
+            if lo <= last_hi + tol:
+                merged[-1] = (last_lo, max(last_hi, hi))
+            else:
+                merged.append((lo, hi))
+        return sum(hi - lo for lo, hi in merged)
+
+    def _bbox_splice_nested(inner_index, volumes, tol):
+        inner = shape_bboxes[inner_index]
+        lengths = _bbox_lengths(inner)
+        long_axis = _long_axis(inner)
+        long_len = lengths[long_axis]
+        cross_lengths = [lengths[axis] for axis in range(3) if axis != long_axis]
+        if long_len < 400.0 or max(cross_lengths) > 50.0:
+            return False
+        intervals = []
+        for outer_index, outer in enumerate(shape_bboxes):
+            if inner_index == outer_index or volumes[inner_index] >= volumes[outer_index]:
+                continue
+            if _long_axis(outer) != long_axis:
+                continue
+            if not _cross_section_contained(inner, outer, long_axis, tol):
+                continue
+            intervals.append((outer[long_axis], outer[long_axis + 3]))
+        covered = _interval_coverage(
+            intervals,
+            inner[long_axis],
+            inner[long_axis + 3],
+            tol,
+        )
+        return covered >= long_len - tol
+
+    shape_bboxes = [_shape_bbox(shape) for shape in shapes]
+    reveal_signatures = {
+        _normalise_signature(signature)
+        for signature in (reveal_bbox_signatures or [])
+    }
+    reveal_axis_set = set(reveal_long_axes or [])
+    nested_offsets = [(0.0, 0.0, 0.0) for _ in shapes]
+    nested_indexes = set()
+    if separate_nested:
+        volumes = [_bbox_volume(bbox) for bbox in shape_bboxes]
+        for inner_index, inner_bbox in enumerate(shape_bboxes):
+            nested = (
+                _bbox_signature(inner_bbox) in reveal_signatures
+                and (not reveal_axis_set or _long_axis(inner_bbox) in reveal_axis_set)
+            )
+            if not nested:
+                nested = _bbox_splice_nested(inner_index, volumes, nested_containment_tol_mm)
+            for outer_index, outer_bbox in enumerate(shape_bboxes):
+                if inner_index == outer_index or volumes[inner_index] >= volumes[outer_index]:
+                    continue
+                if _bbox_contained(inner_bbox, outer_bbox, nested_containment_tol_mm):
+                    nested = True
+                    break
+            if nested:
+                nested_offsets[inner_index] = (0.0, nested_separation_mm, nested_lift_mm)
+                nested_indexes.add(inner_index)
+
+    part_entries = []  # list of (actor, radial_offset_vector, nested_offset_vector)
     renderer = vtk.vtkRenderer()
     renderer.SetBackground(*background_bottom)
     renderer.SetBackground2(*background_top)
     renderer.GradientBackgroundOn()
 
-    for shape in shapes:
-        poly = shape.toVtkPolyData(tolerance=tessellation_tol,
-                                     angularTolerance=0.3)
-        mapper = vtk.vtkPolyDataMapper()
-        mapper.SetInputData(poly)
-
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
-        prop = actor.GetProperty()
-        prop.SetColor(*_color_for(shape, labels, color_map, default_color,
-                                   step_colors=step_colors))
-        # Mostly-flat shading. `face_shading` (0..1) trades ambient for
-        # diffuse so faces oriented differently get visibly different
-        # shades — useful when surface details would otherwise be lost
-        # under fully-flat color blocks. 0.0 = fully flat (legacy CAD-
-        # illustration look). 0.15-0.25 = subtle face cues without
-        # specular sheen. Specular always 0 (no shiny highlights).
-        _amb = max(0.0, min(1.0, 1.0 - face_shading))
-        _dif = max(0.0, min(1.0, face_shading))
-        prop.SetAmbient(_amb)
-        prop.SetDiffuse(_dif)
-        prop.SetSpecular(0.0)
-        if edges:
-            prop.EdgeVisibilityOn()
-            prop.SetEdgeColor(*edge_color)
-            prop.SetLineWidth(0.6)
-
+    # Mostly-flat shading: face_shading (0..1) trades ambient for diffuse so
+    # faces at different orientations read differently; specular always 0.
+    _amb = max(0.0, min(1.0, 1.0 - face_shading))
+    _dif = max(0.0, min(1.0, face_shading))
+    for index, shape in enumerate(shapes):
+        if nested_reveal_color is not None and index in nested_indexes:
+            base_color = nested_reveal_color
+        else:
+            base_color = _color_for(shape, labels, color_map, default_color,
+                                    step_colors=step_colors)
         bb = shape.BoundingBox()
-        pcx = (bb.xmin + bb.xmax) / 2
-        pcy = (bb.ymin + bb.ymax) / 2
-        pcz = (bb.zmin + bb.zmax) / 2
-        offset = (pcx - cx, pcy - cy, pcz - cz)
-
-        renderer.AddActor(actor)
-        part_entries.append((actor, offset))
+        offset = ((bb.xmin + bb.xmax) / 2 - cx,
+                  (bb.ymin + bb.ymax) / 2 - cy,
+                  (bb.zmin + bb.zmax) / 2 - cz)
+        # Perforated gantry plates split into a colored body + dark bore faces so
+        # the hole interiors render black; everything else is one actor. Both
+        # sub-actors share the part's explode offset so they move together.
+        for sub_shape, sub_color in _part_color_groups(shape, base_color):
+            poly = sub_shape.toVtkPolyData(tolerance=tessellation_tol,
+                                           angularTolerance=0.3)
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInputData(poly)
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+            prop = actor.GetProperty()
+            prop.SetColor(*sub_color)
+            prop.SetAmbient(_amb)
+            prop.SetDiffuse(_dif)
+            prop.SetSpecular(0.0)
+            if edges:
+                prop.EdgeVisibilityOn()
+                prop.SetEdgeColor(*edge_color)
+                prop.SetLineWidth(0.6)
+            renderer.AddActor(actor)
+            part_entries.append((actor, offset, nested_offsets[index]))
 
     # Single headlight at full intensity. Combined with the per-actor
     # property (ambient = 1 - face_shading, diffuse = face_shading), the
@@ -675,14 +921,15 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
 
     # Pre-compute the fully-exploded bounds so camera fits the expanded cloud.
     expanded_shapes = []
-    for shape in shapes:
+    for index, shape in enumerate(shapes):
         bb = shape.BoundingBox()
         pcx = (bb.xmin + bb.xmax) / 2
         pcy = (bb.ymin + bb.ymax) / 2
         pcz = (bb.zmin + bb.zmax) / 2
-        ox = (pcx - cx) * expansion
-        oy = (pcy - cy) * expansion
-        oz = (pcz - cz) * expansion
+        nx, ny, nz = nested_offsets[index]
+        ox = (pcx - cx) * expansion + nx
+        oy = (pcy - cy) * expansion + ny
+        oz = (pcz - cz) * expansion + nz
         class _FakeBB:
             def __init__(self, bb, ox, oy, oz):
                 self.xmin = bb.xmin + ox; self.xmax = bb.xmax + ox
@@ -718,10 +965,10 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         png_paths.append(path)
 
     def _set_expansion(t):
-        for actor, (ox, oy, oz) in part_entries:
-            actor.SetPosition(ox * t * expansion,
-                              oy * t * expansion,
-                              oz * t * expansion)
+        for actor, (ox, oy, oz), (nx, ny, nz) in part_entries:
+            actor.SetPosition((ox * expansion + nx) * t,
+                              (oy * expansion + ny) * t,
+                              (oz * expansion + nz) * t)
 
     # Phase 1: expansion 0 -> 1 (ease in/out with a cosine curve)
     import math as _m
@@ -758,11 +1005,7 @@ def render_radial_explode_gif(step_path: str, output_gif: str,
         if (gw, gh) != img.size:
             img = img.resize((gw, gh), Image.LANCZOS)
         rgb_frames.append(img)
-    palette_colors = max(2, min(256, gif_colors))
-    master = rgb_frames[len(rgb_frames) // 2].convert(
-        "P", palette=Image.ADAPTIVE, colors=palette_colors,
-        dither=Image.NONE)
-    frames = [f.quantize(palette=master, dither=Image.NONE) for f in rgb_frames]
+    frames = quantize_gif_frames(rgb_frames, gif_colors)
     duration_ms = max(1, int(1000 / max(fps, 1)))
     frames[0].save(output_gif, save_all=True, append_images=frames[1:],
                     duration=duration_ms, loop=0, optimize=optimize,
