@@ -21,3 +21,12 @@ docs/media/*.png
 *.key
 id_rsa
 id_ed25519
+
+# Benchmark content lives in the separate MARB repo (firewalled out, ebd8ff0)
+benchmarks/
+
+# Licensed display fonts (Typodermic Nulshock/Sifonn) — not redistributable
+docs/fonts/
+
+# Internal editorial / publication process notes (contain local paths)
+docs/publication/
