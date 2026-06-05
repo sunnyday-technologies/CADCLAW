@@ -34,7 +34,7 @@
         "@id": "https://cadclaw.io/#software",
         "name": "CADCLAW",
         "alternateName": "cadclaw",
-        "description": "CADCLAW is an automated check suite for STEP-based CAD assemblies — pytest-style geometric, kinematic, tolerance, and BOM-vs-CAD validation, with an honesty toolchain (doctor, publish-audit, claim-audit) and an included MCP server. It is the open verification engine behind the MARB benchmark.",
+        "description": "CADCLAW is an automated check suite for STEP-based CAD assemblies — pytest-style geometric, structural, tolerance, and BOM-vs-CAD validation, with an honesty toolchain (doctor, publish-audit, claim-audit) and an included MCP server. It is the open verification engine behind the MARB benchmark.",
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "CAD validation / mechanical engineering QA",
         "operatingSystem": "Cross-platform (Windows, macOS, Linux)",
@@ -116,12 +116,12 @@
     </div>
   </section>
 
-  <p class="muted-strip">The goal above is the only picture each AI received — plus a box of ~100 parts. No build steps. We measured whether they could figure out the rest.</p>
+  <p class="muted-strip">The goal above is the only picture each AI received, plus ~100 authored STEP part files. No build steps. We measured whether they could figure out the rest.</p>
 
   <section id="results" class="section">
     <h2>The first results</h2>
-    <p class="lede">Three AI workflows — Claude (Fusion and CadQuery) and OpenAI Codex (CadQuery) — each placed <strong>all ~100 parts with zero human help</strong>. None is buildable yet, but different models led different dimensions: <strong>Claude · CadQuery</strong> hit the answer key's interface gaps almost exactly (<strong>0 mm median</strong> error); <strong>OpenAI Codex</strong> got the most rotations right (<strong>69%</strong> aligned).</p>
-    <p class="lede">Even with that, the underlying result is real. From one picture and a box of parts, with no build sequence, each model produced a coherent two‑metre machine — and Codex did it in 13 minutes on the first attempt. Tolerances are tight by design (≤5 mm = located, ≤5° = aligned) because real equipment runs on fractions of a millimetre. Placing the parts is the easy part now; getting the gaps and rotations correct is the hard part, and that is what these scores measure.</p>
+    <p class="lede">Three AI workflows — Claude (Fusion and CadQuery) and OpenAI Codex (CadQuery) — each placed <strong>all ~100 parts with zero human help</strong>. None is buildable yet: every run still landed about <strong>50 mm off in relative position</strong> and mis-oriented <strong>roughly half the asymmetric parts</strong>. Different models led different dimensions: <strong>Claude · CadQuery</strong> hit the answer key's interface gaps almost exactly (<strong>0 mm median gap error</strong>); <strong>OpenAI Codex</strong> got the most rotations right (<strong>69% aligned</strong>).</p>
+    <p class="lede">Even with that, the underlying result is real. From one picture and ~100 authored part files, with no build sequence, each model produced a coherent two‑metre machine — and Codex did it in 13 minutes on the first attempt. Tolerances are tight by design (≤5 mm = located, ≤5° = aligned) because real equipment runs on fractions of a millimetre. Placing the parts is the easy part now; getting the gaps and rotations correct is the hard part, and that is what these scores measure.</p>
     <div class="output-media">
       <img src="media/hero_score_vs_time.png" alt="Gap correctness versus build time for three AI runs; Claude·CadQuery hit the answer key's gaps in 49 minutes, OpenAI Codex was loosest on gaps but fastest at 13 minutes" />
       <p class="caption">Gap correctness vs. speed. Claude · CadQuery hit the answer key's interface gaps (0 mm median error) but took 49 minutes; OpenAI Codex one‑shot it in 13 minutes with the loosest gaps and the strongest rotation. More iteration buys precision at the cost of time.</p>
@@ -133,7 +133,7 @@
     <div class="stat"><span class="num">3</span><span class="lbl">AI workflows tested</span></div>
     <div class="stat"><span class="num">~100</span><span class="lbl">parts placed, 0 human help</span></div>
     <div class="stat"><span class="num">13 min</span><span class="lbl">fastest build (Codex)</span></div>
-    <div class="stat"><span class="num">15 / 100</span><span class="lbl">top score (100 = buildable)</span></div>
+    <div class="stat"><span class="num">15 / 100</span><span class="lbl">MARB full-stack score (L0–L7; a clean L1 build ≈ 15)</span></div>
   </section>
 
   <section id="benchmark" class="section dark">
@@ -156,7 +156,7 @@
       <div class="gate"><h3>Adjacency</h3><p>Parts that should be near each other but aren't — the motor 600&nbsp;mm from its mount.</p></div>
       <div class="gate"><h3>Dimensional</h3><p>Wrong thickness, swapped <code>box()</code> args, impossible dimensions.</p></div>
       <div class="gate new"><h3>Floating</h3><p>Non-exempt parts isolated from the structural frame beyond a max gap.</p></div>
-      <div class="gate"><h3>Kinematics</h3><p>Beam deflection, motor torque budgets, belt tension, racking.</p></div>
+      <div class="gate"><h3>Structural</h3><p>Beam deflection, motor torque budget, belt tension. Static load math, not motion-clearance or full-travel sweeps.</p></div>
       <div class="gate"><h3>Tolerance</h3><p>Worst-case, RSS, Monte Carlo stacking with C<sub>pk</sub> and variance decomposition.</p></div>
       <div class="gate new"><h3>BOM audit</h3><p>BOM JSON ↔ CAD: qty, mfg_type, required/forbidden terms, count drift. Private fields never echoed.</p></div>
     </div>
@@ -180,7 +180,7 @@ cadclaw bom-audit --rules cadclaw.yaml           <span class="g"># or a single g
       <li>That the <strong>native CAD model</strong> has no hidden or suppressed parts — it reads the STEP export, which can silently drop invisible parts.</li>
       <li>That the <strong>physical build</strong> matches the CAD.</li>
       <li>That a <strong>vendor part is in stock</strong> or the price you assumed.</li>
-      <li>That a <strong>printed part is strong enough</strong> for production — the kinematics gates do bare-beam math, not fatigue or creep.</li>
+      <li>That a <strong>printed part is strong enough</strong> for production — the structural gate does bare-beam math, not fatigue or creep.</li>
       <li>That an <strong>AI-generated change is correct</strong> — passing the gates means "passed the gates we have," no more.</li>
     </ul>
     <p>Each report ships a <strong>confidence budget</strong> per gate: <code>checked</code>, <code>not_checked</code>, <code>assumptions</code>. Read it. <em>(The benchmark's grades are geometric; they are not a substitute for physical testing.)</em></p>
