@@ -27,7 +27,7 @@ CADCLAW validates STEP assemblies + BOM JSON through a chain of automated gates:
 | **Orientation** | Rotated/mis-faced parts where a label declares an expected face plane. |
 | **Floating** | Parts isolated from configured structural labels beyond a max gap. |
 | **Color/material** | STEP AP242 color metadata against expected label colors. |
-| **Kinematics** | Beam deflection, motor torque budgets, belt tension, racking. |
+| **Structural** | Beam deflection, motor torque budget, belt tension. Static load math, not motion-clearance or full-travel sweeps. |
 | **Tolerance** | Worst-case, RSS, Monte Carlo tolerance stacking with Cpk and variance decomposition. |
 | **Parity** | STEP-vs-STEP comparison; flags hidden/suppressed-part export drift. |
 | **BOM audit** | BOM JSON ↔ CAD assembly: qty, mfg_type, required/forbidden text terms, CAD-side count. |
@@ -69,7 +69,7 @@ For diagnostic queries (signature histogram, "what is this part", "what overlaps
 
 ```bash
 pip install cadclaw
-# cadquery, pyyaml, pydantic are pulled in automatically.
+# cadquery, vtk, Pillow, pyyaml, pydantic are pulled in automatically.
 # For editable dev installs:
 #   git clone https://github.com/sunnyday-technologies/CADCLAW.git
 #   cd CADCLAW && pip install -e .
@@ -212,7 +212,7 @@ Validate that parts of type A have a part of type B within N mm. Catches misplac
 Check part dimensions against expected ranges. Catches wrong thickness, swapped args, scaling errors.
 
 ### `cadclaw.kinematics`
-Structural analysis from assembly parameters. Beam deflection (Euler-Bernoulli), motor torque budgets, belt tension, GT2 tooth skip resistance.
+Structural load math from assembly parameters: beam deflection (Euler-Bernoulli), motor torque budget, and belt tension against breaking/working limits. Static analysis only; it does not sweep range of motion or check clearance through travel.
 
 ### `cadclaw.tolerance`
 Tolerance stack analysis: define dimension chains, compute worst-case / RSS / Monte Carlo accumulation, report Cpk process capability and per-dimension variance contribution. Identifies which dimension dominates the stack.
@@ -227,7 +227,7 @@ Offscreen VTK rendering of STEP files to PNG, plus GIF stitching. `make_disassem
 The runner. Chains gates, loads parts once, reports pass/fail with timing.
 
 ### `cadclaw_mcp/`
-MCP Server exposing all modules as tools for MCP-compatible hosts. The user describes what to check; the assistant calls the tools directly. No code generation needed — MCP is an open protocol, so any compliant client can drive the harness.
+MCP Server exposing CADCLAW's core validation, analysis, and audit checks as tools for MCP-compatible hosts. The user describes what to check; the assistant calls the tools directly. No code generation needed — MCP is an open protocol, so any compliant client can drive the harness.
 
 ## CI/CD Integration
 
@@ -284,7 +284,7 @@ GIF rendering.
 
 - Python 3.10+; Python 3.11 is the current CADCLAW development runtime
 - CadQuery 2.7+ (provides OCC/STEP support)
-- VTK 9.3+ for rendering, plus pyyaml 6+ and pydantic 2.5+ (pulled in automatically)
+- VTK 9.3+ for rendering, plus Pillow 10+, pyyaml 6+, and pydantic 2.5+ (pulled in automatically)
 - No commercial CAD software needed for CADCLAW's own checks. Validation that depends on the native CAD application — feature-tree review, native-format parametric checks — is outside CADCLAW's scope.
 
 Run `cadclaw doctor` after install to verify your environment.

@@ -32,7 +32,7 @@ class TestProbeVenv(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             cfg = Path(td) / "pyvenv.cfg"
             cfg.write_text(
-                "home = [home-path-redacted]
+                "home = /nonexistent/python/home\n"
                 "include-system-site-packages = false\n"
                 "version = 3.11.4\n",
                 encoding="utf-8",

@@ -18,6 +18,11 @@ def _load_score_module():
     return module
 
 
+@unittest.skipUnless(
+    BENCHMARK.exists() and SCORE_SCRIPT.exists(),
+    "MARB benchmark content lives in the separate (firewalled) MARB repo; "
+    "skipping benchmark-script tests when that content is absent.",
+)
 class TestM3BenchmarkScripts(unittest.TestCase):
     def test_benchmark_yaml_loads(self):
         data = yaml.safe_load(BENCHMARK.read_text(encoding="utf-8"))

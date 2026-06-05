@@ -8,7 +8,7 @@
       "orcid": "0009-0002-1897-384X"
     }
   ],
-  "description": "Automated validation, interference detection, and structural analysis for STEP assemblies. Provides inventory/adjacency/dimensional gates, tolerance stacking (worst-case / RSS / Monte Carlo), disassembly-sequence rendering, and an MCP server exposing all capabilities to AI coding assistants.",
+  "description": "Automated validation, interference detection, and structural analysis for STEP assemblies. Provides inventory/adjacency/dimensional gates, tolerance stacking (worst-case / RSS / Monte Carlo), disassembly-sequence rendering, and an MCP server exposing core validation, analysis, and audit checks to AI coding assistants.",
   "license": "MIT",
   "keywords": [
     "CAD",

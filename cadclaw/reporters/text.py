@@ -5,6 +5,7 @@ import sys
 from typing import List
 
 from ..findings import Finding, Report, Severity
+from .. import __version__
 
 
 _SEV_ORDER = {Severity.FAIL: 0, Severity.WARN: 1, Severity.PASS: 2}
@@ -41,7 +42,7 @@ def render_text(report: Report, color: bool | None = None) -> str:
     project = report.meta.get("project", "")
     step = report.meta.get("step", "")
     rules = report.meta.get("rules", "")
-    header_bits = ["CADCLAW", report.schema_version]
+    header_bits = [f"CADCLAW {__version__}", f"schema {report.schema_version}"]
     if project:
         header_bits.append(project)
     if step:
