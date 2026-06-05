@@ -9,7 +9,11 @@ description = "CADCLAW — Automated geometric validation for STEP assemblies, w
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
+# Two entries on purpose: the name-only entry populates the core-metadata `Author:`
+# field (without it PyPI shows "Author: None"), while the name+email entry populates
+# `Author-email:`. Do NOT collapse to a single name+email entry or `Author` goes blank.
 authors = [
+    {name = "Sunnyday Technologies"},
     {name = "Sunnyday Technologies", email = "info@sunn3d.com"},
 ]
 keywords = ["cad", "step", "validation", "testing", "cadquery", "mechanical", "assembly", "tolerance", "disassembly", "bom", "mcp"]
