@@ -1,8 +1,9 @@
 """
 Kinematics Module — structural analysis from assembly geometry.
 
-Provides beam deflection, motor torque budget, belt tension, and
-racking analysis for belt-driven gantry systems.
+Provides beam deflection, motor torque budget, and belt tension
+checks for belt-driven gantry systems. Static load math only; it does
+not sweep range of motion or check clearance through travel.
 
 Usage:
     from cadclaw.kinematics import BeamDeflection, MotorBudget

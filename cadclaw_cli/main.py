@@ -23,6 +23,7 @@ import argparse
 import sys
 from typing import List, Optional
 
+from cadclaw import __version__
 from cadclaw.findings import Report, Severity
 from cadclaw.reporters import render_json, render_markdown, render_text
 
@@ -817,7 +818,7 @@ def _cmd_inspect_cluster(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="cadclaw",
-        description="CADCLAW v0.6 — STEP / BOM validation and honesty toolchain.",
+        description=f"CADCLAW v{__version__}: STEP / BOM validation and honesty toolchain.",
     )
     sub = p.add_subparsers(dest="command", required=True, metavar="<command>")
 
