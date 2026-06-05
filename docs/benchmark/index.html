@@ -65,7 +65,7 @@
   <section class="strip">
     <div class="stat"><span class="num">L0–L7</span><span class="lbl">Capability ladder</span></div>
     <div class="stat"><span class="num">0</span><span class="lbl">Alignment failures (L1)</span></div>
-    <div class="stat"><span class="num">95/100</span><span class="lbl">Black-box geometry grade</span></div>
+    <div class="stat"><span class="num">100/100</span><span class="lbl">L1 geometry sub-grade (clean kit)</span></div>
     <div class="stat"><span class="num">~100</span><span class="lbl">Parts placed &amp; verified</span></div>
   </section>
 
@@ -116,7 +116,7 @@
     <h2>The metrics</h2>
     <p class="lede">Every run yields the same small, defined set of numbers — two kinds, never mixed: <strong>artifact quality</strong> (is the build correct?) and <strong>effort</strong> (what did it cost?).</p>
     <div class="gates">
-      <div class="gate"><h3>Gates</h3><p>Black-box, on the exported STEP: <b>Inventory</b> (right parts) · <b>Interference</b> (no overlaps) · <b>Floating</b> (all connected) · <b>Orientation</b> (correct pose — <i>v-next</i>).</p></div>
+      <div class="gate"><h3>Gates</h3><p>Black-box, on the exported STEP: <b>Inventory</b> (right parts) · <b>Interference</b> (no overlaps) · <b>Floating</b> (all connected) · <b>Orientation</b> (correct pose).</p></div>
       <div class="gate"><h3>L1 sub-grade · 0–100</h3><p>How well the kit is assembled, &times; a <b>buildability factor</b> that falls with interference (clip count + overlap volume). A self-intersecting frame can't be built, so it can't score high.</p></div>
       <div class="gate"><h3>MARB full-stack · 0–100</h3><p>Rung on the L0–L7 capability ladder. A clean L1 ≈ 15 today; the rest of the scale is the road to autonomous design. Mapped to TRL / MRL / IRL.</p></div>
       <div class="gate"><h3>Effort (reported separately)</h3><p>Wall-clock, tokens, attempts, retries, corrections, human interventions — measured from the run log, <b>never folded into the score</b>.</p></div>
@@ -128,7 +128,7 @@
     <h2>Today — L1, on a real machine</h2>
     <p class="lede">An AI placed roughly 100 parts into a correct, two-metre 3D-printer / CNC frame:</p>
     <ul class="not-prove-list">
-      <li><strong>All geometry gates pass</strong> — black-box grade 95/100, zero fails or warnings.</li>
+      <li><strong>All geometry gates pass</strong> — L1 geometry sub-grade 100/100, zero fails or warnings.</li>
       <li><strong>Independently graded</strong> — the same automated checker that will grade every other tool, with no human in the loop.</li>
     </ul>
     <div class="callout">The reference above is the resolver-built answer key — a clean L1. Below: the <strong>first cross-tool head-to-head</strong>, independent AI workflows given the same task and judged by this same grader.</div>
@@ -137,25 +137,26 @@
   <section class="section" id="results">
     <h2>First head-to-head</h2>
     <p class="lede">Three independent AI workflows — Claude Opus 4.7 (Fusion and CadQuery) and <strong>OpenAI Codex / GPT-5</strong> (CadQuery — the coding agent, not the chat app) — fresh prompt-only sessions, same kit, graded on the identical black-box lens. <strong>All three placed every part with zero human help; none is buildable yet.</strong></p>
+    <p class="muted"><strong>Disclosure.</strong> Sunnyday Technologies authored MARB, builds and runs the CADCLAW engine that grades every score, and supplies the reference. The reference row is our own M3-CRETE assembly, resolver-built, so it scores the rubric ceiling (0.0 mm gap, 0.0 mm relative position, 100% oriented) by construction. CADCLAW is the floor and the referee, not a frontier contender: read the reference as the definition of 100%, not as a competitor that placed first. The grader and benchmark scaffold are open (MIT) and the scoring spec is available on request, so anyone can reproduce or challenge a score.</p>
     <div class="output-media">
       <img src="/media/m3_target.png" alt="The target M3-CRETE machine — the single reference image each AI was given" />
-      <p class="caption">The goal: the one reference image each AI was given — no build steps, just this picture plus the box of parts.</p>
+      <p class="caption">The goal: the one reference image each AI was given — no build steps, just this picture plus the authored parts kit.</p>
     </div>
     <div class="output-media">
       <img src="/media/hero_score_vs_time.png" alt="Score vs build time for the three AI runs; all near the floor, OpenAI Codex fastest" />
       <p class="caption">How good vs. how fast. All three sit near the floor (a clean build = 100); <strong>OpenAI Codex did it in 13 minutes</strong> — far faster, slightly lower score.</p>
     </div>
     <table class="restable leaderboard">
-      <thead><tr><th>#</th><th>Model · tool</th><th>GAP median ↓</th><th>ORIENT aligned ↑</th><th>POS rel median ↓</th><th>Time</th><th>Cost <span class="th-sub">est.</span></th></tr></thead>
+      <thead><tr><th></th><th>Model · tool</th><th>GAP median ↓</th><th>ORIENT aligned ↑</th><th>POS rel median ↓</th><th>Time</th><th>Cost <span class="th-sub">est.</span></th></tr></thead>
       <tbody>
-        <tr class="top"><td>1</td><td><strong>Claude Opus 4.7</strong> · CadQuery</td><td class="score"><strong>0.0 mm</strong></td><td>51%</td><td>49.9 mm</td><td>48.8 min</td><td>~$68</td></tr>
+        <tr><td>1</td><td><strong>Claude Opus 4.7</strong> · CadQuery</td><td class="score"><strong>0.0 mm</strong></td><td>51%</td><td>49.9 mm</td><td>48.8 min</td><td>~$68</td></tr>
         <tr><td>2</td><td><strong>Claude Opus 4.7</strong> · Fusion</td><td class="score"><strong>2.0 mm</strong></td><td>47%</td><td>47.7 mm</td><td>33.7 min</td><td>~$174</td></tr>
         <tr><td>3</td><td><strong>GPT&#8209;5 Codex</strong> · CadQuery</td><td class="score"><strong>7.8 mm</strong></td><td style="color:#4e7a00;font-weight:700">69%</td><td style="color:#4e7a00;font-weight:700">47.2 mm</td><td><strong>13.0 min</strong></td><td><em>not reported</em></td></tr>
         <tr class="ref"><td>—</td><td>CADCLAW reference <em>(answer key)</em></td><td class="score"><strong>0.0 mm</strong></td><td>100%</td><td>0.0 mm</td><td>resolver</td><td>—</td></tr>
       </tbody>
     </table>
-    <p class="caption" style="text-align:left;max-width:74ch;"><strong>MARB v0.9.</strong> <strong>GAP median</strong> = error vs the answer key's intended interface gap (≈0 mm bolted, ≈1 mm motion clearance). <strong>ORIENT aligned</strong> = % of asymmetric parts in the correct rotation. <strong>POS rel median</strong> = position error relative to each part's neighbours (frame‑invariant). Tolerances are tight by design (≤5 mm = located, ≤5° = aligned); none buildable yet. Cost est. at Anthropic Opus list price (~$15 / $75 per M tokens, $1.50 cache‑read); Codex CLI didn't report tokens. Results 2026&#8209;05&#8209;26 · CadQuery 2.7.0, Autodesk Fusion 2702.1.58 · graded per the <a href="https://marb.cadclaw.io">MARB v0.9 scoring spec</a>.</p>
-    <p class="lede">Every flagged clip is structural — beams overlapping at splice joints and post/frame junctions, and the centered 2040 inserts overlapping their beams. <strong>Both also placed the Z-posts in the wrong rotation</strong> versus the reference — an orientation error the current gates don't yet catch, and the next gate we're adding.</p>
+    <p class="caption" style="text-align:left;max-width:74ch;"><strong>MARB v0.9.</strong> <strong>GAP median</strong> = error vs the answer key's intended interface gap (≈0 mm bolted, ≈1 mm motion clearance). <strong>ORIENT aligned</strong> = % of asymmetric parts in the correct rotation. <strong>POS rel median</strong> = position error relative to each part's neighbours (frame‑invariant). Tolerances are tight by design (≤5 mm = located, ≤5° = aligned); none buildable yet. Cost est. at Anthropic Opus list price (~$15 / $75 per M tokens, $1.50 cache‑read); Codex CLI didn't report tokens. Results 2026&#8209;05&#8209;26 · CadQuery 2.7.0, Autodesk Fusion 2702.1.58 · graded per the MARB v0.9 scoring spec (POS / GAP / ORIENT definitions and thresholds; available on request: <a href="mailto:info@sunn3d.com?subject=MARB%20v0.9%20scoring%20spec">info@sunn3d.com</a>). <strong>n=1 per cell</strong> (one run each); no error bars, so row order shows spread, not a statistically significant ranking.</p>
+    <p class="lede">Every flagged clip is structural — beams overlapping at splice joints and post/frame junctions, and the centered 2040 inserts overlapping their beams. <strong>Both also placed the Z-posts in the wrong rotation</strong> versus the reference — a mis-orientation that MARB's ORIENT metric scores (the 47–51% aligned column above) and the <code>cadclaw.orientation</code> gate flags, though the L1 buildability sub-grade does not yet penalize it.</p>
     <div class="callout"><strong>Interference is the buildability gate.</strong> A self-intersecting frame can't be built, so it scales the L1 score down — a near-miss outranks a mess. Effort (time, tokens, attempts) is reported separately, never folded into the artifact score.</div>
     <div class="callout"><strong>Fairness note.</strong> CADCLAW and its placement resolver were first built around CadQuery, before the Fusion connection (MCP) existed — so the CadQuery runs may carry a home-field edge in tooling maturity. We flag it so the comparison stays honest; an orientation gate and more reference tasks will tighten it.</div>
     <div class="output-media">
@@ -191,13 +192,13 @@
     <h2>What makes it different</h2>
     <p class="lede">MARB is not "a CAD checker." Specifics separate it from CAD-vendor tooling and from prior benchmarks:</p>
     <ul class="not-prove-list">
-      <li><strong>Grades the shipped STEP, not a vendor's feature tree.</strong> Fusion, SolidWorks, and an AI agent are scored the same way — the only fair cross-tool yardstick.</li>
+      <li><strong>Grades the shipped STEP, not a vendor's feature tree.</strong> Fusion, SolidWorks, and an AI agent are scored the same way — a fair cross-tool yardstick.</li>
       <li><strong>Scores the whole machine, not part pairs.</strong> System-level integrity across every interface at once, where joint/mate datasets stop at two parts.</li>
       <li><strong>Speaks readiness (TRL/MRL/IRL), not a private number.</strong> A score drops straight into the gate reviews programs already run.</li>
       <li><strong>Traces to a real, built machine.</strong> The reference target is a physical prototype that exists in metal, not only pixels.</li>
       <li><strong>Audits its own claims.</strong> CADCLAW ships honesty tooling and refuses to assert a head-to-head it hasn't run.</li>
     </ul>
-    <div class="callout"><strong>Open standard, proprietary engine.</strong> The ladder, rubric, schemas, and chart are open to measure and audit against; the gate algorithms and resolver are the engine. Adopt the standard without the IP — and trust the score because the method is open. MARB sits on top of every CAD tool; it doesn't compete with where designs are drawn. CADCLAW reads and proposes fixes — it never edits your model. The human stays the engineer.</div>
+    <div class="callout"><strong>Open standard, proprietary engine.</strong> The ladder, rubric, schemas, and chart are open to measure and audit against; the gate algorithms and resolver are the engine. Adopt the standard without the IP. The grader and benchmark scaffold are open (MIT); the v0.9 scoring spec (POS / GAP / ORIENT) is available on request. MARB sits on top of every CAD tool; it doesn't compete with where designs are drawn. CADCLAW reads and proposes fixes — it never edits your model. The human stays the engineer.</div>
   </section>
 
   <section class="section dark">

@@ -49,7 +49,7 @@
       "name": "cadclaw",
       "kind": "pypi-package",
       "description": "The CADCLAW Python package itself. Installs the harness, the `cadclaw` CLI, and the local MCP server.",
-      "version": "0.7.1",
+      "version": "0.9.0",
       "install": "pip install cadclaw",
       "url": "https://pypi.org/project/cadclaw/",
       "repository": "https://github.com/sunnyday-technologies/CADCLAW",

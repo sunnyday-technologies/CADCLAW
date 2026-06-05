@@ -21,7 +21,7 @@ agent-driven retrieval. The canonical site is https://cadclaw.io.
 - License: MIT
 - PyPI: https://pypi.org/project/cadclaw/
 - DOI: 10.5281/zenodo.19647391
-- Current version: 0.9.0
+- Current version: 0.9.0 (canonical source: https://pypi.org/project/cadclaw/)
 - Site: https://cadclaw.io
 - Status: open source, actively maintained
 
@@ -46,8 +46,9 @@ Validation domains (each maps to a module under `cadclaw/`):
   configured structural labels beyond a max gap.
 - Color/material (`cadclaw/color_check.py`) — compares STEP AP242 color
   metadata against expected label colors.
-- Kinematics (`cadclaw/kinematics.py`) — beam deflection (Euler-Bernoulli),
-  motor torque budgets, belt tension, GT2 tooth-skip resistance.
+- Structural (`cadclaw/kinematics.py`) — beam deflection (Euler-Bernoulli),
+  motor torque budget, belt tension. Static load math; not motion-clearance
+  or full-travel sweeps.
 - Tolerance (`cadclaw/tolerance.py`) — worst-case, RSS, and Monte Carlo
   tolerance stacking with Cpk and per-dimension variance contribution.
 - Parity (`cadclaw/parity.py`) — STEP-vs-STEP comparison; flags the

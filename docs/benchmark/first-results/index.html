@@ -67,7 +67,7 @@
 
 <main class="pillar-content">
   <h1>How well can AI assemble a machine? The first benchmark results.</h1>
-  <p class="dek">We gave three AI workflows the same box of parts and the same picture of a finished machine, and asked each to build it, with no instructions on <em>how</em>. We then graded all three the same way. Each placed every part on its own; none is buildable yet.</p>
+  <p class="dek">We gave three AI workflows the same kit of authored part files and the same picture of a finished machine, and asked each to build it, with no instructions on <em>how</em>. We then graded all three the same way. Each placed every part on its own; none is buildable yet.</p>
 
   <figure>
     <img src="/media/hero_score_vs_time.png" alt="Score versus build time for three AI runs; all near the floor, OpenAI Codex fastest at 13 minutes">
@@ -79,7 +79,7 @@
   <p>Each AI received only two things: <strong>the parts kit</strong> (the authored CAD files) and <strong>one reference image</strong> of the finished machine, plus a short list of design constraints. Critically, we did <strong>not</strong> give the build sequence. The original human-guided build specified an inside-out order — X axis, then Y, then Z-posts — and detailed steps; here we withheld all of that. The AI had to figure out how to reach the pictured result on its own.</p>
   <figure>
     <img src="/media/m3_target.png" alt="The reference image of the finished M3-CRETE frame given to each AI">
-    <figcaption>The goal image. The only picture each AI was given — no steps, just this plus the box of parts.</figcaption>
+    <figcaption>The goal image. The only picture each AI was given — no steps, just this plus the authored parts kit.</figcaption>
   </figure>
   <p>That design choice is the point: MARB tests whether a model <strong>understands the mechanical system</strong> — here, a V-slot-and-roller gantry, a basic and well-documented pattern — not whether it can follow a recipe. A <strong>fairness wall</strong> kept each run honest: the driver worked only from the brief and kit, never the reference solution.</p>
 
@@ -106,7 +106,7 @@
 
   <h2>4. Results</h2>
   <table>
-    <thead><tr><th>#</th><th>Driver</th><th>GAP median ↓</th><th>ORIENT aligned ↑</th><th>POS rel median ↓</th><th>Time</th><th>Attempts</th><th>Cost (est.)</th></tr></thead>
+    <thead><tr><th></th><th>Driver</th><th>GAP median ↓</th><th>ORIENT aligned ↑</th><th>POS rel median ↓</th><th>Time</th><th>Attempts</th><th>Cost (est.)</th></tr></thead>
     <tbody>
       <tr><td>—</td><td>CADCLAW reference <em>(answer key)</em></td><td><strong>0.0 mm</strong></td><td>100%</td><td>0.0 mm</td><td>resolver</td><td>—</td><td>—</td></tr>
       <tr><td>1</td><td><strong>Claude Opus 4.7</strong> · CadQuery</td><td><strong>0.0 mm</strong></td><td>51%</td><td>49.9 mm</td><td>48.8 min</td><td>9</td><td>~$68</td></tr>
@@ -114,12 +114,13 @@
       <tr><td>3</td><td><strong>GPT-5 Codex</strong> · CadQuery</td><td><strong>7.8 mm</strong></td><td style="color:#4e7a00;font-weight:700">69%</td><td style="color:#4e7a00;font-weight:700">47.2 mm</td><td><strong>13.0 min</strong></td><td><strong>1</strong></td><td><em>not reported</em></td></tr>
     </tbody>
   </table>
+  <p class="note"><strong>Disclosure and sample size.</strong> n=1 per cell (one run each); no error bars, so row order shows spread, not a statistically significant ranking. Sunnyday Technologies authored MARB, runs the CADCLAW engine that grades every score, and supplies the reference row (our own M3-CRETE, resolver-built, which scores the ceiling by construction). The grader and scaffold are open (MIT) and the scoring spec is available on request.</p>
   <p>All three got every part in and connected — a real result. None is buildable yet, but the spread shows different models leading different dimensions. <strong>Claude‑CadQuery iterated hardest</strong> (nine attempts, re‑extracting real hole patterns from the STEPs) and hit the answer key's interface gaps almost exactly — <strong>0 mm median gap error</strong> — but took 49 minutes. <strong>OpenAI Codex one‑shot the build in 13 minutes</strong> (one attempt) — fastest by 3–4×, loosest gaps (7.8 mm median), but the <strong>most rotations correct (69%)</strong>. <strong>Claude‑Fusion</strong> sat in the middle on every axis. More self‑review buys gap precision at the cost of time; Codex shows a single confident pass can still land most parts in the right rotation. (Claude token use, recovered from the run transcripts: 22M and 34M billed — roughly <strong>$68 and $174 per run</strong> at Anthropic Opus list price; Codex CLI did not expose its count, so its cost is unreported.)</p>
   <p>These numbers sit on top of a real result. From a single image and a parts box, with no build sequence, every model produced a coherent ~100‑part machine, and <strong>one did it in 13 minutes on the first attempt, with no retries.</strong> Tolerances are tight by design — ≤5 mm is "located," ≤5° is "aligned" — because real equipment runs on fractions of a millimetre. The remaining gap is precision: getting every interface to its intended gap (0 mm bolted, ~1 mm motion) and every part to the correct rotation. That is what MARB tracks as the models improve.</p>
 
   <h2>5. What went wrong — the same failure class</h2>
   <p>The grader skips accessories (motors, belts, wheels), so every flagged clip is <strong>structural metal overlapping structural metal</strong>. All three shared the same mistakes: beams placed coincident at the splice joints and post/frame junctions instead of end-to-end, and the centred insert rails overlapping the beams they splice. They got the inventory and the topology right, but not the precise, non-overlapping placement.</p>
-  <p>There was also an error the current gates do <strong>not</strong> yet catch: in every run, the <strong>Z-posts were turned the wrong way</strong> versus the reference. A part that is present, connected, and non-overlapping but mis-oriented passes all three gates today. That is a real defect and a clear next step — an <strong>orientation/pose gate</strong> — which will rank builds more critically still.</p>
+  <p>There was also a defect the <strong>L1 buildability sub-grade</strong> does not yet penalize: in every run, the <strong>Z-posts were turned the wrong way</strong> versus the reference. A part that is present, connected, and non-overlapping but mis-oriented still clears the three buildability gates (inventory, interference, floating). MARB's <strong>ORIENT metric</strong> does score it — the 47–51% aligned column above — and the <code>cadclaw.orientation</code> gate (shipped in 0.9) flags it; folding ORIENT into the buildability sub-grade is the clear next step.</p>
 
   <h2>6. Watch them build it</h2>
   <p>Both CadQuery drivers produced their own review renders as they worked. The Fusion driver inspected via live screenshots that weren't saved — so we recovered its build order afterward by driving the live model through its MCP, revealing the placed parts in sequence under a fixed camera (the design carries no parametric timeline).</p>
@@ -144,7 +145,7 @@
 
   <h2>8. Why it matters, and what's next</h2>
   <p>Until recently there was no way to measure this. An AI that can drive CAD, and an automatic checker that confirms whether the result is correct, only recently became usable together. With both in place, the same task can be scored the same way for any tool or model, so improvement is measurable rather than anecdotal.</p>
-  <p>Next on the curve: a top <strong>local</strong> model as a low-capability anchor, more frontier drivers, the orientation gate, and additional reference tasks — each plotted as capability vs. MARB score. We are publishing the ladder, the scoring, and the readiness correlation as a <strong>candidate standard</strong> and inviting labs, CAD vendors, and standards bodies to measure against it.</p>
+  <p>Next on the curve: a top <strong>local</strong> model as a low-capability anchor, more frontier drivers, folding the ORIENT metric into the buildability sub-grade, and additional reference tasks — each plotted as capability vs. MARB score. We are publishing the ladder, the scoring, and the readiness correlation as a <strong>candidate standard</strong> and inviting labs, CAD vendors, and standards bodies to measure against it.</p>
   <p class="note">Reproduce or review: the benchmark scaffold (prompt, scoring, run procedures) and the CADCLAW engine are open. Method overview: <a href="/benchmark/">cadclaw.io/benchmark</a>. Engine: <a href="https://github.com/sunnyday-technologies/CADCLAW">GitHub</a>. Reviewers welcome — <a href="mailto:info@sunn3d.com">info@sunn3d.com</a>.</p>
 </main>
 

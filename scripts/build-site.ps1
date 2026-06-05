@@ -54,7 +54,7 @@ $rootFiles = @(
 )
 foreach ($f in $rootFiles) { Copy-PublicFile $f }
 
-$publicDirs = @("media", "ci-for-cad", "benchmark")
+$publicDirs = @("media", "ci-for-cad", "benchmark", ".well-known")
 foreach ($d in $publicDirs) { Copy-PublicDirectory $d }
 
 # --- FAIL-LOUD TRIPWIRES ---------------------------------------------------
