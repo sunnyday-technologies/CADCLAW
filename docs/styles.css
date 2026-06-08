@@ -1,11 +1,11 @@
 /* CADCLAW — landing page
    Sunnyday Technologies canonical brand palette.
    Brand colors: #ffffff (white), #97d700 (green), #013a73 (navy).
-   Web typography: Orbitron (display) + Inter (body) + JetBrains Mono (code).
+   Web typography: 'Russo One' (display) + Inter (body) + JetBrains Mono (code).
    Print/slide typography: Nulshock Bd + Sifonn Pro (not loaded here — licensed channel).
    CADCLAW logo keeps its orange as the one warm accent on the site. */
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Raleway:wght@300;400;500;600&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Russo+One&family=Raleway:wght@300;400;500;600&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
 
 :root {
   /* Brand — canonical, from Sunnyday Tech brand guide */
@@ -40,7 +40,7 @@
   /* Typography — matches M3-CRETE / Open3DCP */
   --mono:    "IBM Plex Mono", "SF Mono", Consolas, Menlo, monospace;
   --sans:    "Raleway", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
-  --display: "Orbitron", "Arial Black", sans-serif;
+  --display: 'Russo One', "Arial Black", sans-serif;
 }
 
 html, body { font-weight: 300; }
