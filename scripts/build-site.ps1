@@ -50,11 +50,12 @@ $rootFiles = @(
   "index.html", "styles.css",
   "robots.txt", "sitemap.xml", "llms.txt",
   "CADCLAW_logo.jpg", "M3_FEA_LOAD_CASES.md",
+  "_redirects",                            # /benchmark/* -> marb.cadclaw.io 301s
   "dc64666f8b365e677b9a887307e73b38.txt"   # IndexNow / site-verification key
 )
 foreach ($f in $rootFiles) { Copy-PublicFile $f }
 
-$publicDirs = @("media", "ci-for-cad", "benchmark", ".well-known")
+$publicDirs = @("media", "ci-for-cad", ".well-known")
 foreach ($d in $publicDirs) { Copy-PublicDirectory $d }
 
 # --- FAIL-LOUD TRIPWIRES ---------------------------------------------------

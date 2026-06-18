@@ -10,6 +10,8 @@
 
 Automated geometric checks (inventory, interference, adjacency, dimensional, orientation, floating-part, color/material, tolerance stacking) plus a **BOM-vs-CAD audit** and an **honesty toolchain** (doctor, publish-audit, claim-audit) for STEP assemblies. Like pytest for mechanical design — *in spirit*. Real CAD has analog characteristics pytest doesn't have (a part isn't binary present/absent — it can be slightly the wrong size, slightly clipping, slightly misplaced); CADCLAW reports findings with severity, evidence, and a confidence budget rather than just pass/fail.
 
+CADCLAW is also the open verification engine behind **[MARB](https://marb.cadclaw.io)** — the Mechanical Assembly Readiness Benchmark — whose graders import CADCLAW's gates to score how well AI assembles a complete machine in CAD. See the [MARB repository](https://github.com/sunnyday-technologies/MARB).
+
 ## The Problem
 
 CAD assemblies break silently. Parts clip into each other, BOMs drift from geometry, motor mounts end up 600mm from the motor. Engineers catch these errors by eye — if they catch them at all. CADCLAW automates the geometric checks. It does **not** replace engineering judgment, structural certification, or physical-build validation.
