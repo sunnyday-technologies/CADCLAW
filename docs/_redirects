@@ -1,0 +1,7 @@
+# The cadclaw.io/benchmark/* mirror is retired. marb.cadclaw.io is the single
+# source of truth for the benchmark (publish only from MARB/publishing).
+/benchmark/first-results/  https://marb.cadclaw.io/first-results/  301
+/benchmark/first-results   https://marb.cadclaw.io/first-results/  301
+/benchmark/                https://marb.cadclaw.io/                301
+/benchmark                 https://marb.cadclaw.io/                301
+/benchmark/*               https://marb.cadclaw.io/:splat          301
