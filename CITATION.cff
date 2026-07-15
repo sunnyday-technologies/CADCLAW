@@ -20,7 +20,7 @@ repository-code: "https://github.com/sunnyday-technologies/CADCLAW"
 url: "https://github.com/sunnyday-technologies/CADCLAW"
 identifiers:
   - type: doi
-    value: 10.5281/zenodo.19647391
+    value: 10.5281/zenodo.19647390
     description: Zenodo concept DOI (all versions)
 keywords:
   - CAD
