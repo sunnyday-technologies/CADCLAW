@@ -1,6 +1,6 @@
 # CADCLAW
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19647391.svg)](https://doi.org/10.5281/zenodo.19647391)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19647390.svg)](https://doi.org/10.5281/zenodo.19647390)
 
 **An automated check suite for STEP-based CAD assemblies.**
 
@@ -183,7 +183,7 @@ If you use CADCLAW in published research or derivative work, please cite:
 Sonnentag, N. (2026). CADCLAW: Automated validation framework for
 STEP-based CAD assemblies. Sunnyday Technologies.
 https://github.com/sunnyday-technologies/CADCLAW
-DOI: 10.5281/zenodo.19647391
+DOI: 10.5281/zenodo.19647390
 ```
 
 A [`CITATION.cff`](CITATION.cff) file is included for automated citation tooling.
