@@ -20,7 +20,7 @@ agent-driven retrieval. The canonical site is https://cadclaw.io.
 - Repository: https://github.com/sunnyday-technologies/CADCLAW
 - License: MIT
 - PyPI: https://pypi.org/project/cadclaw/
-- DOI: 10.5281/zenodo.19647391
+- DOI: 10.5281/zenodo.19647390
 - Current version: 0.9.0 (canonical source: https://pypi.org/project/cadclaw/)
 - Site: https://cadclaw.io
 - Status: open source, actively maintained
@@ -136,5 +136,5 @@ Entry point: `python -m cadclaw_mcp` (see `cadclaw_mcp/server.py`).
 Sonnentag, N. (2026). CADCLAW: Automated validation framework for
 STEP-based CAD assemblies. Sunnyday Technologies.
 https://github.com/sunnyday-technologies/CADCLAW
-DOI: 10.5281/zenodo.19647391
+DOI: 10.5281/zenodo.19647390
 ```
