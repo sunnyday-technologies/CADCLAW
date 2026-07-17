@@ -48,7 +48,7 @@
         "sameAs": [
           "https://github.com/sunnyday-technologies/CADCLAW",
           "https://pypi.org/project/cadclaw/",
-          "https://doi.org/10.5281/zenodo.19647391"
+          "https://doi.org/10.5281/zenodo.19647390"
         ]
       },
       {
@@ -185,7 +185,7 @@
 <p>CADCLAW is what that runtime looks like.</p>
 <p>A small note on the analogy. <code>pytest</code> is exact: a Python value either equals the expected value, or it doesn't. CAD geometry is analog. A part is not binary present or absent; it can be slightly the wrong size, slightly clipping, slightly misplaced. That difference is real, and CADCLAW's design accommodates it. Findings are emitted with severity (<code>PASS</code>, <code>WARN</code>, <code>FAIL</code>), with structured evidence (bbox tuples, overlap volumes, distance values), and against a project-defined tolerance budget. The pytest-style merge gate is still pass-or-fail; under the hood, the gate is reasoning about real numbers with real noise. That is what makes CADCLAW different from a CAD-vendor "model checker": the framework is designed for the messy reality of mechanical parts, not the cleanroom of a single-vendor parametric tree.</p>
 <h2 id="2-what-cadclaw-is">2. What CADCLAW is</h2>
-<p>CADCLAW is an open-source Python framework that loads STEP assemblies and runs validation gates against them. It is MIT-licensed, distributed on PyPI as <code>cadclaw</code>, archived on Zenodo with <a href="https://zenodo.org/records/19647391">DOI 10.5281/zenodo.19647391</a>, and authored by <a href="https://sunn3d.com/">Sunnyday Technologies</a>. It is software for makers: a tool to enable mechanical engineers to make machines so they can make stuff. The audience is anyone driving hardware from a CAD repository, from aerospace bracketry to robotics chassis to custom industrial fixtures, optical mounts, surgical instruments, and prosumer 3D printers. M3-CRETE is the project the framework was first deployed against, and serves as a published case study; it is not the boundary of CADCLAW's scope.</p>
+<p>CADCLAW is an open-source Python framework that loads STEP assemblies and runs validation gates against them. It is MIT-licensed, distributed on PyPI as <code>cadclaw</code>, archived on Zenodo with <a href="https://zenodo.org/records/19647390">DOI 10.5281/zenodo.19647390</a>, and authored by <a href="https://sunn3d.com/">Sunnyday Technologies</a>. It is software for makers: a tool to enable mechanical engineers to make machines so they can make stuff. The audience is anyone driving hardware from a CAD repository, from aerospace bracketry to robotics chassis to custom industrial fixtures, optical mounts, surgical instruments, and prosumer 3D printers. M3-CRETE is the project the framework was first deployed against, and serves as a published case study; it is not the boundary of CADCLAW's scope.</p>
 <p>Architecturally, CADCLAW has three layers:</p>
 <ol>
 <li><strong><code>cadclaw</code></strong> is a Python package containing the gate implementations: <code>cadclaw.inventory</code>, <code>cadclaw.interference</code>, <code>cadclaw.adjacency</code>, <code>cadclaw.dimensional</code>, <code>cadclaw.kinematics</code>, <code>cadclaw.tolerance</code>, <code>cadclaw.disassembly</code>, <code>cadclaw.parity</code>, <code>cadclaw.bom_audit</code>. Each module is independently importable and follows the same pattern: a <code>*Check</code> class, a <code>*Result</code> dataclass, structured <code>Finding</code> objects with severity and evidence.</li>
@@ -372,7 +372,7 @@ cadclaw bom-audit --rules cadclaw.yaml      # run the BOM-vs-CAD audit standalon
 <pre><code>Sonnentag, N. (2026). CADCLAW: Automated validation framework for
 STEP-based CAD assemblies [Software]. Sunnyday Technologies.
 https://github.com/sunnyday-technologies/CADCLAW
-DOI: 10.5281/zenodo.19647391
+DOI: 10.5281/zenodo.19647390
 </code></pre>
 <p>A <code>CITATION.cff</code> file is shipped in the repository for automated citation tooling (Zenodo, GitHub's citation widget, JOSS).</p>
 <h2 id="schema">Schema</h2>
@@ -398,9 +398,9 @@ DOI: 10.5281/zenodo.19647391
         "name": "Sunnyday Technologies",
         "url": "https://sunn3d.com/"
       },
-      "identifier": "10.5281/zenodo.19647391",
+      "identifier": "10.5281/zenodo.19647390",
       "sameAs": [
-        "https://zenodo.org/records/19647391",
+        "https://zenodo.org/records/19647390",
         "https://pypi.org/project/cadclaw/"
       ]
     },
@@ -437,8 +437,8 @@ DOI: 10.5281/zenodo.19647391
       "citation": {
         "@type": "CreativeWork",
         "name": "CADCLAW: Automated validation framework for STEP-based CAD assemblies",
-        "identifier": "10.5281/zenodo.19647391",
-        "url": "https://zenodo.org/records/19647391"
+        "identifier": "10.5281/zenodo.19647390",
+        "url": "https://zenodo.org/records/19647390"
       }
     }
   ]
@@ -460,7 +460,7 @@ DOI: 10.5281/zenodo.19647391
       <h4>Project</h4>
       <a href="https://github.com/sunnyday-technologies/CADCLAW">GitHub</a>
       <a href="https://github.com/sunnyday-technologies/CADCLAW/issues">Issues</a>
-      <a href="https://doi.org/10.5281/zenodo.19647391">Zenodo DOI</a>
+      <a href="https://doi.org/10.5281/zenodo.19647390">Zenodo DOI</a>
     </div>
     <div>
       <h4>Related</h4>
