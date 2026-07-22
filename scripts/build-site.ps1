@@ -47,7 +47,7 @@ function Copy-PublicDirectory {
 
 # --- ALLOWLIST (paths relative to docs/) ----------------------------------
 $rootFiles = @(
-  "index.html", "styles.css",
+  "index.html", "404.html", "styles.css",
   "robots.txt", "sitemap.xml", "llms.txt",
   "CADCLAW_logo.jpg", "M3_FEA_LOAD_CASES.md",
   "_redirects",                            # /benchmark/* -> marb.cadclaw.io 301s
