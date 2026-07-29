@@ -11,6 +11,18 @@ build/
 # ...but the worked example's authored stand-in parts must ship, or the
 # example is broken on clone. Three ~15 KB boxes, no private geometry.
 !examples/relative_placement/parts/*.step
+
+# Private working tree: design plans, frame canon, unpublished notes. This was
+# previously ignored only via .git/info/exclude, which is local to one clone
+# and never travels — a fresh clone or CI runner had no protection at all.
+# Enforced as well by scripts/check_no_answer_keys.sh + the key-guard workflow.
+_private/
+
+# MARB answer-key material must never land in this public repo. It is
+# distributed through the gated Hugging Face dataset.
+**/m3_reference_round1.step
+**/*reference*.step
+**/ph[0-9]*_reference*
 *.stl
 .DS_Store
 Thumbs.db

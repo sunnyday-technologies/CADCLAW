@@ -64,6 +64,28 @@ does.
   `validate_assembly_spec()` instead of carrying its own copy of the logic. CLI
   output and exit codes are unchanged.
 
+### Security
+
+- **Redacted MARB answer-key placement from the public M3 example.**
+  `examples/m3_crete/m3_reference_assembly.yaml` carried 70 instances whose ids
+  all appear in MARB's gated 100-instance answer key, 26 of them with
+  byte-identical `translate_mm`. Any agent or crawler reading this repo could
+  recover roughly a quarter of the key's poses. All 70 `transform` blocks are
+  removed. The part roster, roles, and counts stay: M3-CRETE is open hardware,
+  so those are published by design; only the solved placement was secret.
+  Fifteen pose assertions that pinned the same coordinates were also removed
+  from `tests/test_assembly_spec.py`, which was itself publishing them.
+- **Added a key-guard**, ported from MARB: `scripts/check_no_answer_keys.sh`
+  (the single source of truth for blocked patterns), a `pre-push` hook, and the
+  `key-guard` CI workflow as the server-side backstop. It blocks key-shaped
+  paths *and* content-checks that solved poses have not returned to the
+  redacted example. Verified to fire on both violation types.
+- **`_private/` is now ignored by the committed `.gitignore`.** It was
+  protected only by `.git/info/exclude`, which is local to one clone and never
+  travels — a fresh clone, CI runner, or agent sandbox had no protection.
+- A regression test asserts the redaction holds, so poses cannot silently
+  return to the example.
+
 ### Fixed
 
 - Documentation cited the Zenodo *version* DOI (`10.5281/zenodo.19647391`) in

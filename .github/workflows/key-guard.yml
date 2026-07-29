@@ -1,0 +1,45 @@
+name: key-guard
+
+# Server-side backstop for the answer-key guard (scripts/check_no_answer_keys.sh).
+#
+# The local pre-push hook can be bypassed with --no-verify or simply not
+# installed on a fresh clone, so CI re-runs the same script as the real gate.
+# The script is the single source of truth for what counts as key material.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  no-answer-keys:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # full history so a commit range can be scanned, not just the tip
+          fetch-depth: 0
+
+      - name: No answer-key paths or solved poses in the tree
+        run: sh scripts/check_no_answer_keys.sh --tree
+
+      - name: No answer-key paths in the pushed commits
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          # A new branch reports an all-zero "before"; scan it against main.
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            git fetch origin main --depth=0 || true
+            sh scripts/check_no_answer_keys.sh --range "$AFTER" --not origin/main
+          else
+            sh scripts/check_no_answer_keys.sh --range "$BEFORE..$AFTER"
+          fi
+
+      - name: No answer-key paths in the PR commits
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: sh scripts/check_no_answer_keys.sh --range "$BASE..$HEAD"
