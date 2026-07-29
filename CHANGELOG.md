@@ -66,15 +66,13 @@ does.
 
 ### Security
 
-- **Redacted MARB answer-key placement from the public M3 example.**
-  `examples/m3_crete/m3_reference_assembly.yaml` carried 70 instances whose ids
-  all appear in MARB's gated 100-instance answer key, 26 of them with
-  byte-identical `translate_mm`. Any agent or crawler reading this repo could
-  recover roughly a quarter of the key's poses. All 70 `transform` blocks are
-  removed. The part roster, roles, and counts stay: M3-CRETE is open hardware,
-  so those are published by design; only the solved placement was secret.
-  Fifteen pose assertions that pinned the same coordinates were also removed
-  from `tests/test_assembly_spec.py`, which was itself publishing them.
+- **Answer-key placement was redacted from the public M3 example.**
+  `examples/m3_crete/m3_reference_assembly.yaml` is now a spec-shape example
+  rather than a placement one: the per-instance `transform` blocks are removed,
+  along with the pose assertions in `tests/test_assembly_spec.py` that pinned
+  the same values. The part roster, roles, and counts stay, since M3-CRETE is
+  open hardware and its structure is published by design. The complete
+  reference assembly is distributed through the gated dataset.
 - **Added a key-guard**, ported from MARB: `scripts/check_no_answer_keys.sh`
   (the single source of truth for blocked patterns), a `pre-push` hook, and the
   `key-guard` CI workflow as the server-side backstop. It blocks key-shaped
