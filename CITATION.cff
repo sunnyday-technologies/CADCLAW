@@ -1,13 +1,21 @@
 cff-version: 1.2.0
 message: "If you use CADCLAW in your research or engineering work, please cite it as below."
-title: "CADCLAW: Automated validation framework for STEP-based CAD assemblies"
+title: "CADCLAW: Automated assembly and validation framework for STEP-based CAD"
 abstract: >-
-  CADCLAW is an automated validation and analysis framework for STEP
-  assemblies, providing interference detection, inventory checks,
-  adjacency rules, dimensional, orientation, floating-part, and color/material
-  gates, kinematics, tolerance stacking (worst-case / RSS / Monte Carlo), and
-  disassembly-sequence rendering. Includes an MCP server exposing core
-  CADCLAW checks to AI coding assistants.
+  CADCLAW builds and verifies STEP CAD assemblies. It compiles a declarative
+  assembly spec into a STEP file, placing authored STEP parts by connector
+  frames and datum chains rather than hand-typed coordinates, and emits a
+  design inventory, a model-derived BOM, review-view renders, and step-by-step
+  assembly sequences. It then runs automated gates over the result: inventory,
+  interference, adjacency, dimensional, orientation, floating-part, and
+  color/material checks, structural analysis (beam deflection, motor torque
+  budget, belt tension), tolerance stacking (worst-case / RSS / Monte Carlo),
+  STEP-vs-STEP parity, and a BOM-vs-CAD audit. Findings carry severity,
+  evidence, and a confidence budget rather than bare pass/fail. CADCLAW places
+  parts authored in external CAD; it does not generate geometry. Includes an
+  MCP server exposing both the assembly and validation tools to AI coding
+  assistants, with rendered review views returned as inline images so an agent
+  can visually verify each assembly round.
 type: software
 authors:
   - family-names: Sonnentag
@@ -25,13 +33,14 @@ identifiers:
 keywords:
   - CAD
   - STEP
+  - assembly
+  - assembly-automation
   - validation
   - testing
   - cadquery
   - mechanical-design
-  - assembly
   - tolerance-analysis
   - interference-detection
   - mcp
-version: "0.9.0"
-date-released: "2026-05-14"
+version: "0.10.0"
+date-released: "2026-07-29"

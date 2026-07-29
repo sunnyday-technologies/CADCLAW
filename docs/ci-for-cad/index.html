@@ -22,7 +22,7 @@
         "@id": "https://cadclaw.io/#software",
         "name": "CADCLAW",
         "alternateName": "cadclaw",
-        "description": "CADCLAW is an automated check suite for STEP-based CAD assemblies — pytest-style geometric, kinematic, tolerance, and BOM-vs-CAD validation, with an honesty toolchain (doctor, publish-audit, claim-audit) and an included MCP server.",
+        "description": "CADCLAW builds and verifies STEP-based CAD assemblies: a declarative spec places authored parts by connector frames and datum chains and compiles the STEP, then pytest-style geometric, structural, tolerance, and BOM-vs-CAD gates check the result. Includes an honesty toolchain (doctor, publish-audit, claim-audit) and an MCP server.",
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "CAD validation / mechanical engineering QA",
         "operatingSystem": "Cross-platform (Windows, macOS, Linux)",
@@ -67,7 +67,7 @@
         "@id": "https://cadclaw.io/#website",
         "url": "https://cadclaw.io/",
         "name": "CADCLAW",
-        "description": "An automated check suite for STEP-based CAD assemblies.",
+        "description": "Automated assembly and validation for STEP-based CAD.",
         "publisher": { "@id": "https://sunn3d.com/#org" },
         "inLanguage": "en"
       }
@@ -185,12 +185,12 @@
 <p>CADCLAW is what that runtime looks like.</p>
 <p>A small note on the analogy. <code>pytest</code> is exact: a Python value either equals the expected value, or it doesn't. CAD geometry is analog. A part is not binary present or absent; it can be slightly the wrong size, slightly clipping, slightly misplaced. That difference is real, and CADCLAW's design accommodates it. Findings are emitted with severity (<code>PASS</code>, <code>WARN</code>, <code>FAIL</code>), with structured evidence (bbox tuples, overlap volumes, distance values), and against a project-defined tolerance budget. The pytest-style merge gate is still pass-or-fail; under the hood, the gate is reasoning about real numbers with real noise. That is what makes CADCLAW different from a CAD-vendor "model checker": the framework is designed for the messy reality of mechanical parts, not the cleanroom of a single-vendor parametric tree.</p>
 <h2 id="2-what-cadclaw-is">2. What CADCLAW is</h2>
-<p>CADCLAW is an open-source Python framework that loads STEP assemblies and runs validation gates against them. It is MIT-licensed, distributed on PyPI as <code>cadclaw</code>, archived on Zenodo with <a href="https://zenodo.org/records/19647390">DOI 10.5281/zenodo.19647390</a>, and authored by <a href="https://sunn3d.com/">Sunnyday Technologies</a>. It is software for makers: a tool to enable mechanical engineers to make machines so they can make stuff. The audience is anyone driving hardware from a CAD repository, from aerospace bracketry to robotics chassis to custom industrial fixtures, optical mounts, surgical instruments, and prosumer 3D printers. M3-CRETE is the project the framework was first deployed against, and serves as a published case study; it is not the boundary of CADCLAW's scope.</p>
+<p>CADCLAW is an open-source Python framework that assembles STEP CAD from authored parts and runs validation gates against the result. It compiles a declarative assembly spec into a STEP file, placing parts by connector frames and datum chains rather than hand-typed coordinates, then checks what it built. It is MIT-licensed, distributed on PyPI as <code>cadclaw</code>, archived on Zenodo with <a href="https://zenodo.org/records/19647390">DOI 10.5281/zenodo.19647390</a>, and authored by <a href="https://sunn3d.com/">Sunnyday Technologies</a>. It is software for makers: a tool to enable mechanical engineers to make machines so they can make stuff. The audience is anyone driving hardware from a CAD repository, from aerospace bracketry to robotics chassis to custom industrial fixtures, optical mounts, surgical instruments, and prosumer 3D printers. M3-CRETE is the project the framework was first deployed against, and serves as a published case study; it is not the boundary of CADCLAW's scope.</p>
 <p>Architecturally, CADCLAW has three layers:</p>
 <ol>
-<li><strong><code>cadclaw</code></strong> is a Python package containing the gate implementations: <code>cadclaw.inventory</code>, <code>cadclaw.interference</code>, <code>cadclaw.adjacency</code>, <code>cadclaw.dimensional</code>, <code>cadclaw.kinematics</code>, <code>cadclaw.tolerance</code>, <code>cadclaw.disassembly</code>, <code>cadclaw.parity</code>, <code>cadclaw.bom_audit</code>. Each module is independently importable and follows the same pattern: a <code>*Check</code> class, a <code>*Result</code> dataclass, structured <code>Finding</code> objects with severity and evidence.</li>
-<li><strong><code>cadclaw</code> CLI</strong> is a console-script entry point that drives the harness from a declarative <code>cadclaw.yaml</code> rule file. Subcommands include <code>cadclaw doctor</code>, <code>cadclaw harness</code>, <code>cadclaw bom-audit</code>, <code>cadclaw inspect</code>, <code>cadclaw publish-audit</code>, and <code>cadclaw claim-audit</code>. Exit codes are pytest-style: <code>0</code> pass, <code>1</code> fail, <code>2</code> warn-only, <code>3</code> internal error.</li>
-<li><strong><code>cadclaw_mcp</code></strong> is an MCP (Model Context Protocol) server that exposes CADCLAW's core checks and audit helpers as tools an AI coding assistant can call directly. We come back to this in section 6.</li>
+<li><strong><code>cadclaw</code></strong> is a Python package containing the assembly compiler (<code>cadclaw.assembly_spec</code>, <code>cadclaw.assembly_compiler</code>, <code>cadclaw.connector_metadata</code>, <code>cadclaw.component_manifest</code>) and the gate implementations: <code>cadclaw.inventory</code>, <code>cadclaw.interference</code>, <code>cadclaw.adjacency</code>, <code>cadclaw.dimensional</code>, <code>cadclaw.kinematics</code>, <code>cadclaw.tolerance</code>, <code>cadclaw.disassembly</code>, <code>cadclaw.parity</code>, <code>cadclaw.bom_audit</code>. Each module is independently importable and follows the same pattern: a <code>*Check</code> class, a <code>*Result</code> dataclass, structured <code>Finding</code> objects with severity and evidence.</li>
+<li><strong><code>cadclaw</code> CLI</strong> is a console-script entry point that drives the harness from a declarative <code>cadclaw.yaml</code> rule file. Subcommands include <code>cadclaw doctor</code>, <code>cadclaw assemble</code> (<code>validate-spec</code>, <code>build</code>, <code>check-round</code>, <code>inspect-component</code>, <code>render-views</code>, <code>render-sequence</code>), <code>cadclaw harness</code>, <code>cadclaw bom-audit</code>, <code>cadclaw inspect</code>, <code>cadclaw publish-audit</code>, and <code>cadclaw claim-audit</code>. Exit codes are pytest-style: <code>0</code> pass, <code>1</code> fail, <code>2</code> warn-only, <code>3</code> internal error.</li>
+<li><strong><code>cadclaw_mcp</code></strong> is an MCP (Model Context Protocol) server that exposes CADCLAW's assembly tools, core checks, and audit helpers as tools an AI coding assistant can call directly, returning rendered review views as inline images so the assistant can see each assembly round. We come back to this in section 6.</li>
 </ol>
 <p>The framework is honest about its scope. CADCLAW reads geometry; it does not certify designs. It does not substitute for FEA, fatigue analysis, or physical testing. Every report ships with a <strong>confidence budget</strong> that lists what was checked, what was not, and what assumptions were baked in (mm units, rigid bodies, STEP exports faithful to the native CAD model). The README explicitly disclaims structural certification, hidden-suppressed-part detection in the native CAD package, vendor-stock validation, and physical-build conformance. CADCLAW does the geometric checks. The engineer is still the engineer.</p>
 <p>What it does do is run those geometric checks on every commit, in CI, with no human in the loop, with copy-pasteable assertions and a structured report. That is the missing infrastructure.</p>
@@ -369,8 +369,8 @@ cadclaw bom-audit --rules cadclaw.yaml      # run the BOM-vs-CAD audit standalon
 <p>A handful of lines from a clean Python 3.10+ environment to a working CAD CI pipeline. Distributed via <a href="https://pypi.org/project/cadclaw/">PyPI</a>, source on <a href="https://github.com/sunnyday-technologies/CADCLAW">GitHub</a>, MIT-licensed, no commercial CAD software required for CADCLAW's own checks.</p>
 <h2 id="cite-this-work">Cite this work</h2>
 <p>If you use CADCLAW in published research or derivative work, please cite via the project's CITATION.cff:</p>
-<pre><code>Sonnentag, N. (2026). CADCLAW: Automated validation framework for
-STEP-based CAD assemblies [Software]. Sunnyday Technologies.
+<pre><code>Sonnentag, N. (2026). CADCLAW: Automated assembly and validation framework for
+STEP-based CAD [Software]. Sunnyday Technologies.
 https://github.com/sunnyday-technologies/CADCLAW
 DOI: 10.5281/zenodo.19647390
 </code></pre>
@@ -385,9 +385,9 @@ DOI: 10.5281/zenodo.19647390
       "@type": "SoftwareApplication",
       "name": "CADCLAW",
       "applicationCategory": "DeveloperApplication",
-      "applicationSubCategory": "CAD validation framework",
+      "applicationSubCategory": "CAD assembly automation and validation framework",
       "operatingSystem": "Linux, macOS, Windows",
-      "description": "Automated validation framework for STEP-based CAD assemblies. Pytest-style gates for interference, inventory, adjacency, dimensional, orientation, floating-part, color/material, kinematic, tolerance, BOM-vs-CAD, parity, and disassembly checks. Includes an MCP server exposing core CADCLAW checks to AI coding assistants.",
+      "description": "Automated assembly and validation framework for STEP-based CAD. Compiles a declarative assembly spec into a STEP file by placing authored parts on connector frames and datum chains, then runs pytest-style gates for interference, inventory, adjacency, dimensional, orientation, floating-part, color/material, structural, tolerance, BOM-vs-CAD, parity, and disassembly checks. Includes an MCP server exposing core CADCLAW checks to AI coding assistants.",
       "url": "https://cadclaw.io/",
       "downloadUrl": "https://pypi.org/project/cadclaw/",
       "codeRepository": "https://github.com/sunnyday-technologies/CADCLAW",
@@ -436,7 +436,7 @@ DOI: 10.5281/zenodo.19647390
       "keywords": "STEP file validation, CAD CI, pytest for CAD, automated CAD assembly testing, CadQuery testing, open source hardware testing, CAD pipeline CI/CD, tolerance stacking automation",
       "citation": {
         "@type": "CreativeWork",
-        "name": "CADCLAW: Automated validation framework for STEP-based CAD assemblies",
+        "name": "CADCLAW: Automated assembly and validation framework for STEP-based CAD",
         "identifier": "10.5281/zenodo.19647390",
         "url": "https://zenodo.org/records/19647390"
       }
@@ -453,7 +453,7 @@ DOI: 10.5281/zenodo.19647390
   <div class="foot-grid">
     <div>
       <h4>CADCLAW</h4>
-      <p>An automated check suite for STEP assemblies.</p>
+      <p>Automated assembly and validation for STEP CAD.</p>
       <p class="muted">MIT License · © 2026 <a href="https://sunn3d.com">Sunnyday Technologies</a></p>
     </div>
     <div>

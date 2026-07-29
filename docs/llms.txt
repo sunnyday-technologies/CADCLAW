@@ -1,12 +1,22 @@
 # CADCLAW
 
-CADCLAW is an automated check suite for STEP-based CAD assemblies — "pytest for
-mechanical design", in spirit. It is a Python package (PyPI: `cadclaw`) that
-validates STEP files and BOM JSON through a chain of geometric, kinematic,
-tolerance, and text-audit gates, and reports findings with severity, evidence,
-and a confidence budget rather than just pass/fail. CADCLAW also ships an MCP
-server so MCP-compatible assistants (Claude Desktop, Cursor, etc.) can call its
-checks directly.
+CADCLAW builds and verifies STEP-based CAD assemblies. It is a Python package
+(PyPI: `cadclaw`) with two halves.
+
+Assemble: a declarative assembly spec places authored STEP parts by connector
+frames and datum chains rather than hand-typed coordinates, compiles the
+assembly with CadQuery, and emits a design inventory, a model-derived BOM,
+review-view renders, and step-by-step build sequences.
+
+Verify: a chain of geometric, structural, tolerance, and text-audit gates over
+the result, reporting findings with severity, evidence, and a confidence budget
+rather than just pass/fail. "Pytest for mechanical design", in spirit.
+
+CADCLAW places parts authored in external CAD (Fusion, Rhino, SolidWorks). It
+does not generate geometry: no parametric plates, bolt-circle constants, or
+hole-drilling helpers. CADCLAW also ships an MCP server so MCP-compatible
+assistants (Claude Desktop, Cursor, etc.) can drive both halves directly, and
+can see the rendered review images at each assembly round.
 
 This file is a high-density plain-text summary intended for LLM and
 agent-driven retrieval. The canonical site is https://cadclaw.io.
@@ -21,11 +31,45 @@ agent-driven retrieval. The canonical site is https://cadclaw.io.
 - License: MIT
 - PyPI: https://pypi.org/project/cadclaw/
 - DOI: 10.5281/zenodo.19647390
-- Current version: 0.9.0 (canonical source: https://pypi.org/project/cadclaw/)
+- Current version: 0.10.0 (canonical source: https://pypi.org/project/cadclaw/)
 - Site: https://cadclaw.io
 - Status: open source, actively maintained
 
 ## What CADCLAW does
+
+### Assembly (the `cadclaw assemble` command group)
+
+CADCLAW compiles a declarative assembly spec into a STEP assembly.
+
+- Assembly spec (`cadclaw/assembly_spec.py`) — strict schema
+  (`assembly_spec.v0.1`); unknown keys fail validation, outputs cannot
+  overwrite `protected_paths`, incomplete work is declared `not_built_yet`.
+- Assembly compiler (`cadclaw/assembly_compiler.py`) — resolves authored STEP
+  sources and compiles with CadQuery. `resolve_relative_placements()` walks the
+  datum chain in topological order and solves each constraint-placed transform,
+  reporting cycles, missing refs, and missing frames as findings.
+- Connector metadata (`cadclaw/connector_metadata.py`) — local coordinate
+  frames per authored component: extrusion ends, mount faces, rail slots,
+  wheel contacts, shaft axes, belt planes.
+- Component manifest (`cadclaw/component_manifest.py`) — index of an authored
+  STEP library with bbox signatures and metadata coverage.
+
+Commands: `assemble validate-spec`, `assemble build`, `assemble check-round`,
+`assemble inspect-component`, `assemble render-views`, `assemble
+render-sequence`.
+
+Placement is by constraint, not hand-typed coordinates. An instance declares
+`place_relative_to` (ref / parent_frame / frame / axis / side / offset_mm /
+lock) to seat its connector frame against a parent's frame. `lock: "frame"`
+solves all three translation axes; `lock: "axis"` solves only the handoff axis
+and keeps the instance transform for orientation and the two free axes.
+Absolute transforms still work, so migration is incremental.
+
+CADCLAW does NOT author geometry. It places parts the user drew in external
+CAD. There are no parametric plate, bracket, mount, or hole-pattern generators,
+and none are planned.
+
+### Validation
 
 CADCLAW validates STEP CAD assemblies and their BOMs through automated gates.
 Configure once in `cadclaw.yaml`, run from the `cadclaw` console script.
@@ -89,6 +133,10 @@ CADCLAW's own checks. Cross-platform (Windows, macOS, Linux).
 
 ```
 cadclaw doctor
+cadclaw assemble validate-spec  <spec.yaml>
+cadclaw assemble build          <spec.yaml> --connector-metadata <meta.yaml>
+cadclaw assemble check-round    <spec.yaml>   # build + check + render, one round
+cadclaw assemble render-sequence <spec.yaml>  # step-by-step build STEPs + BOM CSV
 cadclaw harness       --rules cadclaw.yaml
 cadclaw bom-audit     --rules cadclaw.yaml
 cadclaw publish-audit --rules cadclaw.yaml
@@ -101,11 +149,30 @@ Exit codes: 0 pass, 1 fail, 2 warn-only (no fails), 3 internal error.
 ## MCP server
 
 The repository also publishes `cadclaw_mcp/` — a Model Context Protocol
-server that exposes the same harness modules as MCP tools, so an
-MCP-compatible assistant can drive CADCLAW directly. The MCP server runs
-LOCALLY after `pip install cadclaw`; it is NOT a hosted endpoint. It only
-exposes CADCLAW's own checks — it does not give an assistant access to your
-CAD application or to anything outside what `cadclaw` itself can do.
+server that exposes harness modules as MCP tools, so an MCP-compatible
+assistant can drive CADCLAW directly. The MCP server runs LOCALLY after
+`pip install cadclaw`; it is NOT a hosted endpoint. It only exposes CADCLAW's
+own tools, and does not give an assistant access to your CAD application or to
+anything outside what `cadclaw` itself can do.
+
+MCP coverage is 23 tools spanning both halves.
+
+Assembly (6): assemble_validate_spec, assemble_build, assemble_check_round,
+assemble_inspect_component, assemble_render_views, assemble_render_sequence.
+
+Validation and analysis (17): check_inventory, check_interference,
+check_adjacency, check_dimensions, check_region_inventory,
+check_bom_against_cad, check_claims, check_publish_boundary,
+compare_step_parity, compute_deflection, compute_motor_budget,
+compute_belt_tension, tolerance_stack, disassembly_sequence,
+export_exploded_view, load_assembly, doctor.
+
+Visual review: the render-producing assembly tools return their PNGs as inline
+MCP image content (toggle with `return_images`), so the calling model can see
+the assembly it just built rather than only reading a report. The PNGs are
+always written to disk as the human-auditable traceability artifact for each
+round. Inline images are capped (MAX_INLINE_IMAGES) so a long sequence cannot
+flood the client context; the report says how many were truncated.
 
 Entry point: `python -m cadclaw_mcp` (see `cadclaw_mcp/server.py`).
 
@@ -133,8 +200,8 @@ Entry point: `python -m cadclaw_mcp` (see `cadclaw_mcp/server.py`).
 ## Citation
 
 ```
-Sonnentag, N. (2026). CADCLAW: Automated validation framework for
-STEP-based CAD assemblies. Sunnyday Technologies.
+Sonnentag, N. (2026). CADCLAW: Automated assembly and validation framework
+for STEP-based CAD. Sunnyday Technologies.
 https://github.com/sunnyday-technologies/CADCLAW
 DOI: 10.5281/zenodo.19647390
 ```

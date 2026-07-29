@@ -9,25 +9,38 @@ geometry-touching work.
 
 ## What CADCLAW is, and what it is not
 
-CADCLAW is a **validation harness** for STEP assemblies and BOMs. It
-loads a STEP file and reports findings against rules in
-`cadclaw.yaml`: inventory, interference, adjacency, dimensions,
-tolerance, BOM-vs-CAD parity, claim-audit, publish-audit.
+CADCLAW is an **assembly and validation tool** for STEP assemblies and BOMs.
+Two halves, both first-class:
+
+1. **Assemble.** `cadclaw assemble` compiles a declarative assembly spec into
+   a STEP file. It resolves authored STEP sources, seats each part by
+   connector frames and datum chains (`place_relative_to`), and writes the
+   assembly plus a design inventory, a model-derived BOM, review renders,
+   and step-by-step build sequences.
+2. **Validate.** It loads a STEP file and reports findings against rules in
+   `cadclaw.yaml`: inventory, interference, adjacency, dimensions,
+   orientation, floating, color, structural, tolerance, BOM-vs-CAD parity,
+   claim-audit, publish-audit.
 
 CADCLAW is **not** a CAD authoring system. It does not draw parts. It
 does not own bolt-circle constants, hole-drilling helpers, or NEMA
-mounting templates. It places parts the user authored elsewhere and
-checks them.
+mounting templates.
+
+Hold this distinction precisely: **assembling is in scope, authoring is not.**
+Placing a part the user drew is CADCLAW's job. Creating that part's geometry
+is not. Do not describe CADCLAW as "only a validator" (it builds assemblies)
+or as a "CAD generator" (it never creates geometry).
 
 ---
 
 ## The core rule: place authored parts, don't generate them
 
 **Default to placement, not generation.** The user authors complex
-geometry in a native CAD package, exports a
-STEP, and the project's CadQuery script (or whatever assembly driver is
-in use) places copies of those authored parts into the assembly.
-CADCLAW then verifies the placement.
+geometry in a native CAD package and exports a STEP. CADCLAW's own assembly
+compiler (`cadclaw/assembly_compiler.py`, driven by an `assembly_spec.v0.1`
+YAML) then places copies of those authored parts into the assembly, and
+CADCLAW verifies the placement. An external CadQuery script still works, but
+the spec-driven compiler is the supported path.
 
 When asked to add a part, your first move is **"where is the authored
 STEP for this?"** — not **"let me write a `cq.Workplane().rect(...)`

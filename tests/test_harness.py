@@ -1201,8 +1201,18 @@ class TestMCPServer(unittest.TestCase):
             # v0.6 additions
             "doctor", "check_bom_against_cad", "check_publish_boundary",
             "check_claims", "check_region_inventory", "compare_step_parity",
+            # v0.10 assembly tools
+            "assemble_validate_spec", "assemble_build", "assemble_check_round",
+            "assemble_inspect_component", "assemble_render_views",
+            "assemble_render_sequence",
         }
         self.assertEqual(names, expected)
+
+    def test_every_tool_schema_has_a_handler(self):
+        """A schema without a handler is an advertised tool that 404s."""
+        import cadclaw_mcp.server as server
+        schema_names = {t["name"] for t in server.TOOLS}
+        self.assertEqual(schema_names, set(server.TOOL_HANDLERS))
 
     def test_compute_deflection(self):
         with _MCPSession() as s:

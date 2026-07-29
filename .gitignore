@@ -8,6 +8,9 @@ build/
 .venv/
 .uv-cache/
 *.step
+# ...but the worked example's authored stand-in parts must ship, or the
+# example is broken on clone. Three ~15 KB boxes, no private geometry.
+!examples/relative_placement/parts/*.step
 *.stl
 .DS_Store
 Thumbs.db

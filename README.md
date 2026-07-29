@@ -2,13 +2,17 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19647390.svg)](https://doi.org/10.5281/zenodo.19647390)
 
-**An automated check suite for STEP-based CAD assemblies.**
+**Build STEP CAD assemblies from authored parts, then check them automatically.**
 
 ![M3-CRETE radial explode animation](docs/media/m3crete_radial_spin.gif)
 
 *Generated end-to-end with `render_radial_explode_gif("M3-2_Assembly.step", "out.gif")` — parts explode radially from the centroid, then camera orbits 360°. 99+ parts, no manual animation work.*
 
-Automated geometric checks (inventory, interference, adjacency, dimensional, orientation, floating-part, color/material, tolerance stacking) plus a **BOM-vs-CAD audit** and an **honesty toolchain** (doctor, publish-audit, claim-audit) for STEP assemblies. Like pytest for mechanical design — *in spirit*. Real CAD has analog characteristics pytest doesn't have (a part isn't binary present/absent — it can be slightly the wrong size, slightly clipping, slightly misplaced); CADCLAW reports findings with severity, evidence, and a confidence budget rather than just pass/fail.
+CADCLAW does two things. It **assembles**: a declarative spec places your authored STEP parts by connector frames and datum chains, compiles the assembly with CadQuery, and emits a design inventory, a model-derived BOM, review renders, and step-by-step build sequences. It **verifies**: automated gates (inventory, interference, adjacency, dimensional, orientation, floating-part, color/material, structural, tolerance stacking, parity) plus a **BOM-vs-CAD audit** and an **honesty toolchain** (doctor, publish-audit, claim-audit).
+
+CADCLAW places parts you authored in real CAD. It does not generate geometry: no parametric plates, no bolt-circle helpers, no hole patterns. You draw the parts, CADCLAW seats them against each other and checks the result.
+
+Like pytest for mechanical design, *in spirit*. Real CAD has analog characteristics pytest doesn't have (a part isn't binary present/absent, it can be slightly the wrong size, slightly clipping, slightly misplaced), so CADCLAW reports findings with severity, evidence, and a confidence budget rather than just pass/fail.
 
 CADCLAW is also the open verification engine behind **[MARB](https://marb.cadclaw.io)** — the Mechanical Assembly Readiness Benchmark — whose graders import CADCLAW's gates to score how well AI assembles a complete machine in CAD. See the [MARB repository](https://github.com/sunnyday-technologies/MARB).
 
@@ -17,6 +21,33 @@ CADCLAW is also the open verification engine behind **[MARB](https://marb.cadcla
 CAD assemblies break silently. Parts clip into each other, BOMs drift from geometry, motor mounts end up 600mm from the motor. Engineers catch these errors by eye — if they catch them at all. CADCLAW automates the geometric checks. It does **not** replace engineering judgment, structural certification, or physical-build validation.
 
 ## What CADCLAW Does
+
+### 1. Assemble
+
+An assembly spec (`assembly_spec.v0.1`) declares the parts, where they come from, and how they seat against each other. `cadclaw assemble` resolves that spec and compiles it into a STEP assembly with CadQuery.
+
+| Command | What it does |
+|---------|--------------|
+| `assemble validate-spec` | Validate a spec before compiling. Unknown keys fail; incomplete work is declared explicitly as `not_built_yet`. |
+| `assemble build` | Resolve authored STEP sources and compile the assembly. `--dry-run` resolves paths without touching geometry. |
+| `assemble check-round` | Build, inventory-check, render review views, and report one assembly round. The main iteration loop. |
+| `assemble inspect-component` | Inspect one authored STEP component: bbox signature, part count, isolated review renders. |
+| `assemble render-views` | Render the `review_views` a spec declares (iso, hero, front, side, top, and more). |
+| `assemble render-sequence` | Export partial assembly STEPs, per-step review views, a BOM CSV, and an optional rotating GIF. |
+
+Parts are placed **by constraint, not by hand-typed coordinates**. An instance declares `place_relative_to`: seat *this* connector frame against *that* parent frame, offset along an axis. The resolver walks the datum chain in topological order and solves each transform, reporting cycles and missing frames as findings. Absolute transforms still work, so migration is incremental. `lock: axis` solves only the handoff axis for parts that span the other two, like a gantry.
+
+Connector frames (extrusion ends, mount faces, rail slots, wheel contacts, shaft axes, belt planes) are recorded per component in connector metadata. This is descriptive data about parts you authored. It does not generate contextual geometry.
+
+Assembly outputs are non-authoritative by design: `protected_paths` stops a build from overwriting your real CAD exports.
+
+**Docs:** [The assembly spec](docs/assembly-spec.md) is the field-by-field reference. [`examples/relative_placement/`](examples/relative_placement/README.md) is a small runnable example of constraint placement: three parts, one datum, both lock modes, with the solved coordinates asserted in tests.
+
+```bash
+cadclaw assemble check-round examples/relative_placement/gantry.yaml
+```
+
+### 2. Verify
 
 CADCLAW validates STEP assemblies + BOM JSON through a chain of automated gates:
 
@@ -38,7 +69,11 @@ CADCLAW validates STEP assemblies + BOM JSON through a chain of automated gates:
 
 The CLI harness runs the checks declared in `cadclaw.yaml`; geometry checks share the STEP export when possible, while parity, render, disassembly, tolerance, and audits are also available as focused commands/APIs. Every report includes a **confidence budget** that lists what was checked, what was not, and what assumptions were made.
 
-CADCLAW also includes an **MCP Server** — core validation, analysis, and audit modules exposed as MCP tools, so an MCP-compatible assistant can call them directly. The MCP server only exposes CADCLAW's own checks; it does not give the assistant access to your CAD application or to anything outside what `cadclaw` itself can do. The full loop is: prompt → modify a placement script → regenerate STEP → run CADCLAW checks → inspect report.
+CADCLAW also includes an **MCP Server**: 23 tools covering both halves, so an MCP-compatible assistant can drive CADCLAW directly. The six `assemble_*` tools build and inspect assemblies; the rest run the checks. The MCP server does not give the assistant access to your CAD application or to anything outside what `cadclaw` itself can do.
+
+The render-producing assembly tools return their PNGs as **inline images**, so the assistant can look at what it just built instead of trusting a path string. Every render is also written to disk, giving the human a per-step traceability artifact of what changed and when.
+
+The full loop is: prompt, edit the assembly spec, `assemble check-round`, inspect the report and the review renders, repeat.
 
 ## What CADCLAW Does NOT Prove
 
@@ -201,6 +236,18 @@ See [examples/m3_crete/](examples/m3_crete/) for the reference implementation.
 
 ## Modules
 
+### `cadclaw.assembly_spec`
+The declarative contract a human or LLM edits before compilation. Strict pydantic schema: unknown keys fail validation, generated outputs cannot overwrite protected CAD exports, and incomplete work is represented explicitly as `not_built_yet`. Defines `Instance`, `Transform`, `RelativePlacement`, and `ReviewView`.
+
+### `cadclaw.assembly_compiler`
+Resolves a spec into geometry. `resolve_relative_placements()` walks the datum chain topologically and solves constraint-placed transforms; `run_assembly_build()` compiles the STEP; `run_assembly_check_round()` builds, checks, and renders one iteration; `run_assembly_sequence()` exports the step-by-step build. Also writes the design inventory and BOM CSV.
+
+### `cadclaw.connector_metadata`
+Local coordinate frames per authored component: extrusion ends, mount faces, rail slots, wheel contacts, shaft axes, belt planes. The bridge between an authored STEP asset and reliable constraint placement. Descriptive only; it does not author geometry.
+
+### `cadclaw.component_manifest`
+Observational index of an authored STEP library: where assets live, their bbox signatures, and which entries still lack BOM or connector metadata.
+
 ### `cadclaw.inventory`
 Label parts by bbox signature, count them, compare to expected inventory.
 
@@ -229,7 +276,7 @@ Offscreen VTK rendering of STEP files to PNG, plus GIF stitching. `make_disassem
 The runner. Chains gates, loads parts once, reports pass/fail with timing.
 
 ### `cadclaw_mcp/`
-MCP Server exposing CADCLAW's core validation, analysis, and audit checks as tools for MCP-compatible hosts. The user describes what to check; the assistant calls the tools directly. No code generation needed — MCP is an open protocol, so any compliant client can drive the harness.
+MCP Server exposing CADCLAW's assembly and validation tools (23) to MCP-compatible hosts. The six `assemble_*` tools cover spec validation, compilation, the check round, component inspection, review rendering, and sequence export; the remainder run the checks and audits. Render-producing tools return PNGs as inline image content so the assistant can visually verify each round. No code generation needed — MCP is an open protocol, so any compliant client can drive the harness.
 
 ## CI/CD Integration
 

@@ -1,0 +1,109 @@
+schema_version: assembly_spec.v0.1
+
+# A three-part datum chain that demonstrates constraint-based placement.
+#
+#   rail_x  (datum, absolute)
+#     └── plate     seated on the rail's +X end face      lock: frame
+#           └── rail_y   handed off the plate's +X face   lock: axis
+#
+# Only the datum carries typed coordinates. Every downstream position is
+# SOLVED from the part in front of it. Change the rail length or the plate
+# thickness and the chain follows; nothing needs re-typing.
+
+meta:
+  project: CADCLAW examples
+  assembly_id: relative_placement_gantry
+  description: >-
+    Minimal worked example of place_relative_to. Mirrors the pattern used on
+    the M3-CRETE gantry: a rail is the datum, a plate seats flush on its end,
+    and a gantry beam stands off the plate along one axis while spanning the
+    other two.
+
+component_roots:
+  - examples/relative_placement
+
+connector_metadata: examples/relative_placement/connectors.yaml
+
+outputs:
+  step: examples/relative_placement/build/gantry.step
+  views_dir: examples/relative_placement/build/views
+
+review_views:
+  - name: iso
+    view: iso
+    width: 1280
+    height: 720
+    notes: Overall check that the chain solved into a sensible L shape.
+  - name: top
+    view: top
+    width: 1280
+    height: 720
+    notes: Confirms the gantry standoff along X.
+
+instances:
+  # 1. The datum. The one part whose position is typed by hand. Everything
+  #    else in the assembly is solved relative to this.
+  - id: rail_x
+    role: rail
+    source_path: parts/rail_x.step
+    transform:
+      translate_mm: [0.0, 0.0, 0.0]
+    notes: Datum rail. Its +X end face anchors the chain.
+
+  # 2. Full 3-axis seat (lock: frame, the default).
+  #
+  #    The plate's face_neg_x frame is made to coincide with the rail's
+  #    end_pos_x frame, then offset 0 mm along X. All three translation
+  #    components are solved, so the plate self-centers on the rail end.
+  #    An explicit transform is REJECTED here: the resolver owns the
+  #    translation, and orientation would be authored in rotate_deg.
+  - id: plate
+    role: plate
+    source_path: parts/plate.step
+    place_relative_to:
+      ref: rail_x
+      parent_frame: end_pos_x
+      frame: face_neg_x
+      axis: x
+      side: positive
+      offset_mm: 0.0
+      lock: frame
+    notes: >-
+      Seats flush on the rail end. Because the seat is solved from the frame,
+      lengthening rail_x moves the plate with it.
+
+  # 3. Axis-only lock (lock: axis).
+  #
+  #    Only the X translation is solved: the gantry's mount face is placed
+  #    2 mm off the plate's outboard face. The instance keeps its own
+  #    transform for the two free axes (Y, Z) and for orientation, because a
+  #    gantry spans those axes and there is no single "seat" for them.
+  #    The X value in translate_mm is ignored: the resolver solves it.
+  - id: rail_y
+    role: rail
+    source_path: parts/rail_y.step
+    transform:
+      translate_mm: [0.0, -180.0, 40.0]
+    place_relative_to:
+      ref: plate
+      parent_frame: face_pos_x
+      frame: mount_face_neg_x
+      axis: x
+      side: positive
+      offset_mm: 2.0
+      lock: axis
+    notes: >-
+      2 mm running standoff off the plate face. Y and Z stay authored because
+      the gantry spans them; only the handoff axis is solved.
+
+constraints:
+  - id: gantry_standoff
+    rule: >-
+      The gantry rail must stand off the plate's outboard face by 2 mm so the
+      running gap is preserved.
+    severity: info
+
+assumptions:
+  - Example parts are simple boxes authored by make_parts.py, standing in for
+    parts you would draw in external CAD.
+  - The 2 mm standoff is illustrative, not a real mechanical clearance spec.

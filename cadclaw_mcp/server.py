@@ -25,6 +25,19 @@ Tools:
   - check_region_inventory: inventory with region constraints
   - compare_step_parity: STEP-vs-STEP dim-signature comparison
 
+Assembly tools (build authored parts into a STEP assembly):
+  - assemble_validate_spec: Validate an assembly spec without compiling
+  - assemble_build: Resolve sources and compile the assembly with CadQuery
+  - assemble_check_round: Build + inventory-check + render one review round
+  - assemble_inspect_component: Inspect one authored STEP component
+  - assemble_render_views: Render the spec's declared review views
+  - assemble_render_sequence: Export step-by-step build STEPs, views, BOM CSV
+
+Visual review: the render-producing tools return the PNGs as inline image
+content by default (`return_images`), so the calling model can actually look
+at what it built instead of trusting a path string. The files stay on disk as
+the human-auditable traceability artifact.
+
 Usage:
   python -m cadclaw_mcp.server
   # or add to an MCP host config:
@@ -32,6 +45,7 @@ Usage:
 
 Protocol: MCP over stdio (JSON-RPC 2.0)
 """
+import base64
 import contextlib
 import io
 import sys
@@ -58,6 +72,14 @@ from cadclaw.bom_audit import run_bom_audit
 from cadclaw.publish_audit import run_publish_audit
 from cadclaw.claim_audit import run_claim_audit
 from cadclaw.parity import compare_steps
+from cadclaw.assembly_compiler import (
+    inspect_component,
+    render_review_views,
+    run_assembly_build,
+    run_assembly_check_round,
+    run_assembly_sequence,
+    validate_assembly_spec,
+)
 from cadclaw import __version__ as CADCLAW_VERSION
 
 # ============================================================
@@ -486,6 +508,200 @@ def tool_export_exploded_view(path: str, output_path: str,
 
 
 # ============================================================
+# Assembly tools — compile authored parts into a STEP assembly
+# ============================================================
+
+# Inline-image budget. Renders are the point of the visual-review loop, but a
+# 20-view sequence would blow the client's context, so cap what goes inline.
+# Every render is written to disk regardless; the caps only bound what is
+# echoed back into the conversation.
+MAX_INLINE_IMAGES = 6
+MAX_IMAGE_BYTES = 4_000_000
+
+# Key used to smuggle image paths from a tool handler out to the JSON-RPC
+# layer, which turns them into MCP image content blocks. Stripped from the
+# JSON payload before it is serialized.
+_IMAGES_KEY = "_inline_image_paths"
+
+
+def _rendered_paths(views) -> list:
+    """Filter a list of view-output dicts down to successfully rendered paths."""
+    paths = []
+    for view in views or []:
+        if isinstance(view, dict) and view.get("rendered") and view.get("output_path"):
+            paths.append(view["output_path"])
+    return paths
+
+
+def _collect_view_paths(report_dict: dict) -> list:
+    """Pull rendered PNG paths out of an assembly report's meta block.
+
+    Each assembly entry point nests its views differently:
+      render_review_views  -> meta.review_views
+      check_round          -> meta.render.review_views
+      inspect_component    -> meta.rendered_views
+      render_sequence      -> meta.steps[*].review_views
+    """
+    meta = report_dict.get("meta") or {}
+    paths = []
+
+    paths.extend(_rendered_paths(meta.get("review_views")))
+    paths.extend(_rendered_paths((meta.get("render") or {}).get("review_views")))
+    paths.extend(_rendered_paths(meta.get("rendered_views")))
+
+    for step in meta.get("steps") or []:
+        paths.extend(_rendered_paths((step or {}).get("review_views")))
+
+    # de-duplicate while preserving order
+    seen = set()
+    unique = []
+    for path in paths:
+        if path not in seen:
+            seen.add(path)
+            unique.append(path)
+    return unique
+
+
+def _attach_images(result: dict, return_images: bool) -> dict:
+    """Mark a report's rendered views for inline return, within budget."""
+    paths = _collect_view_paths(result)
+    result["rendered_view_count"] = len(paths)
+    if not return_images or not paths:
+        return result
+    result[_IMAGES_KEY] = paths[:MAX_INLINE_IMAGES]
+    if len(paths) > MAX_INLINE_IMAGES:
+        result["inline_images_truncated"] = {
+            "shown": MAX_INLINE_IMAGES,
+            "total": len(paths),
+            "note": (
+                "All views were written to disk; only the first "
+                f"{MAX_INLINE_IMAGES} are inlined. Open the rest from "
+                "views_dir."
+            ),
+        }
+    return result
+
+
+def _image_content_blocks(paths: list) -> list:
+    """Read PNGs and return them as MCP image content blocks."""
+    blocks = []
+    for path in paths:
+        try:
+            size = os.path.getsize(path)
+            if size > MAX_IMAGE_BYTES:
+                blocks.append({
+                    "type": "text",
+                    "text": f"[{path} omitted: {size} bytes exceeds inline cap]",
+                })
+                continue
+            with open(path, "rb") as handle:
+                data = base64.b64encode(handle.read()).decode("ascii")
+            blocks.append({
+                "type": "image",
+                "data": data,
+                "mimeType": "image/png",
+            })
+        except Exception as exc:  # a missing render must not kill the response
+            blocks.append({"type": "text", "text": f"[{path} unreadable: {exc}]"})
+    return blocks
+
+
+def tool_assemble_validate_spec(spec: str, release: bool = False) -> dict:
+    """Validate an assembly spec (schema + declared paths) without compiling."""
+    return validate_assembly_spec(spec, release=release).to_dict()
+
+
+def tool_assemble_build(spec: str, connector_metadata: str = None,
+                        dry_run: bool = False,
+                        write_design_inventory: bool = False) -> dict:
+    """Resolve authored STEP sources and compile the assembly."""
+    return run_assembly_build(
+        spec,
+        connector_metadata_path=connector_metadata,
+        dry_run=dry_run,
+        write_inventory=write_design_inventory,
+    ).to_dict()
+
+
+def tool_assemble_check_round(spec: str, connector_metadata: str = None,
+                              dry_run: bool = False,
+                              render_views: bool = True,
+                              write_inventory: bool = True,
+                              write_report: bool = False,
+                              return_images: bool = True) -> dict:
+    """Build, inventory-check, render review views, and report one round.
+
+    This is the main iteration loop: edit the spec, call this, look at the
+    returned renders, fix what is wrong, repeat.
+    """
+    report = run_assembly_check_round(
+        spec,
+        connector_metadata_path=connector_metadata,
+        dry_run=dry_run,
+        render_views=render_views,
+        write_inventory=write_inventory,
+        write_report=write_report,
+    )
+    return _attach_images(report.to_dict(), return_images)
+
+
+def tool_assemble_inspect_component(spec: str, component_id: str = None,
+                                    source_path: str = None,
+                                    render_views: bool = False,
+                                    views: str = "front,side,top,iso",
+                                    views_dir: str = None,
+                                    return_images: bool = True) -> dict:
+    """Inspect one authored STEP component: signatures, part count, views."""
+    if not component_id and not source_path:
+        return {"error": "provide either component_id or source_path"}
+    view_names = [v.strip() for v in views.split(",") if v.strip()]
+    report = inspect_component(
+        spec,
+        component_id=component_id,
+        source_path=source_path,
+        render_views=render_views,
+        views=view_names,
+        views_dir=views_dir,
+    )
+    return _attach_images(report.to_dict(), return_images and render_views)
+
+
+def tool_assemble_render_views(spec: str, step: str = None,
+                               views_dir: str = None,
+                               return_images: bool = True) -> dict:
+    """Render the review_views declared by an assembly spec.
+
+    The visual-review step: renders the assembly from the declared angles and
+    hands the images back so they can be checked against the design intent.
+    """
+    report = render_review_views(spec, step_path=step, views_dir=views_dir)
+    return _attach_images(report.to_dict(), return_images)
+
+
+def tool_assemble_render_sequence(spec: str, output_dir: str = None,
+                                  views: str = "front,side,top,hero,iso",
+                                  dry_run: bool = False,
+                                  render_views: bool = True,
+                                  rotate_final: bool = False,
+                                  bom_csv: str = None,
+                                  write_bom: bool = True,
+                                  return_images: bool = True) -> dict:
+    """Export partial assembly STEPs, per-step views, and a BOM CSV."""
+    view_names = [v.strip() for v in views.split(",") if v.strip()]
+    report = run_assembly_sequence(
+        spec,
+        output_dir=output_dir,
+        view_names=view_names,
+        dry_run=dry_run,
+        render_views=render_views,
+        rotate_final=rotate_final,
+        bom_csv_path=bom_csv,
+        write_bom=write_bom,
+    )
+    return _attach_images(report.to_dict(), return_images)
+
+
+# ============================================================
 # MCP Protocol: Tool definitions
 # ============================================================
 
@@ -760,6 +976,99 @@ TOOLS = [
             "required": ["chain_name", "dimensions"],
         },
     },
+    {
+        "name": "assemble_validate_spec",
+        "description": "Validate an assembly spec (schema plus the presence of every path it references) without compiling geometry. Run this before assemble_build. Set release=true to turn required-for-release not_built_yet items into failures.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "spec": {"type": "string", "description": "Path to the assembly spec YAML"},
+                "release": {"type": "boolean", "description": "Treat required not_built_yet items as release-blocking failures"},
+            },
+            "required": ["spec"],
+        },
+    },
+    {
+        "name": "assemble_build",
+        "description": "Resolve authored STEP sources declared by an assembly spec and compile them into a STEP assembly with CadQuery. Parts are seated by connector frames and datum chains. Use dry_run=true to resolve and report paths without importing or exporting geometry.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "spec": {"type": "string", "description": "Path to the assembly spec YAML"},
+                "connector_metadata": {"type": "string", "description": "Optional connector metadata YAML with local frames and mates"},
+                "dry_run": {"type": "boolean", "description": "Resolve paths only; do not import or export geometry"},
+                "write_design_inventory": {"type": "boolean", "description": "Write spec.outputs.design_inventory with the resolved instances"},
+            },
+            "required": ["spec"],
+        },
+    },
+    {
+        "name": "assemble_check_round",
+        "description": "The main assembly iteration loop: build the assembly, run the inventory and placement checks, render the declared review views, and return one combined report. Returns the renders as inline images so you can visually confirm the build matches design intent before continuing. Edit the spec, call this, look at the images, fix, repeat.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "spec": {"type": "string", "description": "Path to the assembly spec YAML"},
+                "connector_metadata": {"type": "string", "description": "Optional connector metadata YAML"},
+                "dry_run": {"type": "boolean", "description": "Resolve and check the spec without importing or exporting geometry"},
+                "render_views": {"type": "boolean", "description": "Render the review views after a successful build (default true)"},
+                "write_inventory": {"type": "boolean", "description": "Write the design inventory during the round (default true)"},
+                "write_report": {"type": "boolean", "description": "Write the round report to spec.outputs.report when declared"},
+                "return_images": {"type": "boolean", "description": "Return rendered views as inline images (default true)"},
+            },
+            "required": ["spec"],
+        },
+    },
+    {
+        "name": "assemble_inspect_component",
+        "description": "Inspect a single authored STEP component referenced by an assembly spec: bounding-box signatures, part count, and optional isolated review renders. Use this to confirm what a part actually looks like and how it is oriented before placing it.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "spec": {"type": "string", "description": "Path to the assembly spec YAML"},
+                "component_id": {"type": "string", "description": "Component id to resolve from the spec manifests"},
+                "source_path": {"type": "string", "description": "Direct authored STEP path to resolve instead of a component id"},
+                "render_views": {"type": "boolean", "description": "Render isolated component review views"},
+                "views": {"type": "string", "description": "Comma-separated views to render, e.g. front,side,top,iso"},
+                "views_dir": {"type": "string", "description": "Optional output directory for the component views"},
+                "return_images": {"type": "boolean", "description": "Return rendered views as inline images (default true)"},
+            },
+            "required": ["spec"],
+        },
+    },
+    {
+        "name": "assemble_render_views",
+        "description": "Render the review_views declared by an assembly spec and return them as inline images. This is the visual-review step: it produces the PNG traceability artifacts on disk and lets you see the current state of the assembly from the declared angles.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "spec": {"type": "string", "description": "Path to the assembly spec YAML"},
+                "step": {"type": "string", "description": "Optional STEP path to render; defaults to spec.outputs.step"},
+                "views_dir": {"type": "string", "description": "Optional output directory; defaults to spec.outputs.views_dir"},
+                "return_images": {"type": "boolean", "description": "Return rendered views as inline images (default true)"},
+            },
+            "required": ["spec"],
+        },
+    },
+    {
+        "name": "assemble_render_sequence",
+        "description": "Export the step-by-step assembly sequence: a partial STEP per build step, per-step review renders, and a BOM CSV. Produces the human-auditable record of how the machine goes together, and optionally a rotating GIF of the finished assembly.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "spec": {"type": "string", "description": "Path to the assembly spec YAML"},
+                "output_dir": {"type": "string", "description": "Directory for sequence STEPs, images, and manifest"},
+                "views": {"type": "string", "description": "Comma-separated review views to render per step"},
+                "dry_run": {"type": "boolean", "description": "Report the sequence and BOM without exporting STEP or PNG files"},
+                "render_views": {"type": "boolean", "description": "Render per-step PNGs (default true)"},
+                "rotate_final": {"type": "boolean", "description": "Render a rotating GIF from the completed sequence assembly"},
+                "bom_csv": {"type": "string", "description": "Optional BOM CSV output path"},
+                "write_bom": {"type": "boolean", "description": "Generate the BOM CSV (default true)"},
+                "return_images": {"type": "boolean", "description": "Return rendered views as inline images (default true)"},
+            },
+            "required": ["spec"],
+        },
+    },
 ]
 
 # Tool dispatch
@@ -782,6 +1091,12 @@ TOOL_HANDLERS = {
     "check_claims": lambda args: tool_check_claims(**args),
     "check_region_inventory": lambda args: tool_check_region_inventory(**args),
     "compare_step_parity": lambda args: tool_compare_step_parity(**args),
+    "assemble_validate_spec": lambda args: tool_assemble_validate_spec(**args),
+    "assemble_build": lambda args: tool_assemble_build(**args),
+    "assemble_check_round": lambda args: tool_assemble_check_round(**args),
+    "assemble_inspect_component": lambda args: tool_assemble_inspect_component(**args),
+    "assemble_render_views": lambda args: tool_assemble_render_views(**args),
+    "assemble_render_sequence": lambda args: tool_assemble_render_sequence(**args),
 }
 
 
@@ -836,12 +1151,22 @@ def handle_request(request: dict) -> dict:
             # so redirect any tool prints to stderr.
             with contextlib.redirect_stdout(sys.stderr):
                 result = TOOL_HANDLERS[tool_name](tool_args)
+
+            # Render-producing tools flag their PNGs for inline return. Strip
+            # the marker before serializing, then append the images as MCP
+            # image content so the model can actually look at the build.
+            image_paths = []
+            if isinstance(result, dict):
+                image_paths = result.pop(_IMAGES_KEY, []) or []
+
+            content = [{"type": "text", "text": json.dumps(result, indent=2)}]
+            if image_paths:
+                content.extend(_image_content_blocks(image_paths))
+
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
-                "result": {
-                    "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
-                },
+                "result": {"content": content},
             }
         except Exception as e:
             return {

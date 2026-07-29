@@ -1,0 +1,58 @@
+schema_version: connector_metadata.v0.1
+
+# Connector frames are DESCRIPTIVE data about parts you authored elsewhere:
+# "this part has a mounting face here, an extrusion end there." CADCLAW reads
+# them to seat parts against each other. It never invents geometry from them.
+#
+# Every origin below is in the part's own local coordinates, read straight off
+# the authored STEP. Each part is a box with its corner at the local origin
+# (see make_parts.py), so the numbers are easy to verify by hand.
+
+components:
+  - id: rail_x
+    source_path: parts/rail_x.step
+    notes: Datum rail. 600 long in X, 40 x 40 cross-section.
+    frames:
+      - id: end_pos_x
+        kind: extrusion_end
+        # Center of the +X end face: X at the full 600 length, Y and Z at mid-section.
+        origin_mm: [600.0, 20.0, 20.0]
+        tags: [datum, extrusion_end]
+        verified: true
+        notes: The +X end face the plate bolts onto.
+
+  - id: plate
+    source_path: parts/plate.step
+    notes: Mounting plate. 10 thick in X, 120 x 120 face.
+    frames:
+      - id: face_neg_x
+        kind: mount_face
+        # Center of the -X face: the side that seats against the rail end.
+        origin_mm: [0.0, 60.0, 60.0]
+        tags: [mount_face]
+        verified: true
+        notes: Seats flush against rail_x end_pos_x.
+      - id: face_pos_x
+        kind: mount_face
+        # Center of the +X face, one plate thickness (10 mm) further out.
+        origin_mm: [10.0, 60.0, 60.0]
+        tags: [mount_face, handoff]
+        verified: true
+        notes: The outboard face the gantry rail hands off from.
+
+  - id: rail_y
+    source_path: parts/rail_y.step
+    notes: Gantry rail. 400 long in Y, 40 x 40 cross-section.
+    frames:
+      - id: mount_face_neg_x
+        kind: mount_face
+        # Center of the -X face at the Y=0 end.
+        origin_mm: [0.0, 0.0, 20.0]
+        tags: [mount_face]
+        verified: true
+        notes: The face that stands off from the plate.
+
+assumptions:
+  - Frames were authored by hand from known box geometry, not extracted from
+    the STEP. In a real project these come from the source CAD and should be
+    verified against rendered views before being marked verified.

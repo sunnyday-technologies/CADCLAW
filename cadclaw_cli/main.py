@@ -181,133 +181,14 @@ def _cmd_bom_audit(args: argparse.Namespace) -> int:
 
 
 def _cmd_assemble_validate_spec(args: argparse.Namespace) -> int:
-    from pathlib import Path
-    from cadclaw.assembly_spec import load_assembly_spec
-    from cadclaw.findings import ConfidenceBudget, Finding
+    from cadclaw.assembly_compiler import validate_assembly_spec
 
     try:
-        spec = load_assembly_spec(args.spec)
+        report = validate_assembly_spec(args.spec, release=args.release)
     except Exception as exc:
         print(f"error: invalid assembly spec: {exc}", file=sys.stderr)
         return 3
 
-    findings: List[Finding] = []
-
-    for ref in spec.reference_assets:
-        if not Path(ref.path).exists():
-            findings.append(Finding(
-                id="assemble.reference_missing",
-                category="assemble",
-                severity=Severity.WARN,
-                message=f"reference asset not found: {ref.path}",
-                evidence={"path": ref.path, "role": ref.role},
-            ))
-
-    for manifest in spec.manifests:
-        if not Path(manifest).exists():
-            findings.append(Finding(
-                id="assemble.manifest_missing",
-                category="assemble",
-                severity=Severity.WARN,
-                message=f"component manifest not found: {manifest}",
-                evidence={"path": manifest},
-            ))
-
-    if spec.connector_metadata and not Path(spec.connector_metadata).exists():
-        findings.append(Finding(
-            id="assemble.connector_metadata_missing",
-            category="assemble",
-            severity=Severity.WARN,
-            message=f"connector metadata not found: {spec.connector_metadata}",
-            evidence={"path": spec.connector_metadata},
-        ))
-
-    for root in spec.component_roots:
-        if not Path(root).exists():
-            findings.append(Finding(
-                id="assemble.component_root_missing",
-                category="assemble",
-                severity=Severity.WARN,
-                message=f"component root not found: {root}",
-                evidence={"path": root},
-            ))
-
-    missing_release_items = []
-    for item in spec.not_built_yet:
-        severity = Severity.FAIL if args.release and item.required_for_release else Severity.WARN
-        if item.required_for_release:
-            missing_release_items.append(item.item)
-        findings.append(Finding(
-            id="assemble.not_built_yet",
-            category="assemble",
-            severity=severity,
-            message=f"{item.item}: {item.reason}",
-            evidence={
-                "item": item.item,
-                "required_for_release": item.required_for_release,
-            },
-        ))
-
-    for constraint in spec.constraints:
-        if constraint.severity == "info":
-            severity = Severity.PASS
-        elif constraint.severity == "warn":
-            severity = Severity.WARN
-        else:
-            # A constraint is not a failure merely by existing; it is a rule the
-            # future compiler must enforce. Surface it as checked context here.
-            continue
-        findings.append(Finding(
-            id="assemble.constraint_declared",
-            category="assemble",
-            severity=severity,
-            message=constraint.rule,
-            evidence={
-                "constraint_id": constraint.id,
-                "applies_to_variants": constraint.applies_to_variants,
-            },
-        ))
-
-    confidence = ConfidenceBudget(
-        checked=[
-            "assembly spec schema",
-            "protected output path validation",
-            "reference asset path presence",
-            "component manifest path presence",
-            "connector metadata path presence",
-            "component root path presence",
-            "variant declaration",
-        ],
-        not_checked=[
-            "CadQuery geometry compilation",
-            "connector metadata completeness",
-            "interference",
-            "BOM-vs-CAD parity",
-            "rendered view alignment",
-        ],
-        assumptions=list(spec.assumptions),
-    )
-    report = Report(
-        findings=findings,
-        confidence_budget=confidence,
-        meta={
-            "spec": args.spec,
-            "project": spec.meta.project,
-            "assembly_id": spec.meta.assembly_id,
-            "active_variant": spec.active_variant,
-            "variants": [
-                {"id": v.id, "envelope_mm": v.envelope_mm}
-                for v in spec.variants
-            ],
-            "instances": len(spec.instances),
-            "not_built_yet": len(spec.not_built_yet),
-            "missing_release_items": missing_release_items,
-            "outputs": spec.outputs.model_dump(exclude_none=True),
-            "connector_metadata": spec.connector_metadata,
-            "bom": spec.bom.model_dump(exclude_none=True),
-        },
-    )
-    report.overall = report.compute_overall()
     _emit_report(report, args.report_format, args.out)
     return _exit_code_for(report)
 
