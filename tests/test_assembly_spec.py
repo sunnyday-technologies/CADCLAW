@@ -85,7 +85,6 @@ class TestAssemblySpec(unittest.TestCase):
             self.assertEqual(spec.variants[0].envelope_mm, [1000.0, 500.0, 250.0])
             self.assertTrue(spec.bom.private_fields_redacted)
             self.assertEqual(spec.constraints[0].severity, "fail")
-            self.assertEqual(spec.instances[0].transform.rotate_deg, [0.0, 90.0, 0.0])
             self.assertFalse(spec.reference_assets[0].dimensional_evidence)
             self.assertEqual(spec.assembly_sequence[0].id, "frame_start")
         finally:
@@ -171,6 +170,9 @@ class TestAssemblySpec(unittest.TestCase):
             Path(path).unlink()
 
     def test_m3_reference_spec_loads(self):
+        # The example's solved poses are redacted (MARB answer-key material),
+        # so this asserts spec STRUCTURE -- roles, counts, sources, sequence --
+        # and never placement. See the note above `instances:` in the spec.
         spec = load_assembly_spec("examples/m3_crete/m3_reference_assembly.yaml")
         self.assertEqual(spec.meta.project, "M3-CRETE")
         self.assertEqual(spec.active_variant, "M3-2")
@@ -199,9 +201,15 @@ class TestAssemblySpec(unittest.TestCase):
                 instance.source_path,
                 "examples/m3_crete/generated/ZPMM_6p1_motor_mount_spacer_6mm_holes.step",
             )
-            self.assertEqual(instance.transform.scale, 1.0)
-            self.assertEqual(instance.transform.source_origin_mm, [0.0, 0.0, 0.0])
-            self.assertEqual(instance.transform.rotate_deg, [90.0, 0.0, 0.0])
+        # Guard: the redaction must hold. If any instance regains a pose, the
+        # public example is leaking MARB answer-key placement again.
+        posed = [
+            instance.id for instance in spec.instances
+            if instance.transform.translate_mm != [0.0, 0.0, 0.0]
+            or instance.transform.rotate_deg != [0.0, 0.0, 0.0]
+        ]
+        self.assertEqual(posed, [], f"solved poses leaked back in: {posed}")
+
         flat_spacers = [
             instance for instance in spec.instances
             if instance.role == "frame_side_flat_spacer_6mm"
@@ -212,7 +220,6 @@ class TestAssemblySpec(unittest.TestCase):
                 instance.source_path,
                 "examples/m3_crete/generated/M3_6mm_frame_shim_4080.step",
             )
-            self.assertEqual(instance.transform.rotate_deg, [0.0, 0.0, 0.0])
         bottom_rails = [
             instance for instance in spec.instances
             if instance.role == "bottom_frame_rail_y_2080"
@@ -225,10 +232,6 @@ class TestAssemblySpec(unittest.TestCase):
             )
         y_left = next(instance for instance in spec.instances if instance.id == "y_gantry_left")
         y_right = next(instance for instance in spec.instances if instance.id == "y_gantry_right")
-        self.assertEqual(y_left.transform.translate_mm, [REDACTED])
-        self.assertEqual(y_left.transform.rotate_deg, [-90.0, 0.0, 0.0])
-        self.assertEqual(y_right.transform.translate_mm, [REDACTED])
-        self.assertEqual(y_right.transform.rotate_deg, [-90.0, 0.0, 180.0])
         spreaders = [
             instance for instance in spec.instances
             if instance.role == "top_center_spreader_2040"
@@ -238,8 +241,6 @@ class TestAssemblySpec(unittest.TestCase):
             spreaders[0].source_path,
             "CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step",
         )
-        self.assertEqual(spreaders[0].transform.rotate_deg, [90.0, 0.0, 0.0])
-        self.assertEqual(spreaders[0].transform.translate_mm, [REDACTED])
         top_frame_inserts = [
             instance for instance in spec.instances
             if instance.role == "top_frame_insert_2040"
@@ -250,21 +251,16 @@ class TestAssemblySpec(unittest.TestCase):
                 instance.source_path,
                 "CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step",
             )
-            self.assertEqual(instance.transform.rotate_deg, [90.0, 0.0, 90.0])
-            self.assertEqual(instance.transform.translate_mm[0], -500.0)
         x_gantry_inserts = [
             instance for instance in spec.instances
             if instance.role == "x_gantry_insert_2040"
         ]
         self.assertEqual(len(x_gantry_inserts), 1)
-        self.assertEqual(x_gantry_inserts[0].transform.translate_mm, [REDACTED])
         spreader_plates = [
             instance for instance in spec.instances
             if instance.role == "top_center_spreader_plate"
         ]
         self.assertEqual(len(spreader_plates), 2)
-        for instance in spreader_plates:
-            self.assertEqual(instance.transform.translate_mm[2], 960.0)
         x_plate_instances = [
             instance for instance in spec.instances
             if instance.role == "x_gantry_plate"
@@ -275,8 +271,6 @@ class TestAssemblySpec(unittest.TestCase):
                 instance.source_path,
                 "CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP",
             )
-            self.assertEqual(instance.transform.source_origin_mm, [0.0, 0.0, 3.0])
-            self.assertEqual(instance.transform.rotate_deg, [0.0, 90.0, 0.0])
         x_carriage_instances = [
             instance for instance in spec.instances
             if instance.role == "x_carriage_plate"
@@ -287,8 +281,6 @@ class TestAssemblySpec(unittest.TestCase):
                 instance.source_path,
                 "CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP",
             )
-            self.assertEqual(instance.transform.source_origin_mm, [0.0, 0.0, 3.0])
-            self.assertEqual(instance.transform.rotate_deg, [90.0, 0.0, 0.0])
         z_plate_instances = [
             instance for instance in spec.instances
             if instance.role == "z_carriage_plate"

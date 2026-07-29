@@ -1,0 +1,27 @@
+#!/bin/sh
+# Block a push that would put MARB answer-key material into a public remote.
+#
+# Install once per clone:
+#     git config core.hooksPath scripts/hooks
+#
+# CI (.github/workflows/key-guard.yml) runs the same script, so bypassing this
+# hook with --no-verify only delays the failure; it does not publish the key.
+
+remote_ref_scan() {
+  while read -r _local_ref local_sha _remote_ref remote_sha; do
+    # nothing to do for a branch deletion
+    [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue
+
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+      # new branch on the remote: scan everything it adds over main
+      sh scripts/check_no_answer_keys.sh --range "$local_sha" --not origin/main || return 1
+    else
+      sh scripts/check_no_answer_keys.sh --range "$remote_sha..$local_sha" || return 1
+    fi
+  done
+  return 0
+}
+
+sh scripts/check_no_answer_keys.sh --tree || exit 1
+remote_ref_scan || exit 1
+exit 0
