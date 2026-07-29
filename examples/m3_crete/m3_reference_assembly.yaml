@@ -1,0 +1,1173 @@
+schema_version: assembly_spec.v0.1
+meta:
+  project: M3-CRETE
+  assembly_id: m3_reference_round1
+  description: >
+    First photo-guided assembly target for the general CADCLAW auto-assembly
+    harness. This is a rough placement spec against the reference render, not
+    dimensional evidence or a release-ready machine.
+
+active_variant: M3-2
+variants:
+  - id: M3-1
+    label: M3-1
+    envelope_mm: [1000.0, 1000.0, 1000.0]
+    notes: No spliced long axis; all primary frame members are single 1000mm stock.
+  - id: M3-2
+    label: M3-2
+    envelope_mm: [2000.0, 1000.0, 1000.0]
+    notes: Current default proving build; X axis is spliced from 1000mm stock.
+  - id: M3-4
+    label: M3-4
+    envelope_mm: [2000.0, 2000.0, 1000.0]
+    notes: X and Y long axes are spliced; BOM quantities come from variant overrides.
+
+reference_assets:
+  - path: ../M3-CRETE/docs/M3-CRETE_render.jpg
+    role: visual_reference
+    dimensional_evidence: false
+    notes: >
+      Reference render for topology, proportions, and human review between
+      assembly rounds. Exact dimensions must come from the spec and authored
+      STEP assets.
+
+manifests:
+  - examples/m3_crete/m3_component_manifest.yaml
+
+connector_metadata: examples/m3_crete/m3_connector_metadata.yaml
+
+component_roots:
+  - ../M3-CRETE/CAD
+
+protected_paths:
+  - ../M3-CRETE/CAD/M3-2_Assembly.step
+  - ../M3-CRETE/CAD/M3-2_Assembly_latest.step
+  - ../M3-CRETE/CAD/M3-2_Assembly-latest.step
+
+outputs:
+  step: examples/m3_crete/build/m3_reference_round1.step
+  views_dir: examples/m3_crete/build/views
+  report: examples/m3_crete/build/m3_reference_round1_report.json
+  design_inventory: examples/m3_crete/build/m3_reference_round1_inventory.json
+  bom: examples/m3_crete/build/m3_reference_round1_bom.csv
+
+bom:
+  source_path: ../M3-CRETE/bom/data.json
+  variant_config_path: ../M3-CRETE/config.js
+  output_path: examples/m3_crete/build/m3_reference_round1_bom.csv
+  private_fields_redacted: true
+  notes: >
+    CADCLAW emits a model-derived design BOM from placed authored STEP
+    sources, roles, and explicit generated stock/spacer declarations. The
+    M3-CRETE interactive/procurement BOM remains owned by the M3 project. Use
+    CADCLAW output and parity findings to propose deltas against
+    ../M3-CRETE/bom/data.json; do not overwrite that public BOM from this
+    harness. M3-2 is the current base quantity set, while M3-1 and M3-4 apply
+    variant overrides from config.js. Private procurement fields must stay out
+    of public CADCLAW reports.
+
+assumptions:
+  - Reference image gives topology and approximate proportions only.
+  - M3-2 means a 2000 x 1000 x 1000mm target build envelope, not a claim of physical validation.
+  - M3-1 and M3-4 should be generated from the same spec family by variant quantities and axis spans.
+  - Round 1 prioritizes frame and visible gantry layout over exact belt/drive routing.
+  - Component transforms are initial guesses pending connector metadata and review renders.
+  - Complex parts are placed from authored STEP files; contextual plates/brackets are not generated.
+  - "Narrow M3 exception: examples/m3_crete/generated/ZPMM_6p1_motor_mount_spacer_6mm_holes.step is derived from the user-confirmed authored ZPMM.step only to widen the four existing motor holes to 6mm and add six 6mm C-Beam end-alignment holes from the asymmetric 4080 screw-port pattern; this is not general CADCLAW plate authoring."
+  - "The assembly sequence is inside-out: X gantry spacing first, then Y gantry spacing, then Z posts and frame members that accommodate those gantries."
+  - Current user guidance sets the side-rail/post frame spacer thickness to 6 mm for this CADCLAW reference round.
+  - "The X-to-Y handoff uses two authored 125 x 125 x 6mm C-Beam Gantry Plate XLarge plates, one on each side of the X beam; the X-axis printhead carriage uses two additional XLarge plates, one on each side of the X beam, while the Y-to-Z/Z-post carriage interfaces use the smaller 3mm V-Slot 20-80 gantry plate STEP."
+  - "The 6mm spacer belongs to the static frame side-rail/post joint; it moves the frame out to accommodate the gantry, rather than being inserted between the moving gantry plate and the Z post."
+  - "The 6.1mm ZPMM side-rail spacer also acts as the motor mount at the motor-mount positions; lower Y-frame side-rail joints use a simple 6 x 40 x 80mm flat spacer instead of the full ZPMM motor mount."
+  - "The lower Y-direction static frame rails are 2080 V-slot, not C-Beam."
+  - "The top center spreader is a 2040 extrusion mounted with two small 3mm V-Slot 20-80 gantry plates that double as 6mm total spacer/bracket stock; the 40mm side is vertical and the top surface is level with the top frame members."
+  - "Y-gantry C-Beams must place the 80mm dimension vertically and their open channels must face inward toward the printer volume; these are checked as declared orientation and bbox gates."
+  - "X-gantry C-Beams must also place the 80mm dimension vertically; X-carriage wheels must sit between the carriage plates and the X-gantry rail slots, not outside the plates."
+  - "Each 2m X-direction 4080 C-Beam run carries one authored 1000mm 2040 insert centered across the 4080-to-4080 splice; those inserts are explicit placed instances, not hidden reinforcement assumptions."
+  - "The current reference places 32 authored Solid V Wheel STEP instances at the modeled X-to-Y, X-carriage, and Y-to-Z carriage interfaces so wheel-to-slot and wheel-to-plate location choices are visible in review renders."
+  - "Axis handoffs use the same progression: place the declared gantry plate flat on the current gantry end face, reserve the declared running gap, then place the next axis outside that interface."
+  - "Static frame rails are different from moving V-slot handoffs: structural C-Beam/post joints should be flush and aligned for bearing contact, not separated by clearance gaps."
+  - "Future FEA checks will be decision-support only: PyNiteFEA models in the FEA folder may compare static frame member sizes and joint strategies, but they do not replace authored CAD placement or physical validation."
+
+constraints:
+  - id: no_contextual_plate_generation
+    severity: fail
+    rule: Do not generate contextual plates, brackets, motor mounts, NEMA hole patterns, or adapter plates from scratch.
+    source: CADCLAW AGENTS.md and M3-CRETE field-test history
+  - id: zpmm_one_off_derivation_scope
+    severity: fail
+    rule: The generated ZPMM derivative may only import the user-confirmed authored ZPMM STEP, preserve its outline and spindle opening, widen existing through-holes to 6mm, and add the declared six-hole asymmetric C-Beam end-alignment pattern; do not generalize this into CADCLAW core.
+    source: user-approved one-off exception, 2026-05-21
+    applies_to_variants: [M3-2]
+  - id: protect_authoritative_step_exports
+    severity: fail
+    rule: Generated CadQuery output must not overwrite authoritative native-CAD/authored M3-2 STEP exports.
+    source: CADCLAW/M3-CRETE handoff notes
+  - id: no_external_x_gantry_reinforcement
+    severity: fail
+    rule: X-direction 2040 reinforcement must bridge the middle splice of each 2m 4080 run; X-gantry reinforcement must stay internal or below the wheel path, while external plates/gussets on the 40mm faces block the two-sided X-carriage.
+    source: ../M3-CRETE/AGENTS.md
+    applies_to_variants: [M3-2, M3-4]
+  - id: cbeam_primary_stock
+    severity: warn
+    rule: Gantry extrusions, Z posts, and top X frame rails use 4080 C-Beam in 1000mm stock lengths; lower Y frame rails use 2080, and the top center spreader plus centered 2m-run splice inserts use 2040 per field-build guidance.
+    source: ../M3-CRETE/AGENTS.md and user guidance, 2026-05-20
+  - id: gantry_first_inside_out_spacing
+    severity: warn
+    rule: X/Y/Z gantry placement should define the required frame spacing before the surrounding frame extrusions are placed.
+    source: user guidance, 2026-05-16
+    applies_to_variants: [M3-2]
+  - id: frame_side_spacer_6mm
+    severity: warn
+    rule: Static side-rail/post spacer declarations should distinguish ZPMM motor-mount spacers from the lower simple 6 x 40 x 80mm flat frame spacers.
+    source: user guidance, 2026-05-16 and 2026-05-20
+    applies_to_variants: [M3-2]
+  - id: plate_family_by_axis_handoff
+    severity: fail
+    rule: X-to-Y interface plates must use the 125 x 125 x 6mm C-Beam Gantry Plate XLarge asset; Y-to-Z/Z-post carriage plates must use the smaller 3mm V-Slot 20-80 gantry plate asset.
+    source: user guidance, 2026-05-18
+    applies_to_variants: [M3-2]
+  - id: vslot_axis_handoff_stackup
+    severity: fail
+    rule: Each V-slot axis handoff stacks current gantry end face, declared gantry plate thickness, 1mm running gap or declared spacer/tolerance budget, then the next axis; this invariant applies across V-slot/C-Beam handoffs.
+    source: user guidance, 2026-05-16
+    applies_to_variants: [M3-2]
+  - id: static_frame_flush_adjacency
+    severity: fail
+    rule: Static frame members must have declared flush adjacency and enough face overlap for structural bearing; visible frame gaps are validation failures unless an authored connector or spacer STEP is declared.
+    source: user guidance, 2026-05-16
+    applies_to_variants: [M3-2]
+  - id: y_gantry_open_channel_inward
+    severity: fail
+    rule: Y-gantry C-Beams must have the 80mm dimension vertical and the open channels facing inward toward the printer volume so the carriage interface and accessible channel are on the correct side.
+    source: user guidance, 2026-05-20
+    applies_to_variants: [M3-2]
+  - id: fea_frame_member_decision_support
+    severity: warn
+    rule: "PyNiteFEA checks are decision-support only and must track the field-build member families: 4080 gantries/posts/top X rails, 2080 lower Y rails, and 2040 top center spreader plus centered 2m-run splice inserts."
+    source: user guidance, 2026-05-16
+    applies_to_variants: [M3-2, M3-4]
+  - id: no_motion_endstops
+    severity: fail
+    rule: Do not add mechanical motion endstops or limit switches; the design uses StallGuard sensorless homing.
+    source: ../M3-CRETE/AGENTS.md
+  - id: no_leveling_feet
+    severity: fail
+    rule: Do not add leveling feet; bed leveling is handled by measurement/probing.
+    source: ../M3-CRETE/AGENTS.md
+  - id: no_nonrequested_extras
+    severity: warn
+    rule: Do not add HEPA filters, carbon fiber bars, LED lighting, or enclosure extras unless the spec changes explicitly.
+    source: ../M3-CRETE/AGENTS.md
+
+# NOTE: solved placements are redacted.
+#
+# The per-instance `transform` blocks are MARB answer-key material: this
+# roster overlaps the gated benchmark key, so publishing the solved poses
+# would leak part of the answer to any agent or crawler reading this repo.
+# The part roster, roles, and counts remain because M3-CRETE is open
+# hardware and those are public by design; only the placement is withheld.
+#
+# The complete reference assembly is distributed through the gated dataset:
+#   https://huggingface.co/datasets/SunnydayTech/marb-m3-crete-answer-key
+#
+# This file therefore demonstrates the SPEC (variants, constraints, outputs,
+# BOM binding, review views, assembly sequence, not_built_yet) rather than a
+# compilable placement. For a runnable placement example that compiles, see
+# examples/relative_placement/.
+instances:
+  - id: post_front_left
+    role: vertical_post
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+  - id: post_front_right
+    role: vertical_post
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+  - id: post_back_left
+    role: vertical_post
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+  - id: post_back_right
+    role: vertical_post
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+
+  - id: top_front_rail
+    role: top_frame_rail_x
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+  - id: top_front_rail_splice
+    role: top_frame_rail_x
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+  - id: top_back_rail
+    role: top_frame_rail_x
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+  - id: top_back_rail_splice
+    role: top_frame_rail_x
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+  - id: top_front_insert_2040
+    role: top_frame_insert_2040
+    source_path: CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step
+    color_label: rail
+    notes: >
+      Authored 1000mm 2040 extrusion centered inside the 2m top-front
+      X-direction 4080 C-Beam run. It bridges the middle splice between the
+      two 1000mm 4080 C-Beam segments.
+  - id: top_back_insert_2040
+    role: top_frame_insert_2040
+    source_path: CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step
+    color_label: rail
+    notes: >
+      Authored 1000mm 2040 extrusion centered inside the 2m top-back
+      X-direction 4080 C-Beam run. It bridges the middle splice between the
+      two 1000mm 4080 C-Beam segments.
+
+  - id: top_left_side_rail
+    role: top_frame_rail_y
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+  - id: top_center_spreader
+    role: top_center_spreader_2040
+    source_path: CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step
+    color_label: vslot_2040
+    notes: >
+      Field-build update: the top center spreader is a 2040 V-slot extrusion,
+      not a 4080 C-Beam. It is rotated so the 40mm side is vertical and its
+      top surface is level with the surrounding top frame members.
+  - id: top_center_spreader_plate_front
+    role: top_center_spreader_plate
+    source_path: CAD/Components/Plates/V-Slot Gantry Plate 20-80mm.step
+    color_label: plate
+    notes: >
+      One of two 3mm V-Slot 20-80 gantry plates used as the top-center
+      spreader mounting bracket/spacer stock. It is lowered so the plate is
+      centered vertically on the 80mm frame-member datum instead of riding high
+      above the top face.
+  - id: top_center_spreader_plate_back
+    role: top_center_spreader_plate
+    source_path: CAD/Components/Plates/V-Slot Gantry Plate 20-80mm.step
+    color_label: plate
+    notes: >
+      Second 3mm V-Slot 20-80 gantry plate used as the top-center spreader
+      mounting bracket/spacer stock; the pair supplies 6mm total plate stock
+      and is centered vertically on the 80mm frame-member datum.
+  - id: top_right_side_rail
+    role: top_frame_rail_y
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+  - id: bottom_left_side_rail
+    role: bottom_frame_rail_y_2080
+    source_path: CAD/Components/V-Slot/V-Slot 20x80x1000 Linear Rail.step
+    color_label: vslot_2080
+    notes: "Field-build update: lower Y-direction frame rail is 2080 V-slot, not C-Beam."
+  - id: bottom_right_side_rail
+    role: bottom_frame_rail_y_2080
+    source_path: CAD/Components/V-Slot/V-Slot 20x80x1000 Linear Rail.step
+    color_label: vslot_2080
+    notes: "Field-build update: lower Y-direction frame rail is 2080 V-slot, not C-Beam."
+
+  - id: x_gantry_beam_left
+    role: x_gantry_beam
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+    notes: >
+      Authored 1000mm C-Beam segment for the X gantry. Rotated so the 80mm
+      cross-section dimension is vertical, matching the Y gantry orientation
+      and giving the X-carriage wheels a 40mm-deep rail body to ride against.
+  - id: x_gantry_beam_right
+    role: x_gantry_beam
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+    notes: >
+      Authored 1000mm C-Beam segment for the X gantry. Rotated so the 80mm
+      cross-section dimension is vertical, matching the Y gantry orientation
+      and preserving the open-frame two-piece 2m X span.
+  - id: x_gantry_insert_center_2040
+    role: x_gantry_insert_2040
+    source_path: CAD/Components/V-Slot/V-Slot 20x40x1000 Linear Rail.step
+    color_label: rail
+    notes: >
+      Authored 1000mm 2040 extrusion centered inside the 2m X-gantry
+      4080 C-Beam run. It bridges the middle splice between the two 1000mm
+      X-gantry C-Beam segments and is explicit stock placement, not generated
+      contextual geometry.
+  - id: x_gantry_plate_left
+    role: x_gantry_plate
+    source_path: CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP
+    color_label: plate
+    notes: >
+      Authored 6mm C-Beam Gantry Plate XLarge for the X-axis only. Rotated so
+      the thin axis is along X and placed outside the left C-Beam end face
+      instead of inside the rail body.
+  - id: x_gantry_plate_right
+    role: x_gantry_plate
+    source_path: CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP
+    color_label: plate
+    notes: >
+      Authored 6mm C-Beam Gantry Plate XLarge for the X-axis only. Rotated so
+      the thin axis is along X and placed outside the right C-Beam end face
+      instead of inside the rail body.
+
+  - id: x_carriage_plate_front
+    role: x_carriage_plate
+    source_path: CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP
+    color_label: plate
+    notes: >
+      Authored 6mm C-Beam Gantry Plate XLarge for the X-axis printhead
+      carriage. This front plate is placed on the negative-Y side of the X
+      C-Beam so the two-sided carriage can carry four wheels per plate.
+  - id: x_carriage_plate_back
+    role: x_carriage_plate
+    source_path: CAD/Advanced/Plates/C-Beam Gantry Plate XLarge.STEP
+    color_label: plate
+    notes: >
+      Authored 6mm C-Beam Gantry Plate XLarge for the X-axis printhead
+      carriage. This rear plate mirrors the front plate so eight total wheels
+      distribute load and reduce racking.
+
+  - id: y_gantry_left
+    role: y_gantry_beam
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+    notes: >
+      Authored 1000mm C-Beam rail placed as the left Y gantry datum. Motors,
+      belts, and drive hardware remain explicit not_built_yet items until the
+      connector-backed Y gantry subassembly is frozen. Wheels are placed as
+      authored Solid V Wheel STEP instances in the current reference. Rotation
+      is set so the 80mm dimension is vertical and the declared C-Beam
+      open-channel side faces inward toward +X.
+  - id: y_gantry_right
+    role: y_gantry_beam
+    component_id: advanced_linear_rail_c_beam_40x80x1000_linear_rail
+    color_label: cbeam
+    notes: >
+      Authored 1000mm C-Beam rail placed as the right Y gantry datum. The pair
+      establishes the frame spacing that the surrounding Z posts must accept.
+      Rotation is set so the 80mm dimension is vertical and the declared
+      C-Beam open-channel side faces inward toward -X.
+
+  - id: z_carriage_plate_front_left
+    role: z_carriage_plate
+    source_path: CAD/Components/Plates/V-Slot Gantry Plate 20-80mm.step
+    color_label: plate
+  - id: z_carriage_plate_front_right
+    role: z_carriage_plate
+    source_path: CAD/Components/Plates/V-Slot Gantry Plate 20-80mm.step
+    color_label: plate
+  - id: z_carriage_plate_back_left
+    role: z_carriage_plate
+    source_path: CAD/Components/Plates/V-Slot Gantry Plate 20-80mm.step
+    color_label: plate
+  - id: z_carriage_plate_back_right
+    role: z_carriage_plate
+    source_path: CAD/Components/Plates/V-Slot Gantry Plate 20-80mm.step
+    color_label: plate
+
+  - id: x_left_y_neg_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_left_y_neg_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_left_y_pos_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_left_y_pos_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_right_y_neg_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_right_y_neg_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_right_y_pos_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_right_y_pos_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+
+  - id: x_carriage_front_left_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_carriage_front_left_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_carriage_front_right_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_carriage_front_right_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_carriage_back_left_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_carriage_back_left_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_carriage_back_right_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: x_carriage_back_right_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+
+  - id: z_front_left_outer_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_front_left_outer_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_front_left_inner_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_front_left_inner_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_front_right_inner_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_front_right_inner_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_front_right_outer_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_front_right_outer_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_back_left_outer_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_back_left_outer_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_back_left_inner_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_back_left_inner_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_back_right_inner_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_back_right_inner_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_back_right_outer_lower_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+  - id: z_back_right_outer_upper_wheel
+    role: v_wheel
+    source_path: CAD/Components/Wheels/Solid V Wheel.step
+    color_label: wheel
+
+  - id: frame_spacer_top_front_left_6mm
+    role: frame_side_motor_mount_spacer_6mm
+    source_path: examples/m3_crete/generated/ZPMM_6p1_motor_mount_spacer_6mm_holes.step
+    color_label: spacer
+    notes: One-off derived ZPMM motor-mount/spacer based on the user-confirmed authored STEP; outline and spindle opening are preserved while the four motor holes and six C-Beam end-alignment holes are 6mm through-holes.
+  - id: frame_spacer_top_front_right_6mm
+    role: frame_side_motor_mount_spacer_6mm
+    source_path: examples/m3_crete/generated/ZPMM_6p1_motor_mount_spacer_6mm_holes.step
+    color_label: spacer
+    notes: One-off derived ZPMM motor-mount/spacer based on the user-confirmed authored STEP; outline and spindle opening are preserved while the four motor holes and six C-Beam end-alignment holes are 6mm through-holes.
+  - id: frame_spacer_top_back_left_6mm
+    role: frame_side_motor_mount_spacer_6mm
+    source_path: examples/m3_crete/generated/ZPMM_6p1_motor_mount_spacer_6mm_holes.step
+    color_label: spacer
+    notes: One-off derived ZPMM motor-mount/spacer based on the user-confirmed authored STEP; outline and spindle opening are preserved while the four motor holes and six C-Beam end-alignment holes are 6mm through-holes.
+  - id: frame_spacer_top_back_right_6mm
+    role: frame_side_motor_mount_spacer_6mm
+    source_path: examples/m3_crete/generated/ZPMM_6p1_motor_mount_spacer_6mm_holes.step
+    color_label: spacer
+    notes: One-off derived ZPMM motor-mount/spacer based on the user-confirmed authored STEP; outline and spindle opening are preserved while the four motor holes and six C-Beam end-alignment holes are 6mm through-holes.
+  - id: frame_spacer_bottom_front_left_6mm
+    role: frame_side_flat_spacer_6mm
+    source_path: examples/m3_crete/generated/M3_6mm_frame_shim_4080.step
+    color_label: spacer
+    notes: Simple 6 x 40 x 80mm flat frame spacer used at the lower 2080 Y-rail/post joint; this is not the ZPMM motor-mount spacer.
+  - id: frame_spacer_bottom_front_right_6mm
+    role: frame_side_flat_spacer_6mm
+    source_path: examples/m3_crete/generated/M3_6mm_frame_shim_4080.step
+    color_label: spacer
+    notes: Simple 6 x 40 x 80mm flat frame spacer used at the lower 2080 Y-rail/post joint; this is not the ZPMM motor-mount spacer.
+  - id: frame_spacer_bottom_back_left_6mm
+    role: frame_side_flat_spacer_6mm
+    source_path: examples/m3_crete/generated/M3_6mm_frame_shim_4080.step
+    color_label: spacer
+    notes: Simple 6 x 40 x 80mm flat frame spacer used at the lower 2080 Y-rail/post joint; this is not the ZPMM motor-mount spacer.
+  - id: frame_spacer_bottom_back_right_6mm
+    role: frame_side_flat_spacer_6mm
+    source_path: examples/m3_crete/generated/M3_6mm_frame_shim_4080.step
+    color_label: spacer
+    notes: Simple 6 x 40 x 80mm flat frame spacer used at the lower 2080 Y-rail/post joint; this is not the ZPMM motor-mount spacer.
+
+review_views:
+  - name: hero_match
+    view: hero
+    width: 1600
+    height: 900
+    notes: Approximate view for comparing against the reference render.
+  - name: front
+    view: front
+    width: 1400
+    height: 900
+  - name: top
+    view: top
+    width: 1400
+    height: 900
+  - name: side
+    view: side
+    width: 1400
+    height: 900
+  - name: iso
+    view: iso
+    width: 1400
+    height: 900
+
+assembly_sequence:
+  - id: x_gantry
+    title: X gantry and X-to-Y handoff plates
+    instance_ids:
+      - x_gantry_beam_left
+      - x_gantry_beam_right
+      - x_gantry_insert_center_2040
+      - x_gantry_plate_left
+      - x_gantry_plate_right
+      - x_left_y_neg_lower_wheel
+      - x_left_y_neg_upper_wheel
+      - x_left_y_pos_lower_wheel
+      - x_left_y_pos_upper_wheel
+      - x_right_y_neg_lower_wheel
+      - x_right_y_neg_upper_wheel
+      - x_right_y_pos_lower_wheel
+      - x_right_y_pos_upper_wheel
+    notes: >
+      Start with the X gantry because its end plates define where the moving
+      beam has to attach to the two Y gantries. The centered 2040 insert is
+      included here so the X-gantry splice reinforcement is visible in
+      exploded outputs and counted in the model-derived BOM.
+  - id: x_carriage
+    title: X-axis printhead carriage plates and wheels
+    instance_ids:
+      - x_carriage_plate_front
+      - x_carriage_plate_back
+      - x_carriage_front_left_lower_wheel
+      - x_carriage_front_left_upper_wheel
+      - x_carriage_front_right_lower_wheel
+      - x_carriage_front_right_upper_wheel
+      - x_carriage_back_left_lower_wheel
+      - x_carriage_back_left_upper_wheel
+      - x_carriage_back_right_lower_wheel
+      - x_carriage_back_right_upper_wheel
+    notes: >
+      Add the two-sided X carriage on the X gantry using two authored C-Beam
+      Gantry Plate XLarge plates and eight authored V-wheels. The carriage
+      body/toolhead interface remains a later authored STEP selection.
+  - id: y_gantry
+    title: Y gantries outside X-end interface plates
+    instance_ids:
+      - y_gantry_left
+      - y_gantry_right
+    notes: >
+      The Y gantries use authored C-Beam rail datums in this round rather
+      than the full actuator macro, because the macro already carries end
+      hardware that clips separately declared Z-carriage plates. Motors,
+      belts, and remaining Y drive hardware stay explicit not_built_yet work.
+  - id: z_carriages
+    title: Z-carriage plates on the Y-gantry ends
+    instance_ids:
+      - z_carriage_plate_front_left
+      - z_carriage_plate_front_right
+      - z_carriage_plate_back_left
+      - z_carriage_plate_back_right
+      - z_front_left_outer_lower_wheel
+      - z_front_left_outer_upper_wheel
+      - z_front_left_inner_lower_wheel
+      - z_front_left_inner_upper_wheel
+      - z_front_right_inner_lower_wheel
+      - z_front_right_inner_upper_wheel
+      - z_front_right_outer_lower_wheel
+      - z_front_right_outer_upper_wheel
+      - z_back_left_outer_lower_wheel
+      - z_back_left_outer_upper_wheel
+      - z_back_left_inner_lower_wheel
+      - z_back_left_inner_upper_wheel
+      - z_back_right_inner_lower_wheel
+      - z_back_right_inner_upper_wheel
+      - z_back_right_outer_lower_wheel
+      - z_back_right_outer_upper_wheel
+    notes: >
+      The Y gantry ends attach through Z-carriage plates at the four posts.
+      The 6mm spacer belongs to the static frame side-rail/post joint added
+      later, so this step checks only the moving gantry plates and clearance.
+  - id: z_posts
+    title: Z posts that the Y gantries ride on
+    instance_ids:
+      - post_front_left
+      - post_front_right
+      - post_back_left
+      - post_back_right
+    notes: >
+      Add the Z posts after the gantry and spacer stackup so post spacing is
+      checked against the moving assembly rather than assumed first.
+  - id: frame_completion
+    title: Remaining frame extrusions around the gantries
+    instance_ids:
+      - top_front_rail
+      - top_front_rail_splice
+      - top_back_rail
+      - top_back_rail_splice
+      - top_front_insert_2040
+      - top_back_insert_2040
+      - top_left_side_rail
+      - top_center_spreader
+      - top_center_spreader_plate_front
+      - top_center_spreader_plate_back
+      - top_right_side_rail
+      - bottom_left_side_rail
+      - bottom_right_side_rail
+      - frame_spacer_top_front_left_6mm
+      - frame_spacer_top_front_right_6mm
+      - frame_spacer_top_back_left_6mm
+      - frame_spacer_top_back_right_6mm
+      - frame_spacer_bottom_front_left_6mm
+      - frame_spacer_bottom_front_right_6mm
+      - frame_spacer_bottom_back_left_6mm
+      - frame_spacer_bottom_back_right_6mm
+    notes: >
+      Complete the static open frame around the gantry stackup. The M3
+      reference keeps the bottom X direction open; lower Y-direction rails are
+      2080 V-slot with simple 6 x 40 x 80mm flat spacers, while the top X
+      frame runs each receive one centered 2040 splice insert and the top
+      center spreader is a 2040 extrusion mounted with two 3mm V-Slot 20-80
+      plates.
+
+not_built_yet:
+  - item: connector frames for rail endpoints and plates
+    reason: First-pass connector metadata exists, but frames still need rendered-view and CAD inspection verification.
+    required_for_release: true
+  - item: belt paths and pulley/idler routing
+    reason: Requires explicit path geometry and final drive routing selection.
+    required_for_release: true
+  - item: motors and motor plates
+    reason: Needs connector metadata to place authored motor and mount STEPs.
+    required_for_release: true
+  - item: Z drive assemblies
+    reason: Y gantries now use authored C-Beam rail datums to avoid clipping macro actuator end hardware; Z motor/idler/belt placement still needs connector-backed placement.
+    required_for_release: true
+  - item: ZPMM motor-mount/spacer BOM binding and orientation review
+    reason: Current round places the one-off derived ZPMM spacer STEP at the motor-mount spacer positions; final handedness and connector-frame binding still need rendered/source-CAD review before release.
+    required_for_release: true
+  - item: static frame side-rail connector resolution
+    reason: The current round distinguishes top ZPMM motor-mount spacers from lower simple flat spacers; final connector frames should be verified against rendered views and source CAD.
+    required_for_release: true
+  - item: PyNiteFEA frame comparison sweep
+    reason: Existing load cases are fixed checks; member-option sweeps still need to compare 4080, 2080, 2040, and reinforced configurations.
+    required_for_release: false
+  - item: printhead/tooling interface
+    reason: The two X-carriage plates and eight V-wheels are now placed; the printhead/tool payload and final mounting STEP target are not selected for round 1.
+    required_for_release: true
+
+validation:
+  expected_inventory:
+    vertical_post: 4
+    top_frame_rail_x: 4
+    top_frame_insert_2040: 2
+    top_frame_rail_y: 2
+    top_center_spreader_2040: 1
+    top_center_spreader_plate: 2
+    bottom_frame_rail_y_2080: 2
+    x_gantry_beam: 2
+    x_gantry_insert_2040: 1
+    x_gantry_plate: 2
+    x_carriage_plate: 2
+    y_gantry_beam: 2
+    z_carriage_plate: 4
+    v_wheel: 32
+    frame_side_motor_mount_spacer_6mm: 4
+    frame_side_flat_spacer_6mm: 4
+  run_checks:
+    - inventory
+    - interference
+    - vslot_stackup
+    - frame_adjacency
+    - hole_alignment
+    - wheel_alignment
+    - open_channel_orientation
+    - bbox_alignment
+    - floating
+    - dimensional
+  interference:
+    min_volume_mm3: 1.0
+    min_clearance_mm: 1.0
+    max_findings: 25
+    skip_roles:
+      - v_wheel
+    notes: >
+      V-wheel bodies are intentionally tangent to or lightly engaged with rail
+      slots and plate interfaces in this coarse reference; the wheel_alignment
+      gate checks those wheel-to-plate placements instead of treating intended
+      rolling contact as generic solid interference.
+  vslot_stackup:
+    plate_thickness_mm: 3.0
+    running_gap_mm: 1.0
+    thickness_tolerance_mm: 0.75
+    position_tolerance_mm: 1.25
+    min_spacer_mm: 5.0
+    target_spacer_mm: 6.0
+    candidate_spacer_mm: [5.0, 6.0]
+    known_too_small_mm: [4.0]
+    notes: >
+      CADCLAW treats the V-slot/C-Beam handoff stack as a general placement
+      invariant. The X-to-Y handoff uses the 6mm C-Beam Gantry Plate XLarge
+      asset; the Y-to-Z handoff uses the smaller 3mm V-Slot 20-80 plate. For
+      the Y-to-Z handoff, the 6mm spacer is not inserted into the moving stack;
+      the Z post is placed 2mm outside the gantry plate, while the 6mm
+      spacer/motor-mount is checked in the static frame joint.
+    handoffs:
+      - id: x_to_y_left
+        current_instance: x_gantry_beam_left
+        plate_instance: x_gantry_plate_left
+        next_instance: y_gantry_left
+        axis: x
+        side: negative
+        plate_thickness_mm: 6.0
+      - id: x_to_y_right
+        current_instance: x_gantry_beam_right
+        plate_instance: x_gantry_plate_right
+        next_instance: y_gantry_right
+        axis: x
+        side: positive
+        plate_thickness_mm: 6.0
+      - id: y_to_z_front_left
+        current_instance: y_gantry_left
+        plate_instance: z_carriage_plate_front_left
+        next_instance: post_front_left
+        axis: y
+        side: negative
+        plate_gap_mm: 1.0
+        next_gap_mm: 2.0
+      - id: y_to_z_front_right
+        current_instance: y_gantry_right
+        plate_instance: z_carriage_plate_front_right
+        next_instance: post_front_right
+        axis: y
+        side: negative
+        plate_gap_mm: 1.0
+        next_gap_mm: 2.0
+      - id: y_to_z_back_left
+        current_instance: y_gantry_left
+        plate_instance: z_carriage_plate_back_left
+        next_instance: post_back_left
+        axis: y
+        side: positive
+        plate_gap_mm: 1.0
+        next_gap_mm: 2.0
+      - id: y_to_z_back_right
+        current_instance: y_gantry_right
+        plate_instance: z_carriage_plate_back_right
+        next_instance: post_back_right
+        axis: y
+        side: positive
+        plate_gap_mm: 1.0
+        next_gap_mm: 2.0
+  frame_adjacency:
+    gap_mm: 0.0
+    position_tolerance_mm: 0.5
+    min_overlap_mm: 20.0
+    notes: >
+      Static frame C-Beam/post joints are checked separately from moving
+      V-slot stackups. A pass here means the declared frame members are flush
+      and have real bearing overlap; a gap means either the transform is wrong
+      or an authored connector/spacer STEP must be added explicitly.
+    joints:
+      - id: top_front_left_post_to_x_rail
+        from_instance: post_front_left
+        to_instance: top_front_rail
+        axis: x
+        side: positive
+      - id: top_front_right_post_to_x_rail
+        from_instance: post_front_right
+        to_instance: top_front_rail_splice
+        axis: x
+        side: negative
+      - id: top_back_left_post_to_x_rail
+        from_instance: post_back_left
+        to_instance: top_back_rail
+        axis: x
+        side: positive
+      - id: top_back_right_post_to_x_rail
+        from_instance: post_back_right
+        to_instance: top_back_rail_splice
+        axis: x
+        side: negative
+      - id: top_left_front_post_to_spacer
+        from_instance: post_front_left
+        to_instance: frame_spacer_top_front_left_6mm
+        axis: y
+        side: positive
+      - id: top_left_front_spacer_to_side_rail
+        from_instance: frame_spacer_top_front_left_6mm
+        to_instance: top_left_side_rail
+        axis: y
+        side: positive
+      - id: top_left_back_post_to_spacer
+        from_instance: post_back_left
+        to_instance: frame_spacer_top_back_left_6mm
+        axis: y
+        side: negative
+      - id: top_left_back_spacer_to_side_rail
+        from_instance: frame_spacer_top_back_left_6mm
+        to_instance: top_left_side_rail
+        axis: y
+        side: negative
+      - id: top_right_front_post_to_spacer
+        from_instance: post_front_right
+        to_instance: frame_spacer_top_front_right_6mm
+        axis: y
+        side: positive
+      - id: top_right_front_spacer_to_side_rail
+        from_instance: frame_spacer_top_front_right_6mm
+        to_instance: top_right_side_rail
+        axis: y
+        side: positive
+      - id: top_right_back_post_to_spacer
+        from_instance: post_back_right
+        to_instance: frame_spacer_top_back_right_6mm
+        axis: y
+        side: negative
+      - id: top_right_back_spacer_to_side_rail
+        from_instance: frame_spacer_top_back_right_6mm
+        to_instance: top_right_side_rail
+        axis: y
+        side: negative
+      - id: bottom_left_front_post_to_spacer
+        from_instance: post_front_left
+        to_instance: frame_spacer_bottom_front_left_6mm
+        axis: y
+        side: positive
+      - id: bottom_left_front_spacer_to_side_rail
+        from_instance: frame_spacer_bottom_front_left_6mm
+        to_instance: bottom_left_side_rail
+        axis: y
+        side: positive
+      - id: bottom_left_back_post_to_spacer
+        from_instance: post_back_left
+        to_instance: frame_spacer_bottom_back_left_6mm
+        axis: y
+        side: negative
+      - id: bottom_left_back_spacer_to_side_rail
+        from_instance: frame_spacer_bottom_back_left_6mm
+        to_instance: bottom_left_side_rail
+        axis: y
+        side: negative
+      - id: bottom_right_front_post_to_spacer
+        from_instance: post_front_right
+        to_instance: frame_spacer_bottom_front_right_6mm
+        axis: y
+        side: positive
+      - id: bottom_right_front_spacer_to_side_rail
+        from_instance: frame_spacer_bottom_front_right_6mm
+        to_instance: bottom_right_side_rail
+        axis: y
+        side: positive
+      - id: bottom_right_back_post_to_spacer
+        from_instance: post_back_right
+        to_instance: frame_spacer_bottom_back_right_6mm
+        axis: y
+        side: negative
+      - id: bottom_right_back_spacer_to_side_rail
+        from_instance: frame_spacer_bottom_back_right_6mm
+        to_instance: bottom_right_side_rail
+        axis: y
+        side: negative
+  hole_alignment:
+    max_error_mm: 1.0
+    min_matches: 4
+    radius_min_mm: 2.0
+    radius_max_mm: 3.0
+    radius_tolerance_mm: 0.5
+    axis_tolerance_deg: 6.0
+    notes: >
+      Reads authored cylindrical features from the placed STEP assets and
+      compares their centers in the plane perpendicular to the handoff axis.
+      This catches the real mounting-hole alignment problem without generating
+      any bolt pattern or treating public nominal specs as assembly evidence.
+    groups:
+      - id: y_to_z_front_left_holes
+        from_instance: y_gantry_left
+        to_instance: z_carriage_plate_front_left
+        axis: y
+      - id: y_to_z_front_right_holes
+        from_instance: y_gantry_right
+        to_instance: z_carriage_plate_front_right
+        axis: y
+      - id: y_to_z_back_left_holes
+        from_instance: y_gantry_left
+        to_instance: z_carriage_plate_back_left
+        axis: y
+      - id: y_to_z_back_right_holes
+        from_instance: y_gantry_right
+        to_instance: z_carriage_plate_back_right
+        axis: y
+  wheel_alignment:
+    expected_wheels_per_plate: 4
+    max_hole_error_mm: 1.0
+    plate_face_to_wheel_inner_face_mm: 7.0
+    standoff_tolerance_mm: 0.5
+    eccentric_adjustment_allowance_mm: 3.5
+    radius_min_mm: 2.0
+    radius_max_mm: 6.0
+    axis_tolerance_deg: 6.0
+    notes: >
+      Each modeled V-wheel belongs to a gantry plate, with four wheels per
+      plate. The wheel centerline must align with an authored plate hole at
+      the roller center; the wheel is held off the plate face by the 6mm spacer
+      plus 1mm washer stack. Eccentric washers may absorb a few millimeters of
+      remaining in-plane adjustment, but the report still records the measured
+      hole-center error.
+    groups:
+      - id: x_left_plate_wheels
+        plate_instance: x_gantry_plate_left
+        axis: x
+        side: negative
+        wheel_instances:
+          - x_left_y_neg_lower_wheel
+          - x_left_y_neg_upper_wheel
+          - x_left_y_pos_lower_wheel
+          - x_left_y_pos_upper_wheel
+      - id: x_right_plate_wheels
+        plate_instance: x_gantry_plate_right
+        axis: x
+        side: positive
+        wheel_instances:
+          - x_right_y_neg_lower_wheel
+          - x_right_y_neg_upper_wheel
+          - x_right_y_pos_lower_wheel
+          - x_right_y_pos_upper_wheel
+      - id: x_carriage_front_plate_wheels
+        plate_instance: x_carriage_plate_front
+        axis: y
+        side: positive
+        wheel_instances:
+          - x_carriage_front_left_lower_wheel
+          - x_carriage_front_left_upper_wheel
+          - x_carriage_front_right_lower_wheel
+          - x_carriage_front_right_upper_wheel
+      - id: x_carriage_back_plate_wheels
+        plate_instance: x_carriage_plate_back
+        axis: y
+        side: negative
+        wheel_instances:
+          - x_carriage_back_left_lower_wheel
+          - x_carriage_back_left_upper_wheel
+          - x_carriage_back_right_lower_wheel
+          - x_carriage_back_right_upper_wheel
+      - id: z_front_left_plate_wheels
+        plate_instance: z_carriage_plate_front_left
+        axis: y
+        side: negative
+        max_hole_error_mm: 3.5
+        wheel_instances:
+          - z_front_left_outer_lower_wheel
+          - z_front_left_outer_upper_wheel
+          - z_front_left_inner_lower_wheel
+          - z_front_left_inner_upper_wheel
+      - id: z_front_right_plate_wheels
+        plate_instance: z_carriage_plate_front_right
+        axis: y
+        side: negative
+        max_hole_error_mm: 3.5
+        wheel_instances:
+          - z_front_right_inner_lower_wheel
+          - z_front_right_inner_upper_wheel
+          - z_front_right_outer_lower_wheel
+          - z_front_right_outer_upper_wheel
+      - id: z_back_left_plate_wheels
+        plate_instance: z_carriage_plate_back_left
+        axis: y
+        side: positive
+        max_hole_error_mm: 3.5
+        wheel_instances:
+          - z_back_left_outer_lower_wheel
+          - z_back_left_outer_upper_wheel
+          - z_back_left_inner_lower_wheel
+          - z_back_left_inner_upper_wheel
+      - id: z_back_right_plate_wheels
+        plate_instance: z_carriage_plate_back_right
+        axis: y
+        side: positive
+        max_hole_error_mm: 3.5
+        wheel_instances:
+          - z_back_right_inner_lower_wheel
+          - z_back_right_inner_upper_wheel
+          - z_back_right_outer_lower_wheel
+          - z_back_right_outer_upper_wheel
+  open_channel_orientation:
+    angle_tolerance_deg: 8.0
+    notes: >
+      The local C-Beam open-channel axis is declared from the inspected
+      component frame. After placement, left and right Y gantries must point
+      that channel toward the printer interior.
+    requirements:
+      - id: left_y_gantry_channel_inward
+        instance: y_gantry_left
+        local_open_axis: [1.0, 0.0, 0.0]
+        expected_global_axis: [1.0, 0.0, 0.0]
+      - id: right_y_gantry_channel_inward
+        instance: y_gantry_right
+        local_open_axis: [1.0, 0.0, 0.0]
+        expected_global_axis: [-1.0, 0.0, 0.0]
+  bbox_alignment:
+    tolerance_mm: 0.5
+    notes: >
+      Design-specific frame datum checks for placements that must remain flush
+      even though they are not simple end-to-end extrusion joints.
+    checks:
+      - id: top_center_spreader_40mm_vertical
+        instance: top_center_spreader
+        axis: z
+        expected_size_mm: 40.0
+      - id: top_center_spreader_top_flush
+        instance: top_center_spreader
+        axis: z
+        side: positive
+        reference_instance: top_left_side_rail
+        reference_side: positive
+        expected_offset_mm: 0.0
+      - id: top_center_spreader_plate_front_top_offset
+        instance: top_center_spreader_plate_front
+        axis: z
+        side: positive
+        reference_instance: top_center_spreader
+        reference_side: positive
+        expected_offset_mm: 4.0
+      - id: top_center_spreader_plate_back_top_offset
+        instance: top_center_spreader_plate_back
+        axis: z
+        side: positive
+        reference_instance: top_center_spreader
+        reference_side: positive
+        expected_offset_mm: 4.0
+      - id: y_gantry_left_80mm_vertical
+        instance: y_gantry_left
+        axis: z
+        expected_size_mm: 80.0
+      - id: y_gantry_right_80mm_vertical
+        instance: y_gantry_right
+        axis: z
+        expected_size_mm: 80.0
+      - id: x_gantry_left_80mm_vertical
+        instance: x_gantry_beam_left
+        axis: z
+        expected_size_mm: 80.0
+      - id: x_gantry_right_80mm_vertical
+        instance: x_gantry_beam_right
+        axis: z
+        expected_size_mm: 80.0
+      - id: x_gantry_insert_center_40mm_vertical
+        instance: x_gantry_insert_center_2040
+        axis: z
+        expected_size_mm: 40.0
+      - id: top_front_insert_40mm_vertical
+        instance: top_front_insert_2040
+        axis: z
+        expected_size_mm: 40.0
+      - id: top_back_insert_40mm_vertical
+        instance: top_back_insert_2040
+        axis: z
+        expected_size_mm: 40.0
+      - id: x_carriage_front_left_lower_wheel_on_x_slot
+        instance: x_carriage_front_left_lower_wheel
+        axis: y
+        side: positive
+        reference_instance: x_gantry_beam_left
+        reference_side: negative
+        expected_offset_mm: 0.0
+      - id: x_carriage_front_left_upper_wheel_on_x_slot
+        instance: x_carriage_front_left_upper_wheel
+        axis: y
+        side: positive
+        reference_instance: x_gantry_beam_left
+        reference_side: negative
+        expected_offset_mm: 0.0
+      - id: x_carriage_front_right_lower_wheel_on_x_slot
+        instance: x_carriage_front_right_lower_wheel
+        axis: y
+        side: positive
+        reference_instance: x_gantry_beam_right
+        reference_side: negative
+        expected_offset_mm: 0.0
+      - id: x_carriage_front_right_upper_wheel_on_x_slot
+        instance: x_carriage_front_right_upper_wheel
+        axis: y
+        side: positive
+        reference_instance: x_gantry_beam_right
+        reference_side: negative
+        expected_offset_mm: 0.0
+      - id: x_carriage_back_left_lower_wheel_on_x_slot
+        instance: x_carriage_back_left_lower_wheel
+        axis: y
+        side: negative
+        reference_instance: x_gantry_beam_left
+        reference_side: positive
+        expected_offset_mm: 0.0
+      - id: x_carriage_back_left_upper_wheel_on_x_slot
+        instance: x_carriage_back_left_upper_wheel
+        axis: y
+        side: negative
+        reference_instance: x_gantry_beam_left
+        reference_side: positive
+        expected_offset_mm: 0.0
+      - id: x_carriage_back_right_lower_wheel_on_x_slot
+        instance: x_carriage_back_right_lower_wheel
+        axis: y
+        side: negative
+        reference_instance: x_gantry_beam_right
+        reference_side: positive
+        expected_offset_mm: 0.0
+      - id: x_carriage_back_right_upper_wheel_on_x_slot
+        instance: x_carriage_back_right_upper_wheel
+        axis: y
+        side: negative
+        reference_instance: x_gantry_beam_right
+        reference_side: positive
+        expected_offset_mm: 0.0
