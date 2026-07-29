@@ -1,5 +1,5 @@
 {
-  "title": "CADCLAW: Automated validation framework for STEP-based CAD assemblies",
+  "title": "CADCLAW: Automated assembly and validation framework for STEP-based CAD",
   "upload_type": "software",
   "creators": [
     {
@@ -8,16 +8,17 @@
       "orcid": "0009-0002-1897-384X"
     }
   ],
-  "description": "Automated validation, interference detection, and structural analysis for STEP assemblies. Provides inventory/adjacency/dimensional gates, tolerance stacking (worst-case / RSS / Monte Carlo), disassembly-sequence rendering, and an MCP server exposing core validation, analysis, and audit checks to AI coding assistants.",
+  "description": "CADCLAW builds and verifies STEP CAD assemblies. It compiles a declarative assembly spec into a STEP file, placing authored STEP parts by connector frames and datum chains rather than hand-typed coordinates, and emits a design inventory, a model-derived BOM, review-view renders, and step-by-step assembly sequences. It then runs automated gates over the result: inventory, interference, adjacency, dimensional, orientation, floating-part, and color/material checks, structural analysis, tolerance stacking (worst-case / RSS / Monte Carlo), STEP-vs-STEP parity, and a BOM-vs-CAD audit. CADCLAW places parts authored in external CAD; it does not generate geometry. Includes an MCP server exposing both the assembly and validation tools to AI coding assistants, with rendered review views returned as inline images so an agent can visually verify each assembly round.",
   "license": "MIT",
   "keywords": [
     "CAD",
     "STEP",
+    "assembly",
+    "assembly automation",
     "validation",
     "testing",
     "cadquery",
     "mechanical design",
-    "assembly",
     "tolerance analysis",
     "interference detection",
     "MCP"

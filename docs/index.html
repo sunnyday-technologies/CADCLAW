@@ -35,11 +35,11 @@
         "@id": "https://cadclaw.io/#software",
         "name": "CADCLAW",
         "alternateName": "cadclaw",
-        "description": "CADCLAW is an automated check suite for STEP-based CAD assemblies — pytest-style geometric, structural, tolerance, and BOM-vs-CAD validation, with an honesty toolchain (doctor, publish-audit, claim-audit) and an included MCP server. It is the open verification engine behind the MARB benchmark.",
+        "description": "CADCLAW builds and verifies STEP-based CAD assemblies. It compiles a declarative assembly spec into a STEP file, placing authored parts by connector frames and datum chains rather than hand-typed coordinates, and emits a design inventory, model-derived BOM, review renders, and step-by-step build sequences. It then runs pytest-style geometric, structural, tolerance, and BOM-vs-CAD gates, with an honesty toolchain (doctor, publish-audit, claim-audit) and an included MCP server. CADCLAW places parts authored in external CAD; it does not generate geometry. It is the open verification engine behind the MARB benchmark.",
         "applicationCategory": "DeveloperApplication",
-        "applicationSubCategory": "CAD validation / mechanical engineering QA",
+        "applicationSubCategory": "CAD assembly automation / mechanical engineering QA",
         "operatingSystem": "Cross-platform (Windows, macOS, Linux)",
-        "softwareVersion": "0.9.0",
+        "softwareVersion": "0.10.0",
         "programmingLanguage": "Python",
         "downloadUrl": "https://pypi.org/project/cadclaw/",
         "installUrl": "https://pypi.org/project/cadclaw/",
@@ -149,7 +149,7 @@
 
   <section id="engine" class="section">
     <h2>The engine: CADCLAW <span class="badge">open source</span></h2>
-    <p class="lede">MARB runs on <strong>CADCLAW</strong> — an open-source check suite for STEP assemblies. It's the same engine you can <code>pip install</code> and run in your own CI: a chain of automated gates that pass only when every configured check passes. Like <code>pytest</code> for mechanical design — in spirit.</p>
+    <p class="lede">MARB runs on <strong>CADCLAW</strong> — the open-source framework that builds and checks STEP assemblies. It's the same engine you can <code>pip install</code> and run in your own CI. It <strong>assembles</strong>: a declarative spec seats your authored parts on connector frames and datum chains, then compiles the STEP. And it <strong>verifies</strong>: a chain of automated gates that pass only when every configured check passes. Like <code>pytest</code> for mechanical design — in spirit. It places parts you drew; it never generates geometry.</p>
 
     <div class="gates">
       <div class="gate"><h3>Inventory</h3><p>Missing or extra parts, by bounding-box signature, against expected counts.</p></div>

@@ -5,5 +5,5 @@ assemblies, with an MCP server for assistant-driven workflows.
 
 https://github.com/sunnyday-technologies/CADCLAW
 """
-__version__ = "0.9.0"
+__version__ = "0.10.0"
 __author__ = "Sunnyday Technologies"
