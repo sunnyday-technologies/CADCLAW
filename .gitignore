@@ -73,3 +73,6 @@ tmp_v*_transfer/
 /v[0-9]*.jpg
 /v[0-9]*.png
 /v[0-9]*.log
+
+# Media withdrawn from the site 2026-08-21 (kept locally, never served)
+_unpublished_media_*/
