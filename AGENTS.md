@@ -5,6 +5,11 @@ uses CADCLAW. This file is the **load-bearing policy** for how you
 should behave when adding or editing CAD geometry. Read it before any
 geometry-touching work.
 
+> **Before editing this repository at all, read [`AGENTS_GIT_PROTOCOL.md`](AGENTS_GIT_PROTOCOL.md).**
+> More than one agent works here from more than one clone. GitHub is the shared
+> memory; your working copy is not. Fetch first, commit what you validate, never
+> force-push.
+
 ---
 
 ## What CADCLAW is, and what it is not
