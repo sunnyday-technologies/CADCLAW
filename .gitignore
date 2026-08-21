@@ -47,3 +47,29 @@ docs/fonts/
 
 # Internal editorial / publication process notes (contain local paths)
 docs/publication/
+
+# ── Local-only: CADCLAW explainer / video production ────────────────────────
+# Renders, frame-audit stills, narration, and the ~50 one-shot composition
+# scripts behind the explainer video. Unpublished production work: not in the
+# pip package, not on the build-site.ps1 allowlist, not for the public repo.
+# These previously sat merely untracked, so a single `git add -A` would have
+# published all of it. Structural exclusion, not luck.
+docs/CADCLAW_EXPLAINER_*
+docs/STUDIO_NARRATION_*
+scripts/audit_cadclaw_explainer_*
+scripts/diagnose_cadclaw_*
+scripts/diagnose_measure_dial_component.py
+scripts/polish_cadclaw_explainer_*
+scripts/recompose_cadclaw_explainer_*
+scripts/fix_cadclaw_explainer_*
+scripts/fix_cadclaw_v*
+scripts/run_cadclaw_v*
+scripts/set_cadclaw_v*
+scripts/widen_cadclaw_v*
+scripts/test_cadclaw_claw_cleanup_variants.py
+claw_cleanup_variants/
+claw_component_diagnostic_*/
+tmp_v*_transfer/
+/v[0-9]*.jpg
+/v[0-9]*.png
+/v[0-9]*.log
