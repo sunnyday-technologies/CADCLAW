@@ -1,0 +1,43 @@
+# Line endings are part of this repository's publish contract.
+#
+# scripts/build-site.ps1 hashes every published byte and asserts source/output
+# parity, and several of its gates match anchored regexes over docs/ text files
+# (robots.txt Content-Signal, _headers security headers, sitemap routes). A CRLF
+# checkout fails those anchored matches and changes the artifact bytes. Without
+# this file the site builds on the Linux CI runner but NOT on a Windows clone,
+# so nobody on Windows can run the local build the release runbook requires.
+#
+# Types are listed explicitly rather than as `docs/** text`, because forcing the
+# text attribute over a whole tree would line-ending-convert the PNGs and JPEGs
+# and corrupt them.
+
+*.html  text eol=lf
+*.css   text eol=lf
+*.txt   text eol=lf
+*.xml   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.py    text eol=lf
+*.ps1   text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.toml  text eol=lf
+*.cff   text eol=lf
+
+# Extensionless Cloudflare Pages control files on the publish allowlist.
+docs/_headers   text eol=lf
+docs/_redirects text eol=lf
+
+# Shell scripts and hooks must stay LF — they run under Git Bash on Windows
+# and dash on the ubuntu CI runners; CRLF breaks both. (Matches MARB.)
+*.sh text eol=lf
+scripts/hooks/* text eol=lf
+
+# Binary assets are never line-ending converted, so the reviewed publish hashes
+# stay identical across Windows and Linux checkouts.
+*.png  -text
+*.jpg  -text
+*.jpeg -text
+*.gif  -text
+*.otf  -text
+*.step -text
