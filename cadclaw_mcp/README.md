@@ -1,6 +1,10 @@
 # CADCLAW MCP Server
 
-Connect CADCLAW to an MCP-compatible assistant as a Model Context Protocol tool server. This gives the assistant direct access to CADCLAW's validation, analysis, and audit checks; it does not grant access to your CAD application.
+Connect CADCLAW to an MCP-compatible assistant as a local Model Context Protocol tool server. It exposes CADCLAW assembly, check, analysis, audit, and render functions; it does not provide native-CAD application control.
+
+## Security boundary
+
+This server is **not a security sandbox**. It runs with the local process account's filesystem permissions. Path-taking tools can read specified inputs, the six `assemble_*` tools can write configured assembly and render outputs, and other export/render tools may also write files. Use a least-privilege working copy, restrict host approvals, keep sensitive projects out of scope, and review tool inputs and outputs. A successful check covers only the supplied artifact and configured rules; it is not engineering certification or physical validation.
 
 ## Setup
 
@@ -43,8 +47,14 @@ Once connected, the assistant can call these tools directly:
 | `check_claims` | Public-claim audit |
 | `check_region_inventory` | Inventory with region constraints from `cadclaw.yaml` |
 | `compare_step_parity` | STEP-vs-STEP dim-signature comparison |
+| `assemble_validate_spec` | Validate an assembly spec without authoring part geometry |
+| `assemble_build` | Compile configured authored parts into assembly outputs |
+| `assemble_check_round` | Build, run configured checks, and produce review artifacts |
+| `assemble_inspect_component` | Inspect an authored component and its declared metadata |
+| `assemble_render_views` | Render configured assembly review views to files and inline content |
+| `assemble_render_sequence` | Export the configured build sequence and review frames |
 
-## Example Conversation
+## Illustrative conversation
 
 ```
 User: "Load my assembly and check for interference"
@@ -59,8 +69,10 @@ Found 3 interferences:
 - Bracket overlaps motor at (2080, 45, 1040) by 450 mm³  
 - Mount intersects post at (0, 16, 980) by 120 mm³
 
-Would you like me to analyze the severity of each?
+Would you like me to prepare these findings for engineering review?
 ```
+
+The values above are fictional examples, not measured CADCLAW or M3-CRETE results.
 
 ## Requirements
 

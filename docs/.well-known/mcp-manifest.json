@@ -1,6 +1,7 @@
 {
   "schema_version": "0.1-draft",
-  "_note": "Experimental, draft Model Context Protocol manifest for the static cadclaw.io site. The schema is not yet finalized; this file describes the small set of read-only resources actually published by https://cadclaw.io and is intended to help agent crawlers discover them. The CADCLAW project also ships an MCP *server* (the `cadclaw_mcp` Python package), but that server runs LOCALLY after `pip install cadclaw` — it is NOT a hosted endpoint, and is therefore listed under `related_packages` below rather than as a callable resource here.",
+  "status": "experimental-nonstandard-static-discovery",
+  "_note": "This is an experimental, non-standard static discovery document for cadclaw.io, not an MCP server descriptor or a claim of protocol authority. It lists the read-only resources actually published by https://cadclaw.io. The CADCLAW project separately ships a local MCP server in the `cadclaw_mcp` Python package; it is not hosted at this domain and is listed under `related_packages`, not as a callable site resource.",
   "name": "cadclaw.io",
   "description": "CADCLAW: automated assembly and validation for STEP-based CAD. Places authored parts by declared constraints, compiles the assembly, then runs geometric, structural, tolerance, and BOM-vs-CAD gates. Static documentation/marketing site for the open-source `cadclaw` Python package.",
   "publisher": {
@@ -37,7 +38,7 @@
     },
     {
       "name": "GetRobotsPolicy",
-      "description": "robots.txt with explicit opt-in Allow blocks for ClaudeBot, GPTBot, Google-Extended, and PerplexityBot.",
+      "description": "robots.txt with one global crawler group, explicit Content-Signal policy, and a /cdn-cgi/ exclusion.",
       "method": "GET",
       "url": "https://cadclaw.io/robots.txt",
       "content_type": "text/plain",
@@ -58,7 +59,7 @@
     {
       "name": "cadclaw_mcp",
       "kind": "local-mcp-server",
-      "description": "Model Context Protocol server that exposes CADCLAW's assembly and validation modules as MCP tools (23 tools, including six assemble_* tools that compile and visually review an assembly). Render-producing tools return PNGs as inline image content. Runs locally; not a hosted endpoint. Use after `pip install cadclaw`.",
+      "description": "Local Model Context Protocol server exposing 23 CADCLAW assembly, check, analysis, audit, and render tools, including six assemble_* tools that can write configured outputs. Render-producing tools can return PNGs inline and write files. It runs with the local process account's filesystem permissions; it is not a security sandbox and is not hosted at cadclaw.io. Review tool inputs/outputs and use a least-privilege working copy.",
       "entry_point": "python -m cadclaw_mcp",
       "source": "https://github.com/sunnyday-technologies/CADCLAW/tree/main/cadclaw_mcp",
       "transport": "stdio"

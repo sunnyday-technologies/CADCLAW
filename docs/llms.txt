@@ -31,7 +31,7 @@ agent-driven retrieval. The canonical site is https://cadclaw.io.
 - License: MIT
 - PyPI: https://pypi.org/project/cadclaw/
 - DOI: 10.5281/zenodo.19647390
-- Current version: 0.10.0 (canonical source: https://pypi.org/project/cadclaw/)
+- Current published version: 0.10.0 (PyPI checked 2026-08-11; canonical source: https://pypi.org/project/cadclaw/)
 - Site: https://cadclaw.io
 - Status: open source, actively maintained
 
@@ -149,11 +149,14 @@ Exit codes: 0 pass, 1 fail, 2 warn-only (no fails), 3 internal error.
 ## MCP server
 
 The repository also publishes `cadclaw_mcp/` — a Model Context Protocol
-server that exposes harness modules as MCP tools, so an MCP-compatible
-assistant can drive CADCLAW directly. The MCP server runs LOCALLY after
-`pip install cadclaw`; it is NOT a hosted endpoint. It only exposes CADCLAW's
-own tools, and does not give an assistant access to your CAD application or to
-anything outside what `cadclaw` itself can do.
+server that exposes CADCLAW assembly, check, analysis, audit, and render tools.
+The MCP server runs LOCALLY after `pip install cadclaw`; it is NOT a hosted
+endpoint and does not control a native CAD application. It is also not a
+security sandbox: path-taking tools can read declared STEP, spec, rules, BOM,
+and metadata inputs, and assembly/render tools can write configured outputs,
+using the local process account's filesystem permissions. Run it in a
+least-privilege working copy, inspect tool arguments, and require human review
+for write-producing operations.
 
 MCP coverage is 23 tools spanning both halves.
 
@@ -178,11 +181,13 @@ Entry point: `python -m cadclaw_mcp` (see `cadclaw_mcp/server.py`).
 
 ## Companion projects
 
-- M3-CRETE — open-source concrete 3D printer; CADCLAW's first production
-  deployment. https://m3-crete.com · https://github.com/sunnyday-technologies/M3-CRETE
-- CEMFORGE — CAM / slicer surface for the M3-CRETE family. https://cemforge.ai
-- Open3DCP — open 3D-construction-printing standards effort.
-  https://open3dcp.org
+- M3-CRETE — experimental open-hardware motion reference and historical
+  CADCLAW development target; not a validated production deployment.
+  https://m3-crete.com · https://github.com/sunnyday-technologies/M3-CRETE
+- CEMFORGE — early-stage materials-evidence and decision support, separate
+  from CADCLAW's geometry checks. https://cemforge.ai
+- Open3DCP — maintainer-authored draft record schema and documentation, not a
+  supplied dataset or ratified standard. https://open3dcp.org
 
 ## Machine-readable surface
 
@@ -190,7 +195,8 @@ Entry point: `python -m cadclaw_mcp` (see `cadclaw_mcp/server.py`).
   https://cadclaw.io/
 - Sitemap: https://cadclaw.io/sitemap.xml
 - This file: https://cadclaw.io/llms.txt
-- MCP manifest (experimental, static-site read-only resources):
+- Static discovery document (experimental and non-standard; read-only site resources,
+  not a hosted MCP endpoint):
   https://cadclaw.io/.well-known/mcp-manifest.json
 - robots.txt (explicit opt-in for ClaudeBot, GPTBot, Google-Extended,
   PerplexityBot): https://cadclaw.io/robots.txt

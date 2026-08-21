@@ -69,11 +69,11 @@ CADCLAW validates STEP assemblies + BOM JSON through a chain of automated gates:
 
 The CLI harness runs the checks declared in `cadclaw.yaml`; geometry checks share the STEP export when possible, while parity, render, disassembly, tolerance, and audits are also available as focused commands/APIs. Every report includes a **confidence budget** that lists what was checked, what was not, and what assumptions were made.
 
-CADCLAW also includes an **MCP Server**: 23 tools covering both halves, so an MCP-compatible assistant can drive CADCLAW directly. The six `assemble_*` tools build and inspect assemblies; the rest run the checks. The MCP server does not give the assistant access to your CAD application or to anything outside what `cadclaw` itself can do.
+CADCLAW also includes a local **MCP Server** with 23 declared tools. The six `assemble_*` tools build and inspect assemblies; the remainder expose checks, analysis, audits, and rendering. It does not provide native-CAD application control, but it is **not a security sandbox**: path-taking tools can read specified files, assembly tools can write configured outputs, and the server inherits the local process account's filesystem permissions. Use a least-privilege working copy and review tool inputs and outputs.
 
 The render-producing assembly tools return their PNGs as **inline images**, so the assistant can look at what it just built instead of trusting a path string. Every render is also written to disk, giving the human a per-step traceability artifact of what changed and when.
 
-The full loop is: prompt, edit the assembly spec, `assemble check-round`, inspect the report and the review renders, repeat.
+An approval-gated loop is: supply authored parts and a task, propose an assembly-spec edit, run `assemble check-round`, inspect the report and review renders, then have a qualified human decide whether to accept another iteration. A passing report means only that the configured gates passed.
 
 ## What CADCLAW Does NOT Prove
 
@@ -91,8 +91,8 @@ Each report includes a **confidence budget** per gate: `checked`, `not_checked`,
 ## Honesty toolchain
 
 - `cadclaw doctor` — environment diagnostic. Run this first.
-- `cadclaw publish-audit` — scans the working tree for private data before you commit.
-- `cadclaw claim-audit` — text linter that flags overclaims and untagged numeric assertions in your README and BOM notes.
+- `cadclaw publish-audit` — checks configured publication-boundary patterns before you commit; it is not a guarantee that every sensitive value is detected.
+- `cadclaw claim-audit` — text linter that flags selected overclaim patterns and untagged numeric assertions in configured text surfaces.
 
 These three tools exist because the truthfulness of CADCLAW's reports is only as good as the truthfulness of the docs and BOM that surround them.
 
@@ -225,12 +225,7 @@ A [`CITATION.cff`](CITATION.cff) file is included for automated citation tooling
 
 ## Origin Story
 
-CADCLAW was developed alongside the [M3-CRETE](https://github.com/sunnyday-technologies/M3-CRETE) open-source concrete 3D printer project — built out of a practical need to properly position and validate components during assembly of a large, part-dense machine, using Sunnyday Technologies' LLM-assisted engineering practice. The harness:
-
-- Caught 53 solid-solid interferences in a single run
-- Reduced STEP file size from 70MB to 13MB by identifying geometry bloat
-- Checked 150+ assembly changes across 15 design sessions without visual inspection [analysis]
-- Prevented 3 regressions that would have shipped broken geometry to builders
+CADCLAW was developed alongside the [M3-CRETE](https://github.com/sunnyday-technologies/M3-CRETE) open-source concrete 3D printer project to make checks over a large, part-dense authored assembly repeatable. Historical development observations motivated the inventory, interference, adjacency, dimensional, parity, and publication-boundary checks. Treat those observations as test-design inputs, not as proof of avoided fabrication costs, prevented defects, physical validation, or universal performance. The current repository tests and versioned reports are the controlling evidence for specific behavior.
 
 See [examples/m3_crete/](examples/m3_crete/) for the reference implementation.
 
@@ -276,7 +271,7 @@ Offscreen VTK rendering of STEP files to PNG, plus GIF stitching. `make_disassem
 The runner. Chains gates, loads parts once, reports pass/fail with timing.
 
 ### `cadclaw_mcp/`
-MCP Server exposing CADCLAW's assembly and validation tools (23) to MCP-compatible hosts. The six `assemble_*` tools cover spec validation, compilation, the check round, component inspection, review rendering, and sequence export; the remainder run the checks and audits. Render-producing tools return PNGs as inline image content so the assistant can visually verify each round. No code generation needed — MCP is an open protocol, so any compliant client can drive the harness.
+Local MCP Server exposing 23 CADCLAW assembly, check, analysis, audit, and render tools to compatible hosts. The six `assemble_*` tools cover spec validation, compilation, the check round, component inspection, review rendering, and sequence export; the remainder run checks and audits. Render-producing tools return PNGs inline and can write configured output files. The server runs with the local process account's permissions and is not a security sandbox.
 
 ## CI/CD Integration
 
@@ -292,10 +287,10 @@ Exit code 0 = passed. Exit code 1 = failed. Works in any CI system.
 
 ## Who This Is For
 
-- **Open-source hardware projects** — catch assembly errors before builders hit them
-- **CadQuery/FreeCAD users** — the testing layer the ecosystem is missing
-- **Small manufacturing teams** — automated QA between design and procurement
-- **AI-assisted CAD workflows** — validate that AI-generated changes don't break the assembly
+- **Open-source hardware projects** — evaluate configured assembly checks before release
+- **CadQuery/FreeCAD users** — add repeatable checks over exported STEP assemblies
+- **Small manufacturing teams** — support human QA between design and procurement
+- **AI-assisted CAD workflows** — test proposed placement changes against declared gates
 
 ## Running Tests
 
@@ -342,6 +337,5 @@ Run `cadclaw doctor` after install to verify your environment.
 
 MIT License. Copyright (c) 2026 Sunnyday Technologies.
 
-Built during the [M3-CRETE](https://m3-crete.com) project — an open-source concrete
-3D printer where CADCLAW caught 53 interferences, reduced STEP file size from
-70 MB to 13 MB, and ran 150+ assembly checks across a human-AI design collaboration [analysis].
+Developed alongside the [M3-CRETE](https://m3-crete.com) open-source concrete
+3D-printer reference project. Project-specific geometric findings require review and do not establish physical validation, avoided cost, or production readiness.

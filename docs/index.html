@@ -3,39 +3,28 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>CADCLAW — Can AI assemble real machines? The AI-CAD assembly benchmark</title>
-  <meta name="description" content="The Mechanical Assembly Readiness Benchmark (MARB): give AIs the same parts and the same goal, then grade what they build with one automatic checker. Powered by CADCLAW, an open-source CAD verification engine." />
-  <meta property="og:title" content="Can AI assemble real machines? — the MARB benchmark, powered by CADCLAW" />
-  <meta property="og:description" content="Three AIs each built a 100-part machine from the same kit. We graded all three identically. See the scoreboard." />
+  <title>CADCLAW — automated verification for STEP assemblies</title>
+  <meta name="description" content="CADCLAW compiles a declarative spec into a STEP assembly from parts you authored, then runs automated gates over the result: interference, adjacency, floating parts, dimensions, tolerance stacking, and BOM-vs-CAD. Run it locally or in CI. MIT licensed, on PyPI." />
+  <meta property="og:title" content="CADCLAW — automated verification for STEP assemblies" />
+  <meta property="og:description" content="Build STEP assemblies from authored parts, then check them automatically. Geometric, structural, tolerance, and BOM gates for mechanical design, runnable in CI or from an MCP-compatible assistant. MIT licensed: pip install cadclaw." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://cadclaw.io" />
-  <meta property="og:image" content="https://cadclaw.io/media/arb_scoreboard.png" />
+  <meta property="og:image" content="https://cadclaw.io/media/cadclaw_auto_assembly_loop.png" />
   <meta name="twitter:card" content="summary_large_image" />
+  <link rel="canonical" href="https://cadclaw.io/" />
   <link rel="icon" href="CADCLAW_logo.jpg" type="image/jpeg" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CADCLAW agent-readable summary" />
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "Dataset",
-        "@id": "https://cadclaw.io/#arb",
-        "name": "Mechanical Assembly Readiness Benchmark (MARB)",
-        "alternateName": "MARB",
-        "description": "A tool-independent benchmark that measures how well AI workflows assemble a real multi-part machine in CAD: right parts, no collisions, nothing floating, correctly aligned — graded automatically and mapped onto the TRL/MRL/IRL readiness scales.",
-        "url": "https://marb.cadclaw.io/",
-        "license": "https://opensource.org/licenses/MIT",
-        "keywords": "AI CAD benchmark, assembly readiness, mechanical design AI, STEP assembly grading, TRL MRL IRL, agentic CAD",
-        "creator": { "@id": "https://sunn3d.com/#org" },
-        "isBasedOn": { "@id": "https://cadclaw.io/#software" },
-        "measurementTechnique": "Automated black-box geometry grading (inventory, interference, floating) on the exported STEP, scored on the MARB L0-L7 capability ladder."
-      },
-      {
         "@type": "SoftwareApplication",
         "@id": "https://cadclaw.io/#software",
         "name": "CADCLAW",
         "alternateName": "cadclaw",
-        "description": "CADCLAW builds and verifies STEP-based CAD assemblies. It compiles a declarative assembly spec into a STEP file, placing authored parts by connector frames and datum chains rather than hand-typed coordinates, and emits a design inventory, model-derived BOM, review renders, and step-by-step build sequences. It then runs pytest-style geometric, structural, tolerance, and BOM-vs-CAD gates, with an honesty toolchain (doctor, publish-audit, claim-audit) and an included MCP server. CADCLAW places parts authored in external CAD; it does not generate geometry. It is the open verification engine behind the MARB benchmark.",
+        "description": "CADCLAW builds and verifies STEP-based CAD assemblies. It compiles a declarative assembly spec into a STEP file, placing authored parts by connector frames and datum chains rather than hand-typed coordinates, and emits a design inventory, model-derived BOM, review renders, and step-by-step build sequences. It then runs pytest-style geometric, structural, tolerance, and BOM-vs-CAD gates, with an honesty toolchain (doctor, publish-audit, claim-audit) and an included MCP server. CADCLAW places parts authored in external CAD; it does not generate geometry. Its checks are decision support and do not certify a design, establish native-model parity, or replace qualified engineering review and physical validation.",
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "CAD assembly automation / mechanical engineering QA",
         "operatingSystem": "Cross-platform (Windows, macOS, Linux)",
@@ -46,16 +35,13 @@
         "codeRepository": "https://github.com/sunnyday-technologies/CADCLAW",
         "license": "https://opensource.org/licenses/MIT",
         "url": "https://cadclaw.io/",
-        "image": "https://cadclaw.io/CADCLAW_logo.jpg",
+        "image": "https://cadclaw.io/media/cadclaw_auto_assembly_loop.png",
         "softwareRequirements": "Python 3.10+, CadQuery 2.7+",
+        "keywords": "CAD assembly validation, STEP verification, interference detection, tolerance stacking, BOM audit, continuous integration for mechanical design",
         "author": { "@id": "https://sunn3d.com/#org" },
         "creator": { "@id": "https://sunn3d.com/#org" },
         "publisher": { "@id": "https://sunn3d.com/#org" },
-        "offers": {
-          "@type": "Offer", "price": "0", "priceCurrency": "USD",
-          "availability": "https://schema.org/InStock",
-          "url": "https://pypi.org/project/cadclaw/"
-        },
+        "isAccessibleForFree": true,
         "sameAs": [
           "https://github.com/sunnyday-technologies/CADCLAW",
           "https://pypi.org/project/cadclaw/",
@@ -74,8 +60,8 @@
         "@type": "WebSite",
         "@id": "https://cadclaw.io/#website",
         "url": "https://cadclaw.io/",
-        "name": "CADCLAW — AI-CAD assembly benchmark",
-        "description": "The Mechanical Assembly Readiness Benchmark and the open CADCLAW verification engine behind it.",
+        "name": "CADCLAW",
+        "description": "Automated verification for STEP-based CAD assemblies. The open-source Python framework that seats authored parts into a STEP assembly and runs configured geometric, structural, tolerance, and BOM gates over the result.",
         "publisher": { "@id": "https://sunn3d.com/#org" },
         "inLanguage": "en"
       }
@@ -87,14 +73,14 @@
 
 <header class="nav">
   <a class="brand" href="/" aria-label="CADCLAW home">
-    <img src="CADCLAW_logo.jpg" alt="CADCLAW" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'" />
-    <span class="brand-text" style="display:none">CADCLAW</span>
+    <img src="CADCLAW_logo.jpg" alt="CADCLAW" />
   </a>
   <nav>
-    <a href="#results">Results</a>
-    <a href="https://marb.cadclaw.io/">The benchmark</a>
-    <a href="https://marb.cadclaw.io/first-results/">Deep dive</a>
-    <a href="#engine">The engine</a>
+    <a href="#checks">What it checks</a>
+    <a href="#quick-start">Quick start</a>
+    <a href="/ci-for-cad/">CI for CAD</a>
+    <a href="#origin">Origin</a>
+    <a href="#marb">MARB</a>
     <a class="ghost" href="https://github.com/sunnyday-technologies/CADCLAW" aria-label="CADCLAW on GitHub">GitHub →</a>
   </nav>
 </header>
@@ -103,53 +89,57 @@
 
   <section class="hero">
     <div class="hero-copy">
-      <h1>Can AI assemble<br/>real machines?</h1>
-      <p class="tag">We give different AIs the <strong>same parts</strong> and the <strong>same goal</strong>, then grade what each one builds with <strong>one automatic checker</strong>. It's the <strong>Mechanical Assembly Readiness Benchmark</strong> — and it runs on <a href="#engine">CADCLAW</a>, our open-source verification engine.</p>
+      <h1>Build STEP assemblies.<br/>Check them automatically.</h1>
+      <p class="tag"><strong>CADCLAW</strong> is a Python package for mechanical assemblies. A declarative spec seats your authored STEP parts on connector frames and datum chains, then compiles the assembly. Automated gates check what it built: <strong>interference, adjacency, floating parts, dimensions, tolerance stacking, and BOM-vs-CAD</strong>. Run it at your desk, in CI, or from an MCP-compatible assistant.</p>
       <div class="cta-row">
-        <a class="cta primary" href="#results">See the results</a>
-        <a class="cta" href="https://marb.cadclaw.io/first-results/">Read the deep dive</a>
-        <a class="cta" href="https://marb.cadclaw.io/">The benchmark</a>
+        <a class="cta primary" href="#quick-start">Quick start</a>
+        <a class="cta" href="https://github.com/sunnyday-technologies/CADCLAW">GitHub</a>
+        <a class="cta" href="/ci-for-cad/">CI for mechanical design</a>
       </div>
-      <p class="sub">Tool-independent · automated · mapped to TRL / MRL / IRL · the engine is open source (MIT)</p>
+      <p class="sub">MIT licensed · <code>pip install cadclaw</code> · Python 3.10+ with CadQuery · no commercial CAD software required for CADCLAW's own checks</p>
     </div>
     <div class="hero-mark">
-      <img src="media/m3_target.png" alt="The target machine the AIs were asked to build" />
+      <img src="media/cadclaw_auto_assembly_loop.png" alt="The CADCLAW loop: authored STEP library, component manifest, assembly spec, CadQuery compile, generated outputs, automated checks, review views, correction" />
     </div>
   </section>
 
-  <p class="muted-strip">The goal above is the only picture each AI received, plus ~100 authored STEP part files. No build steps. We measured whether they could figure out the rest.</p>
+  <section id="quick-start" class="section">
+    <h2>Quick start</h2>
+    <p class="lede">Install the package, verify the environment, point it at a rule file, and run. The harness returns a process exit code, so a failing gate fails a CI job the same way a failing test does.</p>
+<pre class="code">pip install cadclaw
+cadclaw doctor                                   <span class="g"># verify the environment</span>
+cadclaw harness --rules cadclaw.yaml             <span class="g"># run configured checks</span>
+cadclaw bom-audit --rules cadclaw.yaml           <span class="g"># or a single gate</span></pre>
+    <p class="muted">Exit codes: <code>0</code> pass · <code>1</code> fail · <code>2</code> warn-only · <code>3</code> internal error.</p>
 
-  <section id="results" class="section">
-    <h2>The first results</h2>
-    <p class="lede">Three AI workflows — Claude (Fusion and CadQuery) and OpenAI Codex (CadQuery) — each placed <strong>all ~100 parts with zero human help</strong>. None is buildable yet: every run still landed about <strong>50 mm off in relative position</strong> and mis-oriented <strong>roughly half the asymmetric parts</strong>. Different models led different dimensions: <strong>Claude · CadQuery</strong> came closest on interface gaps (<strong>0 mm median gap error</strong>, about 54% of interfaces within 1 mm); <strong>OpenAI Codex</strong> got the most rotations right (<strong>69% aligned</strong>).</p>
-    <p class="lede">Even with that, the underlying result is real. From one picture and ~100 authored part files, with no build sequence, each model produced a coherent two‑metre machine — and Codex did it in 13 minutes on the first attempt. Tolerances are tight by design (≤5 mm = located, ≤5° = aligned) because real equipment runs on fractions of a millimetre. Placing the parts is the easy part now; getting the gaps and rotations correct is the hard part, and that is what these scores measure.</p>
-    <div class="output-media">
-      <img src="media/hero_score_vs_time.png" alt="Gap correctness versus build time for three AI runs; Claude·CadQuery hit the answer key's gaps in 49 minutes, OpenAI Codex was loosest on gaps but fastest at 13 minutes" />
-      <p class="caption">Gap correctness vs. speed. Claude · CadQuery led on interface gaps (0 mm median error, about 54% within 1 mm) but took 49 minutes; OpenAI Codex one‑shot it in 13 minutes with the loosest gaps and the strongest rotation. More iteration buys precision at the cost of time.</p>
-    </div>
-    <div class="callout">Until recently there was no way to measure this. The two pieces — an AI that drives CAD, and an automatic checker that confirms whether the result is correct — only recently became usable together. With both in place, every attempt gets a score that can be compared and tracked over time. <a href="https://marb.cadclaw.io/first-results/">Read the full comparison →</a></div>
+    <h3>A minimal <code>cadclaw.yaml</code></h3>
+<pre class="code">schema_version: "0.9"
+
+meta:
+  project: my-project
+  step: build/assembly.step        <span class="g"># your authoritative STEP export</span>
+  bom:  bom/public_bom.json        <span class="g"># your public BOM JSON</span>
+
+<span class="g"># Bbox signature to label. Observational, not generative: this says</span>
+<span class="g"># "a part with this bbox signature is a NEMA23". It does not make one.</span>
+<span class="g"># A signature is the sorted (dx, dy, dz) tuple rounded to 0.1 mm.</span>
+labels:
+  cbeam_4080_1m: [40.0, 80.0, 1000.0]
+  nema23:        [56.4, 56.4, 76.6]
+  vwheel:        [10.2, 23.9, 23.9]
+
+expected_inventory:
+  cbeam_4080_1m: 17
+  nema23: 6
+
+bom_audit:
+  ignore_labels: [other, belt]</pre>
+    <p class="muted">Every section is optional. A section you leave out skips its gate and is reported under <code>confidence_budget.not_checked</code> rather than silently passing. Scaffold the <code>labels</code> block from an existing STEP file with <code>examples/init_rules.py</code>. Full how-it-works write-up: <a href="/ci-for-cad/">CI for mechanical design →</a></p>
   </section>
 
-  <section class="strip">
-    <div class="stat"><span class="num">3</span><span class="lbl">AI workflows tested</span></div>
-    <div class="stat"><span class="num">~100</span><span class="lbl">parts placed, 0 human help</span></div>
-    <div class="stat"><span class="num">13 min</span><span class="lbl">fastest build (Codex)</span></div>
-    <div class="stat"><span class="num">15 / 100</span><span class="lbl">MARB full-stack score (L0–L7; a clean L1 build ≈ 15)</span></div>
-  </section>
-
-  <section id="benchmark" class="section dark">
-    <h2>What MARB measures</h2>
-    <p class="lede">A capability ladder, L0–L7, from "place one part correctly" up to "design, build, and certify a machine autonomously." Today's frontier sits at <strong>L1 — assemble the kit</strong>. The benchmark is graded on what the exported geometry proves, so any tool — Fusion, CadQuery, or an AI agent — is judged on equal footing, and scored against the readiness scales industry already uses.</p>
-    <div class="cta-row">
-      <a class="cta" href="https://marb.cadclaw.io/">The benchmark + readiness chart</a>
-      <a class="cta" href="https://marb.cadclaw.io/first-results/">The deep dive</a>
-    </div>
-    <p class="muted">Prior art exists for AI <em>generating</em> CAD; MARB is, to our knowledge, the first tool-independent benchmark for whether a whole assembled machine is <em>correct and buildable</em>.</p>
-  </section>
-
-  <section id="engine" class="section">
-    <h2>The engine: CADCLAW <span class="badge">open source</span></h2>
-    <p class="lede">MARB runs on <strong>CADCLAW</strong> — the open-source framework that builds and checks STEP assemblies. It's the same engine you can <code>pip install</code> and run in your own CI. It <strong>assembles</strong>: a declarative spec seats your authored parts on connector frames and datum chains, then compiles the STEP. And it <strong>verifies</strong>: a chain of automated gates that pass only when every configured check passes. Like <code>pytest</code> for mechanical design — in spirit. It places parts you drew; it never generates geometry.</p>
+  <section id="checks" class="section dark">
+    <h2>What it checks <span class="badge">open source</span></h2>
+    <p class="lede">A chain of gates runs against the exported STEP, the BOM JSON, and your README text. Each finding carries severity, evidence, and a confidence budget rather than a bare pass or fail, because a real part is not binary present-or-absent: it can be slightly the wrong size, slightly clipping, slightly misplaced.</p>
 
     <div class="gates">
       <div class="gate"><h3>Inventory</h3><p>Missing or extra parts, by bounding-box signature, against expected counts.</p></div>
@@ -163,15 +153,16 @@
     </div>
 
     <div class="callout">
-      <strong>Honesty toolchain:</strong> <code>cadclaw doctor</code> verifies your environment · <code>cadclaw publish-audit</code> stops private BOMs being committed · <code>cadclaw claim-audit</code> flags overclaims. The same discipline keeps the benchmark honest — it won't assert a result it hasn't earned. An <strong>MCP server</strong> exposes the checks (and only the checks) to AI assistants.
+      <strong>Honesty toolchain:</strong> <code>cadclaw doctor</code> inspects the configured environment · <code>cadclaw publish-audit</code> checks configured publication boundaries · <code>cadclaw claim-audit</code> flags selected overclaim patterns. The local <strong>MCP server</strong> declares 23 assembly, check, analysis, audit, and render tools. It is not a security sandbox: path-taking tools read specified files, six assembly tools can write configured outputs, and the server runs with the local process account's permissions. Use a least-privilege working copy and review tool inputs and outputs.
     </div>
+  </section>
 
-    <h3>Quick start</h3>
-<pre class="code">pip install cadclaw
-cadclaw doctor                                   <span class="g"># verify the environment</span>
-cadclaw harness --rules cadclaw.yaml             <span class="g"># run configured checks</span>
-cadclaw bom-audit --rules cadclaw.yaml           <span class="g"># or a single gate</span></pre>
-    <p class="muted">Exit codes: <code>0</code> pass · <code>1</code> fail · <code>2</code> warn-only · <code>3</code> internal error. No commercial CAD software required for CADCLAW's own checks. Full how-it-works write-up: <a href="/ci-for-cad/">CI for mechanical design →</a></p>
+  <section id="assemble" class="section">
+    <h2>Assemble, then verify</h2>
+    <p class="lede">CADCLAW does two things, and the first one is the reason the second one is useful.</p>
+    <p><strong>It assembles.</strong> An assembly spec declares the parts, where they come from, and how they seat against each other. An instance says <em>place this connector frame against that parent frame, offset along an axis</em>. The resolver walks the datum chain in topological order and solves each transform, reporting cycles, missing references, and missing frames as findings. Absolute transforms still work, so migration is incremental. Parts land by constraint, not by hand-typed coordinates, which is what makes the result reproducible enough to check.</p>
+    <p><strong>It verifies.</strong> The gates above run against the compiled STEP and report what they found. Alongside them it emits a design inventory, a model-derived BOM, review-view renders, and step-by-step build sequences.</p>
+    <div class="callout"><strong>CADCLAW places parts you drew. It never generates geometry.</strong> No parametric plates, no bolt-circle constants, no hole-drilling helpers. You author components in Fusion, Rhino, SolidWorks, or anything that exports STEP; CADCLAW seats them against each other and checks the result.</div>
   </section>
 
   <section id="not-prove" class="section dark">
@@ -184,27 +175,31 @@ cadclaw bom-audit --rules cadclaw.yaml           <span class="g"># or a single g
       <li>That a <strong>printed part is strong enough</strong> for production — the structural gate does bare-beam math, not fatigue or creep.</li>
       <li>That an <strong>AI-generated change is correct</strong> — passing the gates means "passed the gates we have," no more.</li>
     </ul>
-    <p>Each report ships a <strong>confidence budget</strong> per gate: <code>checked</code>, <code>not_checked</code>, <code>assumptions</code>. Read it. <em>(The benchmark's grades are geometric; they are not a substitute for physical testing.)</em></p>
+    <p>Each report ships a <strong>confidence budget</strong> per gate: <code>checked</code>, <code>not_checked</code>, <code>assumptions</code>. Read it.</p>
   </section>
 
-  <section class="section dark">
+  <section id="origin" class="section">
     <h2>Origin</h2>
-    <p class="lede">CADCLAW was built alongside the <a href="https://m3-crete.com">M3-CRETE</a> open-source concrete 3D printer — the large, part-dense machine that is also MARB's first reference target. Across that project the harness:</p>
-    <ul class="origin">
-      <li>Caught <strong>53 solid-solid interferences</strong> in a single run</li>
-      <li>Reduced STEP file size from <strong>70&nbsp;MB to 13&nbsp;MB</strong> by finding geometry bloat</li>
-      <li>Validated <strong>150+ assembly changes</strong> across 15 sessions without visual inspection</li>
-    </ul>
-    <p class="muted">Developed by <a href="https://sunn3d.com">Sunnyday Technologies</a>.</p>
+    <p class="lede">CADCLAW was developed alongside the <a href="https://m3-crete.com">M3-CRETE</a> open-source concrete 3D printer, a part-dense machine that made the failure modes obvious. Historical development runs motivated the current inventory, interference, adjacency, dimensional, and publication-boundary checks. The repository's versioned tests — not this summary — are the evidence for specific software behavior. CADCLAW does not claim that a finding prevented fabrication cost, that a passing run validates a physical machine, or that historical observations generalize to every assembly.</p>
+    <p class="muted">M3-CRETE is the project CADCLAW was first deployed against and serves as a published case study. It is not the boundary of CADCLAW's scope: the tool applies to anyone driving hardware from a CAD repository, from robotics chassis to fixtures, optical mounts, and prosumer 3D printers. Developed by <a href="https://sunn3d.com">Sunnyday Technologies</a>.</p>
+  </section>
+
+  <section id="marb" class="section dark">
+    <h2>MARB uses CADCLAW as its grader</h2>
+    <p class="lede">The <strong>Mechanical Assembly Readiness Benchmark</strong> is a separate project. It grades how AI workflows assemble a multi-part machine in CAD, and it imports CADCLAW's gates as its automated grader. That is what makes its scores checkable: the grader is MIT licensed and published on PyPI, so anyone can install it and re-run a result rather than take a published number on faith. The benchmark, its versioned method, and every published score live at <a href="https://marb.cadclaw.io/">marb.cadclaw.io</a>.</p>
+    <div class="cta-row">
+      <a class="cta" href="https://marb.cadclaw.io/">MARB, the benchmark graded by CADCLAW →</a>
+    </div>
   </section>
 
   <section id="cite" class="section">
     <h2>Citation</h2>
-    <p>If you use CADCLAW or MARB in published research or derivative work, please cite:</p>
+    <p>If you use CADCLAW in published research or derivative work, please cite:</p>
 <pre class="code">Sonnentag, N. (2026). CADCLAW: Automated validation framework for
 STEP-based CAD assemblies. Sunnyday Technologies.
 https://github.com/sunnyday-technologies/CADCLAW
 DOI: 10.5281/zenodo.19647390</pre>
+    <p><code>10.5281/zenodo.19647390</code> is the Zenodo <strong>concept DOI (all versions)</strong>. It always resolves to the latest deposited release. Cite a specific release only when you need to pin one, and label it as a version DOI when you do.</p>
     <p>A <a href="https://github.com/sunnyday-technologies/CADCLAW/blob/main/CITATION.cff"><code>CITATION.cff</code></a> file is included for automated citation tooling.</p>
     <p><a href="https://doi.org/10.5281/zenodo.19647390"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.19647390.svg" alt="DOI 10.5281/zenodo.19647390" /></a></p>
   </section>
@@ -214,13 +209,13 @@ DOI: 10.5281/zenodo.19647390</pre>
       <p class="sdt-portfolio-loop__eyebrow">Sunnyday Full Loop</p>
       <h2 class="sdt-portfolio-loop__title">Connected 3DCP Stack</h2>
       <nav class="sdt-portfolio-loop__grid" aria-label="Sunnyday portfolio links">
-        <a class="sdt-portfolio-loop__card" href="https://open3dcp.org/"><span class="sdt-portfolio-loop__role">Data</span><strong class="sdt-portfolio-loop__by">by Open3DCP</strong></a>
-        <a class="sdt-portfolio-loop__card" href="https://m3-crete.com/"><span class="sdt-portfolio-loop__role">Process</span><strong class="sdt-portfolio-loop__by">by M3-CRETE</strong></a>
-        <a class="sdt-portfolio-loop__card" href="https://cemforge.ai/"><span class="sdt-portfolio-loop__role">Intelligence</span><strong class="sdt-portfolio-loop__by">by CEMFORGE</strong></a>
-        <a class="sdt-portfolio-loop__card" href="https://logimix.io/"><span class="sdt-portfolio-loop__role">Logistics</span><strong class="sdt-portfolio-loop__by">by LOGiMIX</strong></a>
-        <a class="sdt-portfolio-loop__card" href="https://acme-lab.io/"><span class="sdt-portfolio-loop__role">Validation</span><strong class="sdt-portfolio-loop__by">by ACME Lab</strong></a>
+        <a class="sdt-portfolio-loop__card" href="https://open3dcp.org/"><span class="sdt-portfolio-loop__role">Draft schema</span><strong class="sdt-portfolio-loop__by">by Open3DCP</strong></a>
+        <a class="sdt-portfolio-loop__card" href="https://m3-crete.com/"><span class="sdt-portfolio-loop__role">Experimental reference</span><strong class="sdt-portfolio-loop__by">by M3-CRETE</strong></a>
+        <a class="sdt-portfolio-loop__card" href="https://cemforge.ai/"><span class="sdt-portfolio-loop__role">Decision support</span><strong class="sdt-portfolio-loop__by">by CEMFORGE</strong></a>
+        <a class="sdt-portfolio-loop__card" href="https://logimix.io/"><span class="sdt-portfolio-loop__role">Logistics analysis</span><strong class="sdt-portfolio-loop__by">by LOGiMIX</strong></a>
+        <a class="sdt-portfolio-loop__card" href="https://acme-lab.io/"><span class="sdt-portfolio-loop__role">Test planning</span><strong class="sdt-portfolio-loop__by">by ACME Lab</strong></a>
       </nav>
-      <p class="sdt-portfolio-loop__note">The Sunnyday portfolio links material records, mix intelligence, printable hardware, logistics, and validation planning so project decisions remain traceable from candidate mix through measured result.</p>
+      <p class="sdt-portfolio-loop__note">This is a portfolio map, not a claim of automated integration, certification, a shared production dataset, or end-to-end validation. Each linked project states its own evidence and readiness boundaries.</p>
     </div>
   </section>
 
@@ -230,14 +225,8 @@ DOI: 10.5281/zenodo.19647390</pre>
   <div class="foot-grid">
     <div>
       <h4>CADCLAW</h4>
-      <p>The AI-CAD assembly benchmark, and the open engine behind it.</p>
+      <p>Automated verification for STEP assemblies. MIT licensed.</p>
       <p class="muted">MIT License · © 2026 <a href="https://sunn3d.com">Sunnyday Technologies</a></p>
-    </div>
-    <div>
-      <h4>Benchmark</h4>
-      <a href="https://marb.cadclaw.io/">Overview</a>
-      <a href="https://marb.cadclaw.io/first-results/">Deep dive</a>
-      <a href="#results">First results</a>
     </div>
     <div>
       <h4>Engine</h4>
@@ -245,6 +234,12 @@ DOI: 10.5281/zenodo.19647390</pre>
       <a href="https://pypi.org/project/cadclaw/">PyPI</a>
       <a href="/ci-for-cad/">CI for CAD</a>
       <a href="https://doi.org/10.5281/zenodo.19647390">Zenodo DOI</a>
+    </div>
+    <div>
+      <h4>Benchmark</h4>
+      <a href="https://marb.cadclaw.io/">MARB overview</a>
+      <a href="https://marb.cadclaw.io/recap/">Recap</a>
+      <a href="https://marb.cadclaw.io/studies/">Studies</a>
     </div>
     <div>
       <h4>Related</h4>
@@ -271,7 +266,7 @@ DOI: 10.5281/zenodo.19647390</pre>
     .sdt-netfooter a:hover{opacity:1;text-decoration:underline}
     .sdt-netfooter a[aria-current="page"]{opacity:1;font-weight:600;text-decoration:none;cursor:default}
   </style>
-  <p class="muted" style="max-width:1180px;margin:16px auto 0;padding:0 40px;font-size:11.5px;text-align:center;line-height:1.6;">MARB scores are Sunnyday Technologies' own measurements from a published method, on the software versions and dates shown — each a single run of one task, not a statement about any product's overall quality, performance, or fitness for any purpose. Provided "as is," for informational purposes, without warranty of any kind; verify independently before relying on them. Sunnyday Technologies is independent and is not affiliated with, sponsored by, or endorsed by Anthropic, OpenAI, Autodesk, or Dassault Systèmes. M3-CRETE™ and CEMFORGE™ are trademarks of Sunnyday Technologies; other product and company names (including Autodesk Fusion, SolidWorks, Claude, OpenAI Codex, and CadQuery) are trademarks of their respective owners, used here only to identify the tools tested.</p>
+  <p class="muted" style="max-width:1180px;margin:16px auto 0;padding:0 40px;font-size:11.5px;text-align:center;line-height:1.6;">CADCLAW is released under the MIT License and provided "as is", without warranty of any kind. Its checks are decision support for work you remain responsible for: passing every configured gate means the configured gates passed, not that a design is correct, manufacturable, safe, or fit for any purpose. Automated verification is not a substitute for qualified engineering judgment, structural certification, or physical test. M3-CRETE™ and CEMFORGE™ are trademarks of Sunnyday Technologies; other product and company names, including CadQuery, are trademarks of their respective owners and are used here only to identify the software involved.</p>
 </footer>
 
 </body>

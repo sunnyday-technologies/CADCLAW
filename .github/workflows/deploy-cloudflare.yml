@@ -1,21 +1,30 @@
 name: Deploy to Cloudflare Pages
 
-# Auto-deploys cadclaw.io to Cloudflare Pages on push to main, replacing the
-# GitHub Pages (docs/) deploy. The site is built from docs/ by the allowlist +
-# fail-loud script scripts/build-site.ps1 (pwsh is preinstalled on GitHub's
-# ubuntu runners), then deployed with wrangler.
+# Manually deploys one reviewed main-branch commit to cadclaw.io. The site is
+# built from docs/ by scripts/build-site.ps1, which enforces the public-file
+# allowlist, agent-policy contract, claim tripwires, link/JSON validation, and
+# source/output hashes before Wrangler can run.
 #
 # INERT BY DEFAULT. This job is skipped until you opt in:
 #   1. Create the Pages project:  wrangler pages project create cadclaw
 #   2. Add repo secrets:          CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
 #   3. Add repo variable:         CF_DEPLOY_ENABLED = true
-#   4. Point cadclaw.io DNS at the Pages project, then disable GitHub Pages.
-# See PUBLISHING_HYGIENE_ROLLOUT.md cutover runbook for the exact steps.
+#   4. Protect the cadclaw-production GitHub environment with required reviewers.
+#   5. Point cadclaw.io DNS at the Pages project, then disable GitHub Pages.
+# A dispatch still requires an exact commit and confirmation phrase. This file
+# does not authorize DNS, project, secret, environment, or production changes.
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      expected_commit:
+        description: "Exact 40-character main-branch commit approved for production"
+        required: true
+        type: string
+      confirm_production:
+        description: "Type DEPLOY cadclaw.io"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -29,16 +38,47 @@ jobs:
   deploy:
     if: ${{ vars.CF_DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
+    environment: cadclaw-production
+    concurrency:
+      group: cadclaw-production
+      cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v5
+      - name: Verify explicit production authorization
+        shell: bash
+        env:
+          CONFIRM_PRODUCTION: ${{ inputs.confirm_production }}
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          DISPATCH_COMMIT: ${{ github.sha }}
+          DISPATCH_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          [[ "$CONFIRM_PRODUCTION" == "DEPLOY cadclaw.io" ]]
+          [[ "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DISPATCH_REF" == "refs/heads/main" ]]
+          [[ "$EXPECTED_COMMIT" == "$DISPATCH_COMMIT" ]]
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.expected_commit }}
+          persist-credentials: false
+
+      - name: Verify checked-out commit
+        shell: bash
+        env:
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_COMMIT" ]]
+          [[ -z "$(git status --porcelain)" ]]
 
       - name: Build web-only publish dir (allowlist + CAD/size/secret tripwires)
         shell: pwsh
         run: ./scripts/build-site.ps1
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy .cloudflare/pages/cadclaw --project-name=cadclaw --branch=main
+          wranglerVersion: "4.115.0"
+          command: pages deploy .cloudflare/pages/cadclaw --project-name=cadclaw --branch=main --commit-hash=${{ inputs.expected_commit }} --commit-dirty=false

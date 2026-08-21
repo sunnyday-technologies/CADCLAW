@@ -1,0 +1,40 @@
+/*
+  Content-Signal: search=yes, ai-input=yes, ai-train=no
+  Link: </llms.txt>; rel="alternate"; type="text/plain"
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=31536000
+  Content-Security-Policy: default-src 'self'; img-src 'self' data: https://zenodo.org; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; script-src 'sha256-ux7D9ikH5wktblM49XKNlkj2ezRp+1y1/Vv1AP4O9RU=' 'sha256-cgBlMSA4+DA+pgky1bW7Uhrh7IJDPJPbp+MKBOb+Ir0=' 'sha256-xqOR3iZ1ZMAymHEFndmzNtspu7/FvXdLDyJpJ4vAsYM='; frame-ancestors 'none'; base-uri 'self'; form-action 'self' mailto:
+
+/404.html
+  Content-Signal: search=no, ai-input=no, ai-train=no
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/llms.txt
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=300, must-revalidate, no-transform
+  Content-Type: text/plain; charset=utf-8
+
+/robots.txt
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=300, must-revalidate, no-transform
+  Content-Type: text/plain; charset=utf-8
+
+/sitemap.xml
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=300, must-revalidate, no-transform
+  Content-Type: application/xml; charset=utf-8
+
+/.well-known/mcp-manifest.json
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=300, must-revalidate, no-transform
+  Content-Type: application/json; charset=utf-8
+
+/.well-known/security.txt
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=3600, must-revalidate, no-transform
+  Content-Type: text/plain; charset=utf-8
