@@ -1,6 +1,11 @@
-# CADCLAW v0.9 starter rule file.
+# CADCLAW's OWN rule file, which doubles as the worked starter example.
 #
-# Drop this in your repo root, edit to match your project, then run:
+# Read it as a template, but note the values are real: claim_audit scans
+# CADCLAW's actual published surfaces and publish_audit allowlists CADCLAW's
+# own contact address. Replace both with yours - a rule file inherited
+# wholesale audits this project, not yours.
+#
+# Drop a copy in your repo root, edit to match your project, then run:
 #   cadclaw doctor                       (verify environment)
 #   cadclaw harness --rules cadclaw.yaml (run configured YAML-backed checks)
 #
@@ -80,9 +85,19 @@ interference:
   min_clearance_mm: 1.0
 
 claim_audit:
+  # Point this at every surface you actually publish, not just the README.
+  # CADCLAW's homepage advertises this toolchain, so it scans CADCLAW's own
+  # published surfaces: the site, the article, the agent-readable summary and
+  # the MCP manifest. A gate aimed only at the README is not dogfooding.
   scan_paths:
     - README.md
-    - AGENTS.md     # if you ship one — see CADCLAW's AGENTS.md as a template
+    - AGENTS.md
+    - cadclaw_mcp/README.md
+    - docs/index.html
+    - docs/404.html
+    - docs/ci-for-cad/index.html
+    - docs/llms.txt
+    - docs/.well-known/mcp-manifest.json
   stale_terms: []
   source_regex_rules: []
 

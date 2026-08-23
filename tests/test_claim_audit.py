@@ -220,5 +220,51 @@ class TestNoConfigNoFindings(unittest.TestCase):
         self.assertEqual(report.findings, [])
 
 
+class TestClauseScopedNegation(unittest.TestCase):
+    """The negation lookback is clause-scoped, not character-scoped.
+
+    A 30-character window flagged our own shipped disclaimer, "no return,
+    defect-prevention, or fabrication outcome is guaranteed", because the
+    enumerated list put the negation 62 characters from the term. A linter
+    that flags honest limitation language teaches people to delete
+    disclaimers, which inverts the purpose of this gate.
+    """
+
+    def _report(self):
+        return run_claim_audit(
+            RuleSet(
+                claim_audit=ClaimAuditModel(
+                    scan_paths=[
+                        "tests/fixtures/claim_audit/README_clause_negation.md"
+                    ],
+                ),
+            ),
+            repo_root=".",
+        )
+
+    def _flagged_lines(self):
+        return {
+            int(f.evidence["line"])
+            for f in self._report().findings
+            if f.id == "claim.forbidden_absolute"
+        }
+
+    def _line(self, n):
+        path = Path("tests/fixtures/claim_audit/README_clause_negation.md")
+        return path.read_text(encoding="utf-8").splitlines()[n - 1]
+
+    def test_enumerated_disclaimer_is_not_flagged(self):
+        flagged = self._flagged_lines()
+        for n in flagged:
+            self.assertNotIn("defect-prevention", self._line(n).lower())
+
+    def test_negation_does_not_leak_across_a_semicolon(self):
+        flagged = self._flagged_lines()
+        self.assertTrue(
+            any("delivery is guaranteed" in self._line(n).lower() for n in flagged),
+            "an overclaim after a semicolon must still be flagged",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

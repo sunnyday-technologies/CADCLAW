@@ -113,12 +113,24 @@ _HTML_COMMENT_LINE_PATTERN = re.compile(r"<!--.*?-->")
 # forbidden_absolutes. Mirrors the negation logic in bom_audit.py
 # (_NEGATION_PATTERN, _is_negated). Kept duplicated rather than extracted
 # so the two gates can evolve independently if the rules diverge.
+#
+# The lookback is clause-scoped, not character-scoped: the window is clipped at
+# the nearest clause or sentence boundary, and the character cap exists only to
+# stop a runaway scan. At 30 chars the cap was doing the real work and doing it
+# badly. It flagged our own disclaimer "no return, defect-prevention, or
+# fabrication outcome is guaranteed" as an overclaim, because the enumerated
+# list put "no" 62 characters from "guaranteed". A linter that flags honest
+# limitation language teaches people to delete disclaimers, which is the exact
+# opposite of what this gate is for.
+#
+# ";" is now a boundary as well, so a negation cannot leak across independent
+# clauses: "we do not use X; the result is guaranteed" still flags.
 _NEGATION_PATTERN = re.compile(
     r"\b(?:not|no|never|do not|don't|doesn't|replaces|instead of|rather than|without|excludes)\b",
     re.IGNORECASE,
 )
-_SENTENCE_BOUNDARIES = (".", "!", "?", "\n")
-_NEGATION_LOOKBACK_CHARS = 30
+_SENTENCE_BOUNDARIES = (".", "!", "?", ";", "\n")
+_NEGATION_LOOKBACK_CHARS = 160
 
 
 def _is_negated(haystack: str, term_index: int) -> bool:
