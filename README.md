@@ -327,7 +327,7 @@ GIF rendering.
 ## Requirements
 
 - Python 3.10+; Python 3.11 is the current CADCLAW development runtime
-- CadQuery 2.7+ (provides OCC/STEP support)
+- CadQuery 2.7+ (provides the OCCT/STEP layer; see [License](#license) for the third-party chain)
 - VTK 9.3+ for rendering, plus Pillow 10+, pyyaml 6+, and pydantic 2.5+ (pulled in automatically)
 - No commercial CAD software needed for CADCLAW's own checks. Validation that depends on the native CAD application — feature-tree review, native-format parametric checks — is outside CADCLAW's scope.
 
@@ -336,6 +336,35 @@ Run `cadclaw doctor` after install to verify your environment.
 ## License
 
 MIT License. Copyright (c) 2026 Sunnyday Technologies.
+
+The MIT grant covers CADCLAW's own source. CADCLAW is pure Python and
+redistributes no third-party code: the published wheel and sdist contain no
+compiled libraries. Dependencies are resolved and installed from PyPI by your
+package manager, under their own licenses.
+
+### Third-party components
+
+CADCLAW's STEP handling is built on Open CASCADE Technology, reached through
+CadQuery and the OCP bindings. **This software makes use of, and is based on,
+facilities provided by the Open CASCADE Technology software.**
+
+| Component | Role in CADCLAW | License |
+| --- | --- | --- |
+| [CadQuery](https://github.com/CadQuery/cadquery) | assembly, STEP import/export | Apache-2.0 |
+| [OCP (`cadquery-ocp`)](https://github.com/CadQuery/OCP) | Python bindings to OCCT | Apache-2.0 |
+| [Open CASCADE Technology](https://dev.opencascade.org/) | B-rep kernel, STEP reader | LGPL-2.1 with the Open CASCADE Exception |
+| [CasADi](https://web.casadi.org/) (pulled in by CadQuery) | constraint solving | LGPL-3.0-or-later |
+| [VTK](https://vtk.org/) | render pipeline | BSD-3-Clause |
+| [Pillow](https://python-pillow.org/) | image output | MIT-CMU |
+| PyYAML, pydantic | spec loading and validation | MIT |
+| [PyniteFEA](https://github.com/JWock82/Pynite) (`[fea]` extra) | frame FEA | MIT |
+
+`pip install cadclaw` therefore places LGPL-licensed binaries in your
+environment (OCCT via `cadquery-ocp`, CasADi via CadQuery). CADCLAW loads them
+as ordinary Python imports, modifies nothing, and redistributes nothing; you
+are free to replace either install. If you bundle CADCLAW into a frozen or
+containerised artifact that embeds those libraries, the LGPL terms attach to
+that artifact and are yours to satisfy.
 
 Developed alongside the [M3-CRETE](https://m3-crete.com) open-source concrete
 3D-printer reference project. Project-specific geometric findings require review and do not establish physical validation, avoided cost, or production readiness.

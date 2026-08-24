@@ -5,6 +5,28 @@ All notable changes to CADCLAW are documented here.
 This project uses `MAJOR.MINOR.PATCH`. While CADCLAW is pre-1.0, breaking
 changes bump MINOR and are called out explicitly under **Changed**.
 
+## [Unreleased]
+
+### Added
+
+- **Third-party licence attribution.** README's License section now carries the
+  notice required by the Open CASCADE Exception ("makes use of, and is based on,
+  facilities provided by the Open CASCADE Technology software") plus a full
+  component/role/licence table for the dependency chain. The site footer carries
+  the same notice. CADCLAW's own MIT grant is unchanged: the wheel and sdist
+  contain no compiled libraries and redistribute no third-party code — OCCT
+  (LGPL-2.1 with the Open CASCADE Exception) and CasADi (LGPL-3.0-or-later)
+  reach your environment from PyPI via your own package manager.
+
+### Changed
+
+- **`cadquery-ocp>=7.8` is now a declared dependency.** CADCLAW imports `OCP`
+  directly (`STEPCAFControl`, `BRepAlgoAPI`, `BRepGProp`, `BRepAdaptor`,
+  `XCAFDoc`, and others), not only through CadQuery's public API, so the
+  dependency is now stated rather than relied on transitively. The floor is
+  deliberately loose: CadQuery 2.7 pins `cadquery-ocp>=7.8.1,<7.9`, and the two
+  constraints intersect instead of fighting when CadQuery moves to a newer OCP.
+
 ## [0.10.0] — 2026-07-29
 
 The assembly half of CADCLAW becomes reachable from an AI assistant, and the

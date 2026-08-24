@@ -29,6 +29,12 @@ classifiers = [
 ]
 dependencies = [
     "cadquery>=2.7",
+    # Declared explicitly because CADCLAW imports OCP directly (STEPCAFControl,
+    # BRepAlgoAPI, BRepGProp, BRepAdaptor, XCAFDoc, ...), not only through
+    # CadQuery's public API. CadQuery 2.7 itself pins cadquery-ocp>=7.8.1,<7.9;
+    # keep this floor loose so the two constraints intersect instead of fighting
+    # when CadQuery moves to a newer OCP.
+    "cadquery-ocp>=7.8",
     "Pillow>=10.0",
     "pyyaml>=6.0",
     "pydantic>=2.5",
