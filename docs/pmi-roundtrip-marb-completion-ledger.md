@@ -39,7 +39,7 @@ closeout. An open pull request or a started validation is not completion.
 
 | ID | Deliverable | Status | Dependency | Branch/task | PR | Merge commit |
 |---|---|---|---|---|---|---|
-| C1 | CADCLAW semantic AP242 PMI gate | MERGED | None | `feat/pmi-present-gate` (deleted after merge) | [#9](https://github.com/sunnyday-technologies/CADCLAW/pull/9) | `db41bea9495be8200490fa38bbd145c91bad716c` |
+| C1 | CADCLAW semantic AP242 PMI gate | COMPLETE | None | `feat/pmi-present-gate` (deleted after merge) | [#9](https://github.com/sunnyday-technologies/CADCLAW/pull/9) | `db41bea9495be8200490fa38bbd145c91bad716c` |
 | C2 | CADCLAW AP242 STEP round-trip gate | NOT STARTED | C1 merged | `codex/roundtrip-step-gate` | TBD | TBD |
 | M1 | MARB repeat-run reporting and acceptable-solution policy | IN PROGRESS | Independent | task `01a046b7-1430-7792-b891-709e5b60c7ff` | TBD | TBD |
 | M2 | MARB `L2-RESOLVE` task | NOT STARTED | M1 method/version decisions | Same MARB task | TBD | TBD |
@@ -63,6 +63,7 @@ closeout. An open pull request or a started validation is not completion.
 - [x] Focused and full local suites pass: 397 passed, 6 skipped.
 - [x] CodeQL and answer-key guards pass on PR #9.
 - [x] GitHub unit tests pass in the Linux headless runner.
+- [x] Fresh-clone fixture generation, full suite, and site build pass.
 - [x] PR disclosure and approved deferral receive final readback.
 - [x] PR #9 is merged and the merge commit is verified on `main`.
 
@@ -75,6 +76,11 @@ Evidence:
 - GitHub Linux unit run:
   [33145078839](https://github.com/sunnyday-technologies/CADCLAW/actions/runs/33145078839),
   397 tests passed under Xvfb; all CodeQL and answer-key checks also passed.
+- Fresh clone of `codex/update-completion-ledger`: fixture generation passed;
+  397 tests passed with 16 environment-dependent skips; site allowlist build
+  passed with 16 files, 112 checked links, and 16/16 source-output hashes.
+- Ledger evidence correction:
+  [#10](https://github.com/sunnyday-technologies/CADCLAW/pull/10)
 - NIST STC06 fixture SHA-256:
   `71777C28DA76DA0E8A667E4CBE792D5F72C09B5C56440C9744D3D50CA96ECC8D`
 - NIST FTC11 fixture SHA-256:
