@@ -1,0 +1,213 @@
+{
+  "schema_version": "0.7",
+  "overall": "pass",
+  "duration_ms": 2725.0328063964844,
+  "meta": {
+    "gate": "ROUNDTRIP_STEP",
+    "applicability": "applicable",
+    "method_limits": {
+      "part_matching": {
+        "strategy": "minimum_cost_one_to_one",
+        "maximum_matched_renderable_shapes": 256,
+        "limit_behavior": "structured_error_before_cost_matrix_allocation"
+      }
+    },
+    "translation_independence": {
+      "status": "not_applicable",
+      "declared_family": "unknown",
+      "verified": false,
+      "reason": "source translator is unknown; kernel independence was not established"
+    },
+    "gate_spec_version": "0.12.0",
+    "derivative": {
+      "output_schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF. {1 0 10303 442 1 1 4 }",
+      "source_sha256": "20a92edf514ae0989d556f9c7b9f065aed741cfbb361b7fe4cb7938a1eb5c232",
+      "output_sha256": "b21d95857ffc57fb87eecb924f0b91c49cf06fa71aff3da416227ab34196d885",
+      "reader": "OCCT STEPCAFControl_Reader",
+      "writer": "OCCT STEPCAFControl_Writer",
+      "occt_version": "7.8.1.1",
+      "write_status": "IFSelect_RetDone",
+      "write_disposition": "ret_done",
+      "persisted": true
+    },
+    "translation_comparison": {
+      "phase": "translation",
+      "status": "pass",
+      "geometry": {
+        "part_count": {
+          "status": "preserved",
+          "before": 1,
+          "after": 1,
+          "delta": 0,
+          "method": "solids_and_shells_deduplicated_by_0.1mm_bbox_key"
+        },
+        "assembly_bbox": {
+          "status": "preserved",
+          "max_delta_mm": 0.0,
+          "tolerance_mm": 0.05
+        },
+        "assembly_bbox_volume": {
+          "status": "preserved",
+          "absolute_delta_mm3": 0.0,
+          "relative_delta": 0.0,
+          "relative_tolerance": 1e-06,
+          "absolute_tolerance_mm3": 0.001
+        },
+        "per_part_geometry": {
+          "status": "preserved",
+          "matching_strategy": "minimum_cost_one_to_one",
+          "maximum_matched_renderable_shapes": 256,
+          "matched_parts": 1,
+          "max_bbox_delta_mm": 0.0,
+          "max_bbox_volume_delta_mm3": 0.0
+        }
+      },
+      "interfaces": {
+        "status": "not_applicable",
+        "count": 0,
+        "results": []
+      },
+      "supported_semantic_pmi_class_counts": {
+        "status": "compared",
+        "results": [
+          {
+            "class": "dimensions",
+            "before_count": 6,
+            "after_count": 6,
+            "status": "preserved"
+          },
+          {
+            "class": "geometric_tolerances",
+            "before_count": 4,
+            "after_count": 4,
+            "status": "preserved"
+          },
+          {
+            "class": "datums",
+            "before_count": 4,
+            "after_count": 4,
+            "status": "preserved"
+          }
+        ],
+        "source_schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF { 1 0 10303 442 1 1 4 }",
+        "reimport_schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF. {1 0 10303 442 1 1 4 }",
+        "reader": "OCCT STEPCAFControl_Reader",
+        "reader_version": "7.8.1.1",
+        "scope": "supported_semantic_class_counts_only"
+      }
+    },
+    "authoring_proxy_comparison": {
+      "status": "not_applicable",
+      "reason": "no authoring-reference STEP proxy was supplied"
+    }
+  },
+  "findings": [
+    {
+      "id": "roundtrip.translation.part_count.preserved",
+      "category": "roundtrip_step",
+      "severity": "pass",
+      "message": "CADCLAW imported renderable-shape count (0.1-mm bbox dedup): 1 -> 1",
+      "suggested_fix": null,
+      "evidence": {
+        "before": 1,
+        "after": 1,
+        "method": "solids_and_shells_deduplicated_by_0.1mm_bbox_key"
+      }
+    },
+    {
+      "id": "roundtrip.translation.assembly_bbox.preserved",
+      "category": "roundtrip_step",
+      "severity": "pass",
+      "message": "assembly bounding-box max delta: 0 mm",
+      "suggested_fix": null,
+      "evidence": {
+        "max_delta_mm": 0.0,
+        "tolerance_mm": 0.05
+      }
+    },
+    {
+      "id": "roundtrip.translation.assembly_bbox_volume.preserved",
+      "category": "roundtrip_step",
+      "severity": "pass",
+      "message": "assembly bounding-volume delta: 0 mm3 (relative 0)",
+      "suggested_fix": null,
+      "evidence": {
+        "absolute_delta_mm3": 0.0,
+        "relative_delta": 0.0,
+        "relative_tolerance": 1e-06,
+        "absolute_tolerance_mm3": 0.001
+      }
+    },
+    {
+      "id": "roundtrip.translation.per_part_geometry.preserved",
+      "category": "roundtrip_step",
+      "severity": "pass",
+      "message": "per-part bounding boxes and bounding volumes preserved within configured tolerances",
+      "suggested_fix": null,
+      "evidence": {
+        "matching_strategy": "minimum_cost_one_to_one",
+        "maximum_matched_renderable_shapes": 256,
+        "parts_compared": 1,
+        "max_bbox_delta_mm": 0.0,
+        "max_bbox_volume_delta_mm3": 0.0
+      }
+    },
+    {
+      "id": "roundtrip.translation.pmi.dimensions.preserved",
+      "category": "roundtrip_step",
+      "severity": "pass",
+      "message": "supported semantic PMI class count dimensions: 6 -> 6",
+      "suggested_fix": null,
+      "evidence": {
+        "class": "dimensions",
+        "before_count": 6,
+        "after_count": 6,
+        "status": "preserved"
+      }
+    },
+    {
+      "id": "roundtrip.translation.pmi.geometric_tolerances.preserved",
+      "category": "roundtrip_step",
+      "severity": "pass",
+      "message": "supported semantic PMI class count geometric_tolerances: 4 -> 4",
+      "suggested_fix": null,
+      "evidence": {
+        "class": "geometric_tolerances",
+        "before_count": 4,
+        "after_count": 4,
+        "status": "preserved"
+      }
+    },
+    {
+      "id": "roundtrip.translation.pmi.datums.preserved",
+      "category": "roundtrip_step",
+      "severity": "pass",
+      "message": "supported semantic PMI class count datums: 4 -> 4",
+      "suggested_fix": null,
+      "evidence": {
+        "class": "datums",
+        "before_count": 4,
+        "after_count": 4,
+        "status": "preserved"
+      }
+    }
+  ],
+  "confidence_budget": {
+    "checked": [
+      "ROUNDTRIP_STEP: CADCLAW-deduplicated imported renderable-shape count",
+      "ROUNDTRIP_STEP: assembly and per-part bounding boxes and bounding volumes",
+      "ROUNDTRIP_STEP: source-present supported semantic PMI class-count preservation"
+    ],
+    "not_checked": [
+      "ROUNDTRIP_STEP: interface gaps (no interface pairs declared)",
+      "ROUNDTRIP_STEP: independent-kernel translation",
+      "ROUNDTRIP_STEP: authoring-reference STEP proxy comparison",
+      "ROUNDTRIP_STEP: graphical PMI presentation and saved views",
+      "ROUNDTRIP_STEP: material assignment and process/general-note survival",
+      "ROUNDTRIP_STEP: semantic PMI element values, associations, and construction",
+      "ROUNDTRIP_STEP: standards conformance or proprietary native-model fidelity",
+      "native CAD source model was not supplied"
+    ],
+    "assumptions": []
+  }
+}
