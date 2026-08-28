@@ -68,7 +68,8 @@ closeout. An open pull request or a started validation is not completion.
 
 Evidence:
 
-- Current PR head: `ccc0f11d95802f093e46b36a0bb4b86fbe0222ca`
+- Semantic-PMI implementation head before tracking/CI follow-ups:
+  `ccc0f11d95802f093e46b36a0bb4b86fbe0222ca`
 - NIST STC06 fixture SHA-256:
   `71777C28DA76DA0E8A667E4CBE792D5F72C09B5C56440C9744D3D50CA96ECC8D`
 - NIST FTC11 fixture SHA-256:
