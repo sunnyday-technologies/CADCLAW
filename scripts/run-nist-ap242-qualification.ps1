@@ -34,7 +34,8 @@ function Write-Utf8NoBom {
     )
 
     $qualificationUtf8 = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($Path, $Content, $qualificationUtf8)
+    $qualificationLfContent = $Content.Replace("`r`n", "`n").Replace("`r", "`n")
+    [System.IO.File]::WriteAllText($Path, $qualificationLfContent, $qualificationUtf8)
 }
 
 function Get-Sha256Lower {
@@ -735,6 +736,11 @@ print(json.dumps({
         $qualificationPmiStarted = [DateTime]::UtcNow.ToString("o")
         $qualificationPmiExit = Invoke-CadclawGate -SnapshotRoot $qualificationSnapshotRoot -Arguments $qualificationPmiArguments
         $qualificationPmiCompleted = [DateTime]::UtcNow.ToString("o")
+        $qualificationPmiReportText = [System.IO.File]::ReadAllText(
+            $qualificationPmiReportPath,
+            (New-Object System.Text.UTF8Encoding($false, $true))
+        )
+        Write-Utf8NoBom -Path $qualificationPmiReportPath -Content $qualificationPmiReportText
         $qualificationPmiReport = Read-ValidatedJsonReport $qualificationPmiReportPath "$($qualificationFixture.id) PMI gate"
         if ($qualificationPmiExit -ne 0) {
             throw "$($qualificationFixture.id) PMI gate exited $qualificationPmiExit"
@@ -759,6 +765,11 @@ print(json.dumps({
         $qualificationRoundtripStarted = [DateTime]::UtcNow.ToString("o")
         $qualificationRoundtripExit = Invoke-CadclawGate -SnapshotRoot $qualificationSnapshotRoot -Arguments $qualificationRoundtripArguments
         $qualificationRoundtripCompleted = [DateTime]::UtcNow.ToString("o")
+        $qualificationRoundtripReportText = [System.IO.File]::ReadAllText(
+            $qualificationRoundtripReportPath,
+            (New-Object System.Text.UTF8Encoding($false, $true))
+        )
+        Write-Utf8NoBom -Path $qualificationRoundtripReportPath -Content $qualificationRoundtripReportText
         $qualificationRoundtripReport = Read-ValidatedJsonReport $qualificationRoundtripReportPath "$($qualificationFixture.id) round-trip gate"
         if ($qualificationRoundtripExit -ne 0) {
             throw "$($qualificationFixture.id) round-trip gate exited $qualificationRoundtripExit"
