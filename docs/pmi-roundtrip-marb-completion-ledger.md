@@ -48,8 +48,8 @@ closeout. An open pull request or a started validation is not completion.
 | Q1 | Reproducible NIST AP242 qualification runner and evidence-integrity guards | COMPLETE | C1 and C2 | Runner/fix branches deleted after merge | [#13](https://github.com/sunnyday-technologies/CADCLAW/pull/13), [#14](https://github.com/sunnyday-technologies/CADCLAW/pull/14), [#15](https://github.com/sunnyday-technologies/CADCLAW/pull/15) | `2305d841c2ecf73d8ceb8e3a398766d2000e0912`; `94b0fd0072a9e6bf0a1ac54df5f3c9f0266b59c2`; `4579c5e925dfcc13236973aca295f42128704823` |
 | Q2 | Fresh NIST FTC11/STC06 software-qualification cohort and evidence closeout | COMPLETE | Q1 merged | Qualification/evidence branches deleted after merge | [#16](https://github.com/sunnyday-technologies/CADCLAW/pull/16), [#17](https://github.com/sunnyday-technologies/CADCLAW/pull/17) | `cdbb45882fcd19092d4082cf490c27db12878d81`; `251bfb96a50b3a79378c9171d9a485e4884eb58c` |
 | H2a | Deterministic, non-writing MARB cohort planner | COMPLETE | M1, M2, and M3 merged | `codex/marb-cohort-runner-plan` | [MARB #8](https://github.com/sunnyday-technologies/MARB/pull/8) | `d4f1dd836b94159bc72ed0b72be0e7c324239329` |
-| H2b | Non-destructive, provenance-complete, isolated MARB cohort executor | IN PROGRESS | H2a merged | `codex/marb-cohort-runner-executor`; task `01a046b7-1430-7792-b891-709e5b60c7ff` | TBD | TBD |
-| B1 | Fresh MARB model benchmark cohort | BLOCKED | H2b; immutable gated-key revisions and trusted grading; approved immutable OCI runtime plus Windows Docker Desktop smoke; local-no-charge provider/model/data-sharing/run-limit authorization; aggregate campaign ledger | N/A | N/A | N/A |
+| H2b | Non-destructive, provenance-complete, isolated MARB cohort executor | COMPLETE | H2a merged | `codex/marb-cohort-runner-executor` (deleted after merge); task `01a046b7-1430-7792-b891-709e5b60c7ff` | [MARB #9](https://github.com/sunnyday-technologies/MARB/pull/9) | `56177ae5815c99dce6a90ad509902cd196d840fd` |
+| B1 | Fresh MARB model benchmark cohort | BLOCKED | H2b complete; immutable gated-key revisions and trusted grading; approved immutable OCI runtime plus Windows Docker Desktop smoke; local-no-charge provider/model/data-sharing/run-limit authorization; aggregate campaign ledger | N/A | N/A | N/A |
 | R1 | Evidence-backed update to Marc | BLOCKED | B1 complete | N/A | N/A | N/A |
 | D1 | Material/process semantic-PMI expansion | DEFERRED | Positive fixture and verified extraction method | TBD | TBD | TBD |
 | H1 | Remove stale Open3DCP re-pushed branches | COMPLETE | None | Deleted `precedent-crosswalk` and `whitepaper-v1-1` | Already merged as Open3DCP #10/#11 | N/A |
@@ -273,13 +273,16 @@ Evidence:
   network, or benchmark-result writes.
 - [x] The planner is explicitly labeled plan-only and cannot be confused with
   benchmark execution readiness.
-- [ ] The executor requires explicit execution authorization and creates
+- [x] The executor requires explicit execution authorization and creates
   UUID-backed, new-only run directories without mutating canonical board,
   registry, or historical evidence paths.
-- [ ] Model-produced code runs only in a digest-pinned isolated container with
-  the fresh run directory as its sole mount, no network, a read-only root,
-  dropped capabilities, a clean environment, and no Docker socket.
-- [ ] L1/L2/L4 routing, continuous baseline-to-change sessions for L2/L4,
+- [x] Model-produced Python runs only in a digest-pinned isolated container with
+  read-only prior-workspace and immutable-input mounts, size-capped tmpfs for
+  child writes, one exact writable export-file bind, no network, a read-only
+  root, dropped capabilities, a clean environment, and no Docker socket.
+  Brokered `write_file` content is validated and capped before the trusted host
+  writes it into the attempt-local workspace.
+- [x] L1/L2/L4 routing, continuous baseline-to-change sessions for L2/L4,
   deterministic editable-source ZIPs, STEP capture, failed-run retention, and
   exact provider/settings/timing/token/cost provenance are implemented and
   tested before any model call.
@@ -291,9 +294,21 @@ Evidence:
   `d4f1dd836b94159bc72ed0b72be0e7c324239329`. Board policy, both answer-key
   guards, and both CodeQL analyses passed; the local dependency-free suite ran
   121 tests with one expected Windows newline-filename skip.
-- H2b executor: active on `codex/marb-cohort-runner-executor` in task
-  `01a046b7-1430-7792-b891-709e5b60c7ff`; PR / merge / validation TBD.
-- No model call or provider cost is authorized or claimed by H2a.
+- H2b: [MARB #9](https://github.com/sunnyday-technologies/MARB/pull/9), head
+  `b9eb841007e4f2d1f1cde072785203a4aefecd30`, merge
+  `56177ae5815c99dce6a90ad509902cd196d840fd`. The 23-file final snapshot ran
+  117 focused tests with one expected platform skip and 213 full board-policy
+  tests with two expected platform skips; the exact committed head repeated all
+  213 tests plus the answer-key and secret tree guards in a clean LFS-disabled
+  checkout. GitHub board policy, both answer-key guards, both CodeQL analyses,
+  and the additional CodeQL check passed on the exact PR head.
+- Pre-fix Codex Security scan `a08e05b2-00f6-4b54-bb1e-da88773fea2c`
+  identified one Medium untrusted-Git-executable boundary. The final snapshot
+  binds and hash-locks the absolute Git executable across process creation,
+  suppresses replacement refs, and bounds timeout/output; independent final
+  verification marked occurrence `occ_20e331fb9692f0cfa2bccc28` fixed.
+- No Docker run, provider/model call, deployment, or provider cost is authorized
+  or claimed by H2a/H2b implementation and validation.
 
 ### B1 - Fresh benchmark cohort
 
@@ -327,10 +342,9 @@ Evidence slots:
 
 Current blockers:
 
-- The legacy MARB batch harness is destructive on reused run folders and runs
-  model-produced Python on the host with inherited environment access. H2a is
-  merged as a guarded deterministic planner only; H2b is active on its separate
-  executor branch and remains required before any fresh model execution.
+- H2b is merged, but the legacy destructive batch path remains prohibited and
+  H2b itself remains fail-closed until every runtime, campaign, and execution
+  authorization gate below is satisfied.
 - `L2-RESOLVE` and `L4-ECO` require immutable gated-key revisions plus a trusted
   grading/readback path before their outputs can be called gradeable.
 - The executor requires an approved immutable OCI image `RepoDigest`, private
