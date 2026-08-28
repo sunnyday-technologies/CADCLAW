@@ -47,8 +47,9 @@ closeout. An open pull request or a started validation is not completion.
 | M3 | MARB `L4-ECO` task and authenticated evidence gates | COMPLETE | M1 and C2 | `codex/marb-l4-eco-v0.12` | [MARB #7](https://github.com/sunnyday-technologies/MARB/pull/7) | `072dfab66999c968facb8a640d39739a80353c7b` |
 | Q1 | Reproducible NIST AP242 qualification runner and evidence-integrity guards | COMPLETE | C1 and C2 | Runner/fix branches deleted after merge | [#13](https://github.com/sunnyday-technologies/CADCLAW/pull/13), [#14](https://github.com/sunnyday-technologies/CADCLAW/pull/14), [#15](https://github.com/sunnyday-technologies/CADCLAW/pull/15) | `2305d841c2ecf73d8ceb8e3a398766d2000e0912`; `94b0fd0072a9e6bf0a1ac54df5f3c9f0266b59c2`; `4579c5e925dfcc13236973aca295f42128704823` |
 | Q2 | Fresh NIST FTC11/STC06 software-qualification cohort | READY FOR REVIEW | Q1 merged | `codex/nist-ap242-qualification-evidence-20260828` | [#16](https://github.com/sunnyday-technologies/CADCLAW/pull/16) | TBD |
-| H2 | Non-destructive, provenance-complete, isolated MARB cohort runner | IN PROGRESS | M1, M2, and M3 merged | `codex/marb-cohort-runner-plan`; task `01a046b7-1430-7792-b891-709e5b60c7ff` | TBD | TBD |
-| B1 | Fresh MARB model benchmark cohort | BLOCKED | H2; immutable gated-key revisions; provider/model/budget approval | N/A | N/A | N/A |
+| H2a | Deterministic, non-writing MARB cohort planner | COMPLETE | M1, M2, and M3 merged | `codex/marb-cohort-runner-plan` | [MARB #8](https://github.com/sunnyday-technologies/MARB/pull/8) | `d4f1dd836b94159bc72ed0b72be0e7c324239329` |
+| H2b | Non-destructive, provenance-complete, isolated MARB cohort executor | IN PROGRESS | H2a merged | `codex/marb-cohort-runner-executor`; task `01a046b7-1430-7792-b891-709e5b60c7ff` | TBD | TBD |
+| B1 | Fresh MARB model benchmark cohort | BLOCKED | H2b; immutable gated-key revisions; provider/model/budget approval | N/A | N/A | N/A |
 | R1 | Evidence-backed update to Marc | BLOCKED | B1 complete | N/A | N/A | N/A |
 | D1 | Material/process semantic-PMI expansion | DEFERRED | Positive fixture and verified extraction method | TBD | TBD | TBD |
 | H1 | Remove stale Open3DCP re-pushed branches | COMPLETE | None | Deleted `precedent-crosswalk` and `whitepaper-v1-1` | Already merged as Open3DCP #10/#11 | N/A |
@@ -259,6 +260,35 @@ Evidence:
   `161a3ec55b152f367f4d77991fcb7f28aaf4b2e107cb736c4c1ccd24a2eb13f6`.
 - Evidence-only PR / merge: [#16](https://github.com/sunnyday-technologies/CADCLAW/pull/16) / TBD.
 
+### H2a/H2b - MARB cohort execution safety
+
+- [x] The deterministic planner freezes task/kit/request identities, rejects
+  registered-path collisions and unsafe paths, and makes zero provider, model,
+  network, or benchmark-result writes.
+- [x] The planner is explicitly labeled plan-only and cannot be confused with
+  benchmark execution readiness.
+- [ ] The executor requires explicit execution authorization and creates
+  UUID-backed, new-only run directories without mutating canonical board,
+  registry, or historical evidence paths.
+- [ ] Model-produced code runs only in a digest-pinned isolated container with
+  the fresh run directory as its sole mount, no network, a read-only root,
+  dropped capabilities, a clean environment, and no Docker socket.
+- [ ] L1/L2/L4 routing, continuous baseline-to-change sessions for L2/L4,
+  deterministic editable-source ZIPs, STEP capture, failed-run retention, and
+  exact provider/settings/timing/token/cost provenance are implemented and
+  tested before any model call.
+
+Evidence:
+
+- H2a: [MARB #8](https://github.com/sunnyday-technologies/MARB/pull/8), head
+  `7daf26d73da869de52b85d5d595b163421dd4322`, merge
+  `d4f1dd836b94159bc72ed0b72be0e7c324239329`. Board policy, both answer-key
+  guards, and both CodeQL analyses passed; the local dependency-free suite ran
+  121 tests with one expected Windows newline-filename skip.
+- H2b executor: active on `codex/marb-cohort-runner-executor` in task
+  `01a046b7-1430-7792-b891-709e5b60c7ff`; PR / merge / validation TBD.
+- No model call or provider cost is authorized or claimed by H2a.
+
 ### B1 - Fresh benchmark cohort
 
 - [ ] Dataset/task contract is versioned and frozen before runs begin.
@@ -286,9 +316,9 @@ Evidence slots:
 Current blockers:
 
 - The legacy MARB batch harness is destructive on reused run folders and runs
-  model-produced Python on the host with inherited environment access. The
-  current MARB branch is a guarded deterministic planner only; a separate H2b
-  isolated executor remains required before any fresh model execution.
+  model-produced Python on the host with inherited environment access. H2a is
+  merged as a guarded deterministic planner only; H2b is active on its separate
+  executor branch and remains required before any fresh model execution.
 - `L2-RESOLVE` and `L4-ECO` require immutable gated-key revisions plus a trusted
   grading/readback path before their outputs can be called gradeable.
 - Provider, exact model/version, data-sharing choice, run limits, and budget
@@ -321,6 +351,6 @@ PMI success.
 
 ## Completion rule
 
-Mark the overall plan `COMPLETE` only when C1, C2, M1, M2, M3, Q1, Q2, H2, B1,
-and R1 are complete and their evidence slots are populated. D1 may remain
+Mark the overall plan `COMPLETE` only when C1, C2, M1, M2, M3, Q1, Q2, H2a,
+H2b, B1, and R1 are complete and their evidence slots are populated. D1 may remain
 `DEFERRED`.
