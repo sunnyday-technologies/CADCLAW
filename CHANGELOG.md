@@ -47,6 +47,14 @@ changes bump MINOR and are called out explicitly under **Changed**.
 
 ### Changed
 
+- **Bounded OCP writer-status portability.** `IFSelect_RetDone` remains the
+  normal AP242 writer result. Only `IFSelect_RetError` may proceed
+  provisionally, and only after a non-empty, non-symlink AP242 artifact
+  successfully reimports into XCAF. Reports preserve the raw status and
+  provisional disposition, while scoped geometry and source-present semantic
+  PMI comparisons remain decisive. Other writer statuses and failed
+  provisional checks remain errors; the recovery does not validate
+  writer-internal references, graphical PMI, or standards conformance.
 - **`cadquery-ocp>=7.8` is now a declared dependency.** CADCLAW imports `OCP`
   directly (`STEPCAFControl`, `BRepAlgoAPI`, `BRepGProp`, `BRepAdaptor`,
   `XCAFDoc`, and others), not only through CadQuery's public API, so the
