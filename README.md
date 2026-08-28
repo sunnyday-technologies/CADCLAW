@@ -234,6 +234,15 @@ regression test exports the same authored NIST fixture with semantic PMI
 disabled and verifies that the class-count loss fails while geometry remains
 preserved.
 
+`IFSelect_RetDone` is the normal OCCT writer result. Only
+`IFSelect_RetError` can proceed provisionally, and only after the writer has
+created a non-empty, non-symlink AP242 file that successfully reimports into
+XCAF. Reports retain the raw writer status and provisional disposition; the
+downstream geometry and supported semantic-PMI comparisons remain decisive.
+This recovery does not validate writer-internal references, graphical PMI, or
+standards conformance. Every other writer status and every failed provisional
+check is an error.
+
 Minimum-cost one-to-one part correspondence has a fixed method limit of 256
 matched renderable shapes. A larger equal-count comparison returns the
 explicit `roundtrip.part_count_limit_exceeded` error before allocating the

@@ -24,6 +24,7 @@ import hashlib
 import math
 import os
 import re
+import stat
 import tempfile
 import threading
 import time
@@ -219,6 +220,8 @@ class ExportResult:
     reader: str
     writer: str
     occt_version: str
+    write_status: str
+    write_disposition: str
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -230,6 +233,8 @@ class ExportResult:
             "reader": self.reader,
             "writer": self.writer,
             "occt_version": self.occt_version,
+            "write_status": self.write_status,
+            "write_disposition": self.write_disposition,
         }
 
 
@@ -496,6 +501,72 @@ def _import_xcaf(step_path: Path):
     return document, str(OCP.__version__)
 
 
+def _validate_ret_error_artifact(output: Path) -> str:
+    """Validate the bounded recovery case for OCCT ``IFSelect_RetError``.
+
+    Some OCCT versions return ``IFSelect_RetError`` after reporting that the
+    file write completed.  That status is never accepted by itself.  Recovery
+    requires a non-empty regular artifact, an AP242 FILE_SCHEMA declaration,
+    and a successful STEPCAFControl XCAF reimport.  The helper always acquires
+    ``_OCCT_GLOBAL_STATE_LOCK``; callers already in the writer window reenter
+    the same lock, and ``_import_xcaf`` restores its suppressed diagnostics.
+    """
+    with _OCCT_GLOBAL_STATE_LOCK:
+        return _validate_ret_error_artifact_locked(output)
+
+
+def _validate_ret_error_artifact_locked(output: Path) -> str:
+    """Implementation for ``_validate_ret_error_artifact`` under the lock."""
+    try:
+        artifact_stat = output.lstat()
+        artifact_exists = stat.S_ISREG(artifact_stat.st_mode)
+        artifact_size = artifact_stat.st_size if artifact_exists else 0
+    except FileNotFoundError:
+        artifact_exists = False
+        artifact_size = 0
+    except OSError as exc:
+        raise RoundtripError(
+            "roundtrip.write_failed",
+            "OCCT IFSelect_RetError validation could not read the derivative "
+            "artifact",
+        ) from exc
+    if not artifact_exists or artifact_size <= 0:
+        raise RoundtripError(
+            "roundtrip.write_failed",
+            "OCCT IFSelect_RetError did not produce a non-empty derivative",
+        )
+
+    try:
+        from .pmi import _read_step_schema
+
+        output_schema = _read_step_schema(output)
+    except PmiExtractionError as exc:
+        raise RoundtripError(
+            "roundtrip.write_failed",
+            "OCCT IFSelect_RetError derivative has no readable STEP schema",
+        ) from exc
+    if "AP242" not in output_schema.upper():
+        raise RoundtripError(
+            "roundtrip.write_failed",
+            "OCCT IFSelect_RetError derivative is not AP242",
+        )
+
+    try:
+        _import_xcaf(output)
+    except RoundtripError as exc:
+        if exc.code in {
+            "roundtrip.reader_state_setup_failed",
+            "roundtrip.reader_state_restore_failed",
+        }:
+            raise
+        raise RoundtripError(
+            "roundtrip.write_failed",
+            "OCCT IFSelect_RetError AP242 derivative could not be reimported "
+            "into XCAF",
+        ) from exc
+    return "ret_error_provisionally_validated"
+
+
 def export_ap242(
     source_step: str | Path,
     output_step: str | Path,
@@ -508,7 +579,10 @@ def export_ap242(
     the caller-visible state captured immediately after OCCT's required STEP
     controller initialization (which itself may replace an uninitialized
     zero sentinel with an OCCT default), and messenger printers are restored
-    before returning.
+    before returning.  An ``IFSelect_RetError`` result is exposed honestly and
+    accepted only provisionally after non-empty AP242 schema and XCAF-reimport
+    checks; downstream scoped geometry and semantic-PMI comparisons still
+    determine the round-trip report result.
     """
     source = Path(source_step)
     output = Path(output_step)
@@ -541,6 +615,8 @@ def export_ap242(
     printers: list[Any] = []
     restore_errors: list[str] = []
     primary_error: Optional[BaseException] = None
+    write_status_name: Optional[str] = None
+    write_disposition: Optional[str] = None
 
     with _OCCT_GLOBAL_STATE_LOCK:
         try:
@@ -591,7 +667,12 @@ def export_ap242(
                     "roundtrip.write_failed",
                     "OCCT could not write the AP242 derivative",
                 ) from exc
-            if write_status != IFSelect_ReturnStatus.IFSelect_RetDone:
+            write_status_name = write_status.name
+            if write_status == IFSelect_ReturnStatus.IFSelect_RetDone:
+                write_disposition = "ret_done"
+            elif write_status == IFSelect_ReturnStatus.IFSelect_RetError:
+                write_disposition = _validate_ret_error_artifact(output)
+            else:
                 raise RoundtripError(
                     "roundtrip.write_failed",
                     f"OCCT AP242 write failed (status {write_status.name})",
@@ -636,6 +717,11 @@ def export_ap242(
                 "OCCT AP242 export could not be completed",
             ) from primary_error
         raise primary_error
+    if write_status_name is None or write_disposition is None:
+        raise RoundtripError(
+            "roundtrip.write_failed",
+            "OCCT AP242 write produced no classifiable result",
+        )
     if not output.is_file():
         raise RoundtripError(
             "roundtrip.output_missing",
@@ -666,6 +752,8 @@ def export_ap242(
         reader="OCCT STEPCAFControl_Reader",
         writer="OCCT STEPCAFControl_Writer",
         occt_version=occt_version,
+        write_status=write_status_name,
+        write_disposition=write_disposition,
     )
 
 
@@ -1506,10 +1594,17 @@ def _build_report(
         "reader": export_result.reader,
         "writer": export_result.writer,
         "occt_version": export_result.occt_version,
+        "write_status": export_result.write_status,
+        "write_disposition": export_result.write_disposition,
         "persisted": persisted_output,
     }
     report.meta["derivative"] = export_meta
     report.meta["translation_comparison"] = translation.to_dict()
+    if export_result.write_disposition == "ret_error_provisionally_validated":
+        report.confidence_budget.not_checked.append(
+            f"{GATE_NAME}: OCCT writer-internal reference integrity and "
+            "graphical PMI after provisionally validated error-status recovery"
+        )
 
     independence = report.meta["translation_independence"]
     if independence["status"] == "declared_independent":

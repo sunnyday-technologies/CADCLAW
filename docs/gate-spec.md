@@ -59,10 +59,19 @@ native-CAD model, native-reader check, or proof of authoring correctness.
 
 Public report metadata contains content hashes plus bounded aggregate statuses
 and deltas rather than full per-part geometry snapshots, source/proxy paths, or
-duplicated finding trees. Import, transfer, export, reimport, selector,
-measurement, and cleanup failures remain explicit errors. Repository
-regression coverage uses an authored NIST AP242 fixture for the positive path
-and a real AP242 export
+duplicated finding trees. `IFSelect_RetDone` is the normal writer success.
+Only `IFSelect_RetError` may be accepted provisionally, and only when the
+writer produced a non-empty, non-symlink regular artifact with an AP242
+`FILE_SCHEMA` that successfully reimports through STEPCAFControl into XCAF.
+The raw writer status
+and disposition remain visible as `meta.derivative.write_status` and
+`meta.derivative.write_disposition`; the downstream scoped geometry and
+source-present semantic-PMI comparisons still determine the gate result. All
+other writer statuses, failed provisional checks, and other import, transfer,
+reimport, selector, measurement, or cleanup failures remain explicit errors.
+Provisional acceptance does not validate writer-internal reference integrity,
+graphical PMI, or standards conformance. Repository regression coverage uses
+an authored NIST AP242 fixture for the positive path and a real AP242 export
 with semantic-PMI writing disabled for the negative control; the latter must
 preserve the tested geometry evidence while failing semantic-PMI class-count
 preservation.

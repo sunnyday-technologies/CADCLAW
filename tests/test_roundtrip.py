@@ -47,6 +47,13 @@ NIST_FTC_11 = (
     / "pmi_semantic"
     / "nist_ftc_11_asme1_ap242-e2.stp"
 )
+NIST_STC_06 = (
+    REPO
+    / "tests"
+    / "fixtures"
+    / "pmi_semantic"
+    / "nist_stc_06_asme1_ap242-e3.stp"
+)
 RELATIVE_PARTS = REPO / "examples" / "relative_placement" / "parts"
 AUTHORED_RAIL = RELATIVE_PARTS / "rail_x.step"
 AUTHORED_PLATE = RELATIVE_PARTS / "plate.step"
@@ -55,6 +62,28 @@ EXPECTED_FTC_11_PMI = {
     "geometric_tolerances": 4,
     "datums": 4,
 }
+
+
+def _writer_with_write_override(write_override):
+    """Delegate a STEPCAF writer except for its final ``Write`` result.
+
+    Capturing the real writer before the caller patches the OCP module keeps
+    these tests on the real XCAF transfer/export path.  Only the final status
+    or artifact is varied to exercise CADCLAW's cross-version classification.
+    """
+    from OCP.STEPCAFControl import STEPCAFControl_Writer as RealWriter
+
+    class WriterWithWriteOverride:
+        def __init__(self, *args, **kwargs):
+            self._inner = RealWriter(*args, **kwargs)
+
+        def __getattr__(self, name):
+            return getattr(self._inner, name)
+
+        def Write(self, output_path):
+            return write_override(self._inner, Path(output_path))
+
+    return WriterWithWriteOverride
 
 
 def _nested_keys(value) -> set[str]:
@@ -219,6 +248,19 @@ class TestNistRoundtripIntegration(unittest.TestCase):
 
             self.assertTrue(derivative.is_file())
             self.assertIn("AP242", exported.output_schema.upper())
+            self.assertIn(
+                exported.write_status,
+                {"IFSelect_RetDone", "IFSelect_RetError"},
+            )
+            self.assertEqual(
+                exported.write_disposition,
+                {
+                    "IFSelect_RetDone": "ret_done",
+                    "IFSelect_RetError": (
+                        "ret_error_provisionally_validated"
+                    ),
+                }[exported.write_status],
+            )
             self.assertTrue(
                 comparison.passed,
                 [finding.to_dict() for finding in comparison.findings],
@@ -282,6 +324,378 @@ class TestNistRoundtripIntegration(unittest.TestCase):
                 extract_semantic_pmi(derivative).counts,
                 EXPECTED_FTC_11_PMI,
             )
+
+    def test_ret_error_artifact_is_provisional_and_scoped_checks_stay_decisive(self):
+        from OCP.IFSelect import IFSelect_ReturnStatus
+        from OCP.Interface import Interface_Static
+        from OCP.STEPControl import STEPControl_Controller
+        from cadclaw_cli.main import main
+
+        stepcaf_module = importlib.import_module("OCP.STEPCAFControl")
+        underlying_statuses: list[str] = []
+
+        def force_ret_error_after_real_write(writer, output):
+            status = writer.Write(str(output))
+            underlying_statuses.append(status.name)
+            return IFSelect_ReturnStatus.IFSelect_RetError
+
+        writer_type = _writer_with_write_override(
+            force_ret_error_after_real_write
+        )
+        self.assertTrue(STEPControl_Controller.Init_s())
+        pre_test_schema = Interface_Static.IVal_s("write.step.schema")
+        with tempfile.TemporaryDirectory() as tmp:
+            derivative = Path(tmp) / "forced-ret-error-ftc11.stp"
+            stdout = io.StringIO()
+            try:
+                self.assertTrue(
+                    Interface_Static.SetIVal_s("write.step.schema", 3)
+                )
+                printers_before = _occt_default_messenger_printer_count()
+                with (
+                    mock.patch.object(
+                        stepcaf_module,
+                        "STEPCAFControl_Writer",
+                        writer_type,
+                    ),
+                    redirect_stdout(stdout),
+                ):
+                    code = main([
+                        "roundtrip-step",
+                        "--rules",
+                        str(NIST_FTC_11.parent / "cadclaw.yaml"),
+                        "--step",
+                        str(NIST_FTC_11),
+                        "--roundtrip-out",
+                        str(derivative),
+                        "--report-format",
+                        "json",
+                    ])
+
+                self.assertEqual(
+                    Interface_Static.IVal_s("write.step.schema"),
+                    3,
+                )
+                self.assertEqual(
+                    _occt_default_messenger_printer_count(),
+                    printers_before,
+                )
+            finally:
+                restored = Interface_Static.SetIVal_s(
+                    "write.step.schema",
+                    pre_test_schema,
+                )
+                if not restored:
+                    raise AssertionError(
+                        "test could not restore its pre-test OCCT STEP schema"
+                    )
+
+            self.assertTrue(derivative.is_file())
+            self.assertIn(
+                underlying_statuses,
+                [
+                    ["IFSelect_RetDone"],
+                    ["IFSelect_RetError"],
+                ],
+            )
+            self.assertEqual(code, 0, stdout.getvalue())
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["overall"], "pass")
+            derivative_meta = payload["meta"]["derivative"]
+            self.assertEqual(
+                derivative_meta["write_status"],
+                "IFSelect_RetError",
+            )
+            self.assertEqual(
+                derivative_meta["write_disposition"],
+                "ret_error_provisionally_validated",
+            )
+            self.assertNotIn("source_path", derivative_meta)
+            self.assertNotIn("output_path", derivative_meta)
+
+            self.assertNotIn(
+                "roundtrip.write.ret_error_provisionally_validated",
+                {finding["id"] for finding in payload["findings"]},
+            )
+            self.assertIn(
+                "ROUNDTRIP_STEP: OCCT writer-internal reference integrity "
+                "and graphical PMI after provisionally validated "
+                "error-status recovery",
+                payload["confidence_budget"]["not_checked"],
+            )
+
+            pmi_summary = payload["meta"]["translation_comparison"][
+                "supported_semantic_pmi_class_counts"
+            ]
+            self.assertEqual(pmi_summary["status"], "compared")
+            self.assertEqual(
+                {
+                    item["class"]: (
+                        item["before_count"],
+                        item["after_count"],
+                        item["status"],
+                    )
+                    for item in pmi_summary["results"]
+                },
+                {
+                    name: (count, count, "preserved")
+                    for name, count in EXPECTED_FTC_11_PMI.items()
+                },
+            )
+
+    def test_ret_error_rejects_missing_non_ap242_and_malformed_ap242_artifacts(self):
+        from OCP.IFSelect import IFSelect_ReturnStatus
+
+        stepcaf_module = importlib.import_module("OCP.STEPCAFControl")
+
+        def missing_artifact(writer, output):
+            writer.Write(str(output))
+            output.unlink()
+            return IFSelect_ReturnStatus.IFSelect_RetError
+
+        def empty_artifact(writer, output):
+            writer.Write(str(output))
+            output.write_bytes(b"")
+            return IFSelect_ReturnStatus.IFSelect_RetError
+
+        def non_ap242_artifact(writer, output):
+            writer.Write(str(output))
+            output.write_bytes(AUTHORED_RAIL.read_bytes())
+            return IFSelect_ReturnStatus.IFSelect_RetError
+
+        def malformed_ap242_artifact(writer, output):
+            writer.Write(str(output))
+            output.write_text(
+                """ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION(('malformed fixture'),'2;1');
+FILE_NAME('malformed','','','','','','');
+FILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'));
+ENDSEC;
+DATA;
+#1=THIS_IS_NOT_VALID_STEP_SYNTAX(
+ENDSEC;
+END-ISO-10303-21;
+""",
+                encoding="utf-8",
+            )
+            return IFSelect_ReturnStatus.IFSelect_RetError
+
+        cases = (
+            (
+                "missing",
+                missing_artifact,
+                "OCCT IFSelect_RetError did not produce a non-empty derivative",
+            ),
+            (
+                "empty",
+                empty_artifact,
+                "OCCT IFSelect_RetError did not produce a non-empty derivative",
+            ),
+            (
+                "non-ap242",
+                non_ap242_artifact,
+                "OCCT IFSelect_RetError derivative is not AP242",
+            ),
+            (
+                "malformed-ap242",
+                malformed_ap242_artifact,
+                "OCCT IFSelect_RetError AP242 derivative could not be "
+                "reimported into XCAF",
+            ),
+        )
+        for name, write_override, expected_message in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
+                output = Path(tmp) / f"private-{name}.stp"
+                writer_type = _writer_with_write_override(write_override)
+                printers_before = _occt_default_messenger_printer_count()
+                with mock.patch.object(
+                    stepcaf_module,
+                    "STEPCAFControl_Writer",
+                    writer_type,
+                ):
+                    with self.assertRaises(RoundtripError) as caught:
+                        export_ap242(AUTHORED_RAIL, output)
+
+                self.assertEqual(caught.exception.code, "roundtrip.write_failed")
+                self.assertEqual(str(caught.exception), expected_message)
+                self.assertNotIn(str(output), str(caught.exception))
+                self.assertNotIn(str(AUTHORED_RAIL), str(caught.exception))
+                if name == "malformed-ap242":
+                    self.assertIsInstance(
+                        caught.exception.__cause__,
+                        RoundtripError,
+                    )
+                    self.assertIn(
+                        caught.exception.__cause__.code,
+                        {
+                            "roundtrip.read_failed",
+                            "roundtrip.transfer_failed",
+                        },
+                    )
+                    self.assertNotIn(
+                        str(output),
+                        str(caught.exception.__cause__),
+                    )
+                self.assertEqual(
+                    _occt_default_messenger_printer_count(),
+                    printers_before,
+                )
+
+    def test_provisional_ret_error_does_not_override_comparison_failure(self):
+        # A deliberately mismatched writer model/artifact is isolated because
+        # OCCT's process-global transfer session is outside this gate's public
+        # contract and would otherwise contaminate unrelated later exporters.
+        script = r"""
+import importlib
+import json
+from pathlib import Path
+import sys
+from unittest import mock
+from OCP.IFSelect import IFSelect_ReturnStatus
+from cadclaw.roundtrip import run_roundtrip_step
+
+stepcaf_module = importlib.import_module("OCP.STEPCAFControl")
+real_writer_type = stepcaf_module.STEPCAFControl_Writer
+
+class SubstituteWriter:
+    def __init__(self, *args, **kwargs):
+        self._inner = real_writer_type(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+    def Write(self, output_path):
+        self._inner.Write(output_path)
+        Path(output_path).write_bytes(Path(sys.argv[2]).read_bytes())
+        return IFSelect_ReturnStatus.IFSelect_RetError
+
+with mock.patch.object(
+    stepcaf_module,
+    "STEPCAFControl_Writer",
+    SubstituteWriter,
+):
+    report = run_roundtrip_step(sys.argv[1], output_path=sys.argv[3])
+print(json.dumps(report.to_dict()))
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            derivative = Path(tmp) / "substituted-valid-ap242.stp"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    script,
+                    str(NIST_FTC_11),
+                    str(NIST_STC_06),
+                    str(derivative),
+                ],
+                cwd=REPO,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertTrue(derivative.is_file())
+            payload = json.loads(completed.stdout)
+
+        self.assertEqual(payload["overall"], "fail")
+        self.assertEqual(
+            payload["meta"]["derivative"]["write_status"],
+            "IFSelect_RetError",
+        )
+        self.assertEqual(
+            payload["meta"]["derivative"]["write_disposition"],
+            "ret_error_provisionally_validated",
+        )
+        failed_ids = {
+            finding["id"]
+            for finding in payload["findings"]
+            if finding["severity"] == "fail"
+        }
+        self.assertTrue(
+            {
+                "roundtrip.translation.pmi.dimensions.changed",
+                "roundtrip.translation.pmi.geometric_tolerances.changed",
+                "roundtrip.translation.pmi.datums.changed",
+            }.issubset(failed_ids)
+        )
+        self.assertTrue(
+            {
+                "roundtrip.translation.assembly_bbox.changed",
+                "roundtrip.translation.assembly_bbox_volume.changed",
+                "roundtrip.translation.per_part_geometry.changed",
+            }.intersection(failed_ids)
+        )
+
+    def test_ret_error_artifact_unreadable_failure_is_path_free(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "private-unreadable-artifact.stp"
+            output.write_bytes(b"non-empty")
+            injected_diagnostic = f"could not stat {output}"
+            with mock.patch.object(
+                Path,
+                "lstat",
+                side_effect=OSError(injected_diagnostic),
+            ):
+                with self.assertRaises(RoundtripError) as caught:
+                    roundtrip_module._validate_ret_error_artifact(output)
+
+        self.assertEqual(caught.exception.code, "roundtrip.write_failed")
+        self.assertEqual(
+            str(caught.exception),
+            "OCCT IFSelect_RetError validation could not read the derivative "
+            "artifact",
+        )
+        self.assertNotIn(str(output), str(caught.exception))
+        self.assertNotIn(injected_diagnostic, str(caught.exception))
+
+    def test_non_done_non_error_writer_statuses_always_fail(self):
+        from OCP.IFSelect import IFSelect_ReturnStatus
+
+        stepcaf_module = importlib.import_module("OCP.STEPCAFControl")
+        statuses = (
+            IFSelect_ReturnStatus.IFSelect_RetVoid,
+            IFSelect_ReturnStatus.IFSelect_RetFail,
+            IFSelect_ReturnStatus.IFSelect_RetStop,
+        )
+        for forced_status in statuses:
+            with (
+                self.subTest(status=forced_status.name),
+                tempfile.TemporaryDirectory() as tmp,
+            ):
+                output = Path(tmp) / f"valid-but-{forced_status.name}.stp"
+
+                def override_status_after_real_write(
+                    writer,
+                    output_path,
+                    status=forced_status,
+                ):
+                    writer.Write(str(output_path))
+                    return status
+
+                writer_type = _writer_with_write_override(
+                    override_status_after_real_write
+                )
+                with mock.patch.object(
+                    stepcaf_module,
+                    "STEPCAFControl_Writer",
+                    writer_type,
+                ), mock.patch.object(
+                    roundtrip_module,
+                    "_validate_ret_error_artifact",
+                ) as validator:
+                    with self.assertRaises(RoundtripError) as caught:
+                        export_ap242(AUTHORED_RAIL, output)
+
+                validator.assert_not_called()
+                self.assertTrue(output.is_file())
+                self.assertEqual(caught.exception.code, "roundtrip.write_failed")
+                self.assertEqual(
+                    str(caught.exception),
+                    f"OCCT AP242 write failed (status {forced_status.name})",
+                )
+                self.assertNotIn(str(output), str(caught.exception))
+                self.assertNotIn(str(AUTHORED_RAIL), str(caught.exception))
 
     def test_real_dimtol_disabled_export_is_detected_as_pmi_loss(self):
         with tempfile.TemporaryDirectory() as tmp:
