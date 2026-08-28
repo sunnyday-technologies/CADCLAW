@@ -304,6 +304,7 @@ class TestUtf8StdoutFix(unittest.TestCase):
         repo_root = str(Path(__file__).parent.parent)
         result = subprocess.run(
             [sys.executable, "-c",
+             "import sys;sys.platform='win32';"
              "from cadclaw_cli.main import _force_utf8_stdio;"
              "_force_utf8_stdio();"
              "print('CAD has 6× motor_nema23, rules sum to 7. Δ=-1.')"],

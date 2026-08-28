@@ -19,5 +19,7 @@ jobs:
           python-version: "3.11"
       - name: Install CADCLAW
         run: python -m pip install .
+      - name: Generate repository geometry fixtures
+        run: python tests/generate_fixtures.py
       - name: Run repository tests
         run: python -m unittest discover -s tests -p "test_*.py"

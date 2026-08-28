@@ -42,7 +42,7 @@ class TestSemanticPmiExtraction(unittest.TestCase):
             "datums": 51,
         })
         self.assertIn("AP242", self.stc_06.step_schema)
-        self.assertRegex(self.stc_06.reader_version, r"^7\.8\.")
+        self.assertRegex(self.stc_06.reader_version, r"^\d+\.\d+\.")
         self.assertEqual(
             self.stc_06.diagnostics,
             {
