@@ -8,8 +8,10 @@ import tempfile
 import unittest
 from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
-from cadclaw_cli.main import build_parser, main
+from cadclaw.rules import RuleSet
+from cadclaw_cli.main import _roundtrip_config_from_rules, build_parser, main
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -32,7 +34,8 @@ class TestParser(unittest.TestCase):
         for action in p._actions:
             if hasattr(action, "choices") and action.choices:
                 names.update(action.choices.keys())
-        for expected in ["doctor", "parity", "inventory",
+        for expected in ["doctor", "parity", "inventory", "pmi-present",
+                          "roundtrip-step",
                           "bom-audit", "claim-audit", "publish-audit",
                           "harness", "inspect", "assemble"]:
             self.assertIn(expected, names)
@@ -64,6 +67,119 @@ class TestParityCommand(unittest.TestCase):
         # L3_bad has 1 fewer part
         self.assertEqual(d["overall"], "fail")
         self.assertTrue(any(f["category"] == "parity" for f in d["findings"]))
+
+
+class TestRoundtripStepCommand(unittest.TestCase):
+    RULES = FIXTURES / "pmi_semantic" / "cadclaw.yaml"
+
+    def test_rules_mapping_preserves_proxy_provenance_and_pair_contract(self):
+        rules = RuleSet(roundtrip_step={
+            "enabled": True,
+            "source_translator": {
+                "family": "non_occt",
+                "name": "Example CAD",
+                "version": "4.2",
+            },
+            "authoring_reference_step_proxy": "reference.step",
+            "interface_pairs": [{
+                "id": "rail_plate",
+                "tolerance_mm": 0.01,
+                "a": {"label": "rail"},
+                "b": {"label": "plate", "max_center_distance_mm": 0},
+            }],
+        })
+        config = _roundtrip_config_from_rules(rules)
+        self.assertEqual(config.source_translator.family, "non_occt")
+        self.assertEqual(config.source_translator.name, "Example CAD")
+        self.assertEqual(config.authoring_reference_step_proxy, "reference.step")
+        self.assertEqual(config.interface_pairs[0].id, "rail_plate")
+        self.assertEqual(config.interface_pairs[0].tolerance_mm, 0.01)
+        self.assertEqual(
+            config.interface_pairs[0].b.max_center_distance_mm,
+            0,
+        )
+
+    def test_focused_command_emits_one_json_document(self):
+        if not self.RULES.exists():
+            self.skipTest("NIST semantic-PMI fixture rules not present")
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            code = main([
+                "roundtrip-step",
+                "--rules", str(self.RULES),
+                "--report-format", "json",
+            ])
+        body = buf.getvalue()
+        report = json.loads(body)
+        self.assertEqual(code, 0)
+        self.assertEqual(report["overall"], "pass")
+        self.assertEqual(report["meta"]["applicability"], "applicable")
+        source = (
+            FIXTURES / "pmi_semantic" / "nist_ftc_11_asme1_ap242-e2.stp"
+        )
+        self.assertNotIn(str(source.resolve()), body)
+
+    def test_harness_reports_disabled_gate_as_not_applicable(self):
+        if not self.RULES.exists():
+            self.skipTest("NIST semantic-PMI fixture rules not present")
+        buf = io.StringIO()
+        with patch("cadclaw.roundtrip.run_roundtrip_step") as run_gate:
+            with redirect_stdout(buf):
+                code = main([
+                    "harness",
+                    "--rules", str(self.RULES),
+                    "--only", "roundtrip_step",
+                    "--report-format", "json",
+                ])
+            run_gate.assert_not_called()
+        report = json.loads(buf.getvalue())
+        self.assertEqual(code, 0)
+        self.assertEqual(report["meta"]["applicability"], "not_applicable")
+        self.assertEqual(
+            report["meta"]["roundtrip_step"]["applicability"],
+            "not_applicable",
+        )
+        self.assertTrue(any(
+            "roundtrip_step (disabled" in item
+            for item in report["confidence_budget"]["not_checked"]
+        ))
+
+    def test_enabled_harness_only_roundtrip_emits_gate_meta(self):
+        source = FIXTURES / "pmi_semantic" / "nist_ftc_11_asme1_ap242-e2.stp"
+        if not source.exists():
+            self.skipTest("NIST FTC11 fixture not present")
+        with tempfile.TemporaryDirectory() as tmp:
+            rules_path = Path(tmp) / "cadclaw.yaml"
+            rules_path.write_text(
+                "\n".join([
+                    'schema_version: "0.9"',
+                    "meta:",
+                    "  project: cli-roundtrip-test",
+                    f'  step: "{source.resolve().as_posix()}"',
+                    "roundtrip_step:",
+                    "  enabled: true",
+                    "  source_translator:",
+                    "    family: unknown",
+                    "",
+                ]),
+                encoding="utf-8",
+            )
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = main([
+                    "harness",
+                    "--rules", str(rules_path),
+                    "--only", "roundtrip_step",
+                    "--report-format", "json",
+                ])
+        report = json.loads(buf.getvalue())
+        self.assertEqual(code, 0)
+        self.assertEqual(report["overall"], "pass")
+        self.assertEqual(report["meta"]["applicability"], "applicable")
+        self.assertEqual(
+            report["meta"]["roundtrip_step"]["gate"],
+            "ROUNDTRIP_STEP",
+        )
 
 
 class TestAssembleCommand(unittest.TestCase):

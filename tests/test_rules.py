@@ -10,6 +10,7 @@ from cadclaw.rules import (
     InterferenceModel,
     LabelSpec,
     PmiPresentModel,
+    RoundtripStepModel,
     RuleSet,
     SCHEMA_VERSION,
     dump_rules,
@@ -348,6 +349,104 @@ class TestPmiPresentModel(unittest.TestCase):
     def test_process_notes_are_rejected_until_semantic_import_is_supported(self):
         with self.assertRaises(ValidationError):
             PmiPresentModel(expected_classes=["process_notes"])
+
+
+class TestRoundtripStepModel(unittest.TestCase):
+    def test_omitted_section_is_disabled(self):
+        model = RuleSet().roundtrip_step
+        self.assertFalse(model.enabled)
+        self.assertEqual(model.source_translator.family, "unknown")
+        self.assertEqual(model.interface_pairs, [])
+
+    def test_yaml_parses_provenance_and_interface_pair(self):
+        text = """
+schema_version: "0.9"
+roundtrip_step:
+  enabled: true
+  source_translator:
+    family: non_occt
+    name: Example CAD
+    version: "4.2"
+  authoring_reference_step_proxy: authoring-proxy.step
+  bbox_tolerance_mm: 0.02
+  interface_gap_tolerance_mm: 0.01
+  interface_pairs:
+    - id: rail_to_plate
+      tolerance_mm: 0.005
+      a:
+        label: rail
+        near_mm: [10, 20, 30]
+        max_center_distance_mm: 1.5
+      b:
+        label: plate
+        near_mm: [10, 20, 35]
+"""
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+            f.write(text)
+            path = f.name
+        try:
+            model = load_rules(path).roundtrip_step
+            self.assertTrue(model.enabled)
+            self.assertEqual(model.source_translator.family, "non_occt")
+            self.assertEqual(model.source_translator.name, "Example CAD")
+            self.assertEqual(
+                model.authoring_reference_step_proxy,
+                "authoring-proxy.step",
+            )
+            self.assertEqual(model.interface_pairs[0].id, "rail_to_plate")
+            self.assertEqual(model.interface_pairs[0].tolerance_mm, 0.005)
+            self.assertEqual(model.interface_pairs[0].a.near_mm, (10.0, 20.0, 30.0))
+            self.assertEqual(model.interface_pairs[0].a.max_center_distance_mm, 1.5)
+        finally:
+            os.unlink(path)
+
+    def test_invalid_provenance_and_negative_tolerance_are_rejected(self):
+        with self.assertRaises(ValidationError):
+            RoundtripStepModel(
+                source_translator={"family": "guessed_independent"},
+            )
+        with self.assertRaises(ValidationError):
+            RoundtripStepModel(bbox_tolerance_mm=-0.01)
+        with self.assertRaises(ValidationError):
+            RoundtripStepModel(bbox_tolerance_mm=float("inf"))
+
+    def test_non_occt_provenance_requires_a_name(self):
+        with self.assertRaises(ValidationError):
+            RoundtripStepModel(source_translator={"family": "non_occt"})
+        with self.assertRaises(ValidationError):
+            RoundtripStepModel(source_translator={
+                "family": "non_occt",
+                "name": "   ",
+            })
+
+    def test_interface_pair_ids_are_safe_and_unique(self):
+        selector = {"label": "rail"}
+        with self.assertRaises(ValidationError):
+            RoundtripStepModel(interface_pairs=[{
+                "id": "unsafe/id",
+                "a": selector,
+                "b": selector,
+            }])
+        with self.assertRaises(ValidationError):
+            RoundtripStepModel(interface_pairs=[
+                {"id": "rail_plate", "a": selector, "b": selector},
+                {"id": "rail_plate", "a": selector, "b": selector},
+            ])
+        with self.assertRaises(ValidationError):
+            RoundtripStepModel(interface_pairs=[{
+                "id": "x" * 65,
+                "a": selector,
+                "b": selector,
+            }])
+        with self.assertRaises(ValidationError):
+            RoundtripStepModel(interface_pairs=[
+                {"id": f"pair_{index}", "a": selector, "b": selector}
+                for index in range(101)
+            ])
+
+    def test_extra_field_rejected(self):
+        with self.assertRaises(ValidationError):
+            RoundtripStepModel(enabled=True, compliance=True)
 
 
 if __name__ == "__main__":
