@@ -328,7 +328,14 @@ switch ($env:CADCLAW_QUALIFICATION_TEST_CASE) {
         powershell = self._powershell()
         if powershell is None:
             self.skipTest("PowerShell is unavailable")
-        for invalid_id in ("../invalid", "con.txt", "com1.log", "valid.", "name "):
+        for invalid_id in (
+            "../invalid",
+            "Uppercase-id",
+            "con.txt",
+            "com1.log",
+            "valid.",
+            "name ",
+        ):
             with self.subTest(cohort_id=invalid_id):
                 completed = subprocess.run(
                     [
