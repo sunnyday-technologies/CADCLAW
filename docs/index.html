@@ -150,6 +150,7 @@ pmi_present:
       <div class="gate"><h3>Adjacency</h3><p>Parts that should be near each other but aren't — the motor 600&nbsp;mm from its mount.</p></div>
       <div class="gate"><h3>Dimensional</h3><p>Wrong thickness, swapped <code>box()</code> args, impossible dimensions.</p></div>
       <div class="gate new"><h3>PMI_PRESENT_SEMANTIC</h3><p>Unreleased on the development branch: presence or absence of declared AP242 semantic dimensions, geometric tolerances, and datums. Graphical PMI, material assignments, and process/general notes are excluded.</p></div>
+      <div class="gate new"><h3>ROUNDTRIP_STEP</h3><p>Unreleased and opt-in: actual OCCT import, AP242 export, and reimport with bounded checks for CADCLAW's deduplicated renderable-shape count, geometry measures, declared interface gaps, and source-present semantic-PMI class counts. One-to-one matching is limited to 256 shapes; larger equal-count comparisons error rather than sample. It does not prove native-model fidelity or conformance.</p></div>
       <div class="gate new"><h3>Floating</h3><p>Non-exempt parts isolated from the structural frame beyond a max gap.</p></div>
       <div class="gate"><h3>Structural</h3><p>Beam deflection, motor torque budget, belt tension. Static load math, not motion-clearance or full-travel sweeps.</p></div>
       <div class="gate"><h3>Tolerance</h3><p>Worst-case, RSS, Monte Carlo stacking with C<sub>pk</sub> and variance decomposition.</p></div>
@@ -175,6 +176,7 @@ pmi_present:
     <ul class="not-prove-list">
       <li>That the <strong>native CAD model</strong> has no hidden or suppressed parts — it reads the STEP export, which can silently drop invisible parts.</li>
       <li>That AP242 PMI is <strong>graphically correct, fully constructed, standards-conformant, or faithful to the native model</strong> — the semantic PMI gate reports declared class presence only.</li>
+      <li>That an AP242 round trip proves <strong>native-CAD correctness, translator independence, PMI value/association fidelity, or interoperability compliance</strong> — the gate compares only its recorded STEP artifacts and declared evidence.</li>
       <li>That the <strong>physical build</strong> matches the CAD.</li>
       <li>That a <strong>vendor part is in stock</strong> or the price you assumed.</li>
       <li>That a <strong>printed part is strong enough</strong> for production — the structural gate does bare-beam math, not fatigue or creep.</li>

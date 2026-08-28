@@ -55,10 +55,13 @@ class TestCompatShim(unittest.TestCase):
             warnings.simplefilter("ignore", DeprecationWarning)
             import cadharness.gate_spec as old_gate_spec
             import cadharness.pmi as old_pmi
+            import cadharness.roundtrip as old_roundtrip
             import cadclaw.gate_spec as new_gate_spec
             import cadclaw.pmi as new_pmi
+            import cadclaw.roundtrip as new_roundtrip
         self.assertIs(old_gate_spec, new_gate_spec)
         self.assertIs(old_pmi, new_pmi)
+        self.assertIs(old_roundtrip, new_roundtrip)
 
     def test_findings_class_identity(self):
         self._reimport_cadharness()

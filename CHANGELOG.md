@@ -16,13 +16,26 @@ changes bump MINOR and are called out explicitly under **Changed**.
   explicit not-applicable status. The gate excludes graphical PMI, material
   assignments, process/general notes, validation properties, GD&T construction
   correctness, native-model fidelity, and standards conformance.
+- **Opt-in `ROUNDTRIP_STEP` gate.** Imports a submitted STEP through OCCT
+  XCAF, exports AP242, reimports the derivative, and compares the exact count
+  of CADCLAW-deduplicated imported renderable shapes, bounded assembly/per-part
+  geometry measures, declared interface gaps, and source-present supported
+  semantic-PMI class counts. Translator independence is declaration-only, and
+  an optional authoring-reference STEP proxy is never represented as native-CAD
+  inspection. A real negative-control
+  translation drops semantic PMI while preserving geometry and must fail the
+  class-count comparison. Minimum-cost per-part correspondence is hard-limited
+  to 256 matched renderable shapes and errors before quadratic allocation when
+  that method boundary is exceeded.
 - **Authored AP242 fixture evidence.** Two unmodified NIST MBE PMI STEP files
   ship under `tests/fixtures/pmi_semantic/` with source URLs, hashes, reuse
   terms, and OCP 7.8.1.1 observations. Import errors and non-AP242 inputs are
   tested as errors rather than misreported as absent PMI.
-- **Explicit gate-method version `0.11.0`.** Report metadata now carries
+- **Explicit gate-method version `0.12.0`.** Report metadata now carries
   `gate_spec_version` independent of package, rules, and report-schema
-  versions; historical reports are not rewritten or re-scored.
+  versions; historical reports are not rewritten or re-scored. Version 0.11.0
+  introduced semantic-PMI presence, and 0.12.0 adds the bounded round-trip
+  method.
 - **Third-party licence attribution.** README's License section now carries the
   notice required by the Open CASCADE Exception ("makes use of, and is based on,
   facilities provided by the Open CASCADE Technology software") plus a full
@@ -34,6 +47,14 @@ changes bump MINOR and are called out explicitly under **Changed**.
 
 ### Changed
 
+- **Bounded OCP writer-status portability.** `IFSelect_RetDone` remains the
+  normal AP242 writer result. Only `IFSelect_RetError` may proceed
+  provisionally, and only after a non-empty, non-symlink AP242 artifact
+  successfully reimports into XCAF. Reports preserve the raw status and
+  provisional disposition, while scoped geometry and source-present semantic
+  PMI comparisons remain decisive. Other writer statuses and failed
+  provisional checks remain errors; the recovery does not validate
+  writer-internal references, graphical PMI, or standards conformance.
 - **`cadquery-ocp>=7.8` is now a declared dependency.** CADCLAW imports `OCP`
   directly (`STEPCAFControl`, `BRepAlgoAPI`, `BRepGProp`, `BRepAdaptor`,
   `XCAFDoc`, and others), not only through CadQuery's public API, so the

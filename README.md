@@ -8,7 +8,7 @@
 
 *Generated end-to-end with `render_radial_explode_gif("M3-2_Assembly.step", "out.gif")` — parts explode radially from the centroid, then camera orbits 360°. 99+ parts, no manual animation work.*
 
-CADCLAW does two things. It **assembles**: a declarative spec places your authored STEP parts by connector frames and datum chains, compiles the assembly with CadQuery, and emits a design inventory, a model-derived BOM, review renders, and step-by-step build sequences. It **verifies**: automated gates (inventory, interference, adjacency, dimensional, orientation, floating-part, color/material, semantic PMI presence, structural, tolerance stacking, parity) plus a **BOM-vs-CAD audit** and an **honesty toolchain** (doctor, publish-audit, claim-audit).
+CADCLAW does two things. It **assembles**: a declarative spec places your authored STEP parts by connector frames and datum chains, compiles the assembly with CadQuery, and emits a design inventory, a model-derived BOM, review renders, and step-by-step build sequences. It **verifies**: automated gates (inventory, interference, adjacency, dimensional, orientation, floating-part, color/material, semantic PMI presence, opt-in AP242 round-trip preservation, structural, tolerance stacking, parity) plus a **BOM-vs-CAD audit** and an **honesty toolchain** (doctor, publish-audit, claim-audit).
 
 CADCLAW places parts you authored in real CAD. It does not generate geometry: no parametric plates, no bolt-circle helpers, no hole patterns. You draw the parts, CADCLAW seats them against each other and checks the result.
 
@@ -61,6 +61,7 @@ CADCLAW validates STEP assemblies + BOM JSON through a chain of automated gates:
 | **Floating** | Parts isolated from configured structural labels beyond a max gap. |
 | **Color/material** | STEP AP242 color metadata against expected label colors. |
 | **PMI_PRESENT_SEMANTIC** | Presence or absence of each declared AP242 semantic PMI class: dimensions, geometric tolerances, and datums. Graphical PMI, material assignments, and process/general notes are excluded. |
+| **ROUNDTRIP_STEP** | Opt-in AP242 import -> export -> reimport preservation checks for CADCLAW's deduplicated renderable-shape count, bounded geometry measures, declared interface gaps, and source-present supported semantic-PMI class counts. It does not establish native-model fidelity or standards conformance. |
 | **Structural** | Beam deflection, motor torque budget, belt tension. Static load math, not motion-clearance or full-travel sweeps. |
 | **Tolerance** | Worst-case, RSS, Monte Carlo tolerance stacking with Cpk and variance decomposition. |
 | **Parity** | STEP-vs-STEP comparison; flags hidden/suppressed-part export drift. |
@@ -68,7 +69,7 @@ CADCLAW validates STEP assemblies + BOM JSON through a chain of automated gates:
 | **Disassembly** | Sequenced part removal, radial exploded views, animation frame export. |
 | **Render** | STEP → PNG → animated GIF via offscreen VTK. |
 
-The CLI harness runs the checks declared in `cadclaw.yaml`; geometry checks share the STEP export when possible, while parity, semantic PMI presence, render, disassembly, tolerance, and audits are also available as focused commands/APIs. Every report includes a **confidence budget** that lists what was checked, what was not, and what assumptions were made. Reports also carry a separate [gate-method version](docs/gate-spec.md), so method changes do not silently relabel historical results or force a rules-schema migration.
+The CLI harness runs the checks declared in `cadclaw.yaml`; geometry checks share the STEP export when possible, while parity, semantic PMI presence, AP242 round-trip preservation, render, disassembly, tolerance, and audits are also available as focused commands/APIs. Every report includes a **confidence budget** that lists what was checked, what was not, and what assumptions were made. Reports also carry a separate [gate-method version](docs/gate-spec.md), so method changes do not silently relabel historical results or force a rules-schema migration.
 
 CADCLAW also includes a local **MCP Server** with 23 declared tools. The six `assemble_*` tools build and inspect assemblies; the remainder expose checks, analysis, audits, and rendering. It does not provide native-CAD application control, but it is **not a security sandbox**: path-taking tools can read specified files, assembly tools can write configured outputs, and the server inherits the local process account's filesystem permissions. Use a least-privilege working copy and review tool inputs and outputs.
 
@@ -82,6 +83,7 @@ CADCLAW checks the geometry of a STEP file, the JSON of a BOM, and the text of y
 
 - That the **native CAD model** has no hidden or suppressed parts. CADCLAW reads the STEP export, which can silently drop invisible parts.
 - That an AP242 file's PMI is graphically correct, completely constructed, standards-conformant, or faithful to the native model. `PMI_PRESENT_SEMANTIC` checks declared semantic class presence only.
+- That a passing AP242 round trip proves native-CAD correctness, translator independence, PMI value/association fidelity, or interoperability compliance. `ROUNDTRIP_STEP` checks only its recorded STEP artifacts and declared evidence.
 - That the **physical build** matches the CAD. CAD passing CADCLAW says nothing about whether the parts on your bench match the file.
 - That a **vendor part is in stock**, available, or the price you assumed.
 - That a **printed part is strong enough** for production use. CADCLAW's kinematics gates do bare-beam math; they don't simulate printed-PLA fatigue, layer adhesion, or thermal creep.
@@ -158,6 +160,7 @@ python examples/init_rules.py --step my.step      # 2. scaffold cadclaw.yaml
                               --bom bom.json
 cadclaw harness --rules cadclaw.yaml              # 3. run configured YAML-backed checks
 cadclaw pmi-present --rules cadclaw.yaml          # semantic AP242 class presence only
+cadclaw roundtrip-step --rules cadclaw.yaml       # opt-in AP242 preservation checks
 cadclaw bom-audit --rules cadclaw.yaml            # or run a single gate
 cadclaw publish-audit --rules cadclaw.yaml        # before `git push`
 cadclaw claim-audit --rules cadclaw.yaml --report-format md -o report.md
@@ -192,6 +195,67 @@ reader version in report metadata. It does not inspect graphical annotation
 presentation, material assignments, process or general notes, validation
 properties, every GD&T construction subtype, or native-model-to-STEP fidelity.
 It is a versioned declared check, not a PMI or interoperability certification.
+
+### AP242 STEP round-trip preservation
+
+> **Unreleased:** this gate is available on the repository's development
+> branch and is not part of the published `0.10.0` package.
+
+The focused command, or the harness when explicitly enabled, performs an
+actual OCCT XCAF import, AP242 export, and reimport. The source file is never
+overwritten; omit `--roundtrip-out` to use a temporary derivative that is
+removed after comparison.
+
+```yaml
+roundtrip_step:
+  enabled: true
+  source_translator:
+    family: unknown       # unknown, occt, or non_occt
+  bbox_tolerance_mm: 0.05
+  interface_gap_tolerance_mm: 0.05
+  interface_pairs:
+    - id: rail_to_plate
+      tolerance_mm: 0.02  # optional; otherwise uses the global gap tolerance
+      a:
+        label: rail
+        near_mm: [100, 20, 10]
+      b:
+        label: plate
+        near_mm: [100, 20, 14]
+```
+
+The gate compares the exact count of CADCLAW-deduplicated imported renderable
+shapes, bounded assembly/per-part geometry measures, every declared
+unambiguous interface gap, and counts for supported semantic PMI classes
+present in the source. The renderable-shape loader collects solids and shells
+and deduplicates coincident bbox signatures rounded to 0.1 mm; this is a
+defined CADCLAW method count, not an authoritative STEP product count. A real
+regression test exports the same authored NIST fixture with semantic PMI
+disabled and verifies that the class-count loss fails while geometry remains
+preserved.
+
+`IFSelect_RetDone` is the normal OCCT writer result. Only
+`IFSelect_RetError` can proceed provisionally, and only after the writer has
+created a non-empty, non-symlink AP242 file that successfully reimports into
+XCAF. Reports retain the raw writer status and provisional disposition; the
+downstream geometry and supported semantic-PMI comparisons remain decisive.
+This recovery does not validate writer-internal references, graphical PMI, or
+standards conformance. Every other writer status and every failed provisional
+check is an error.
+
+Minimum-cost one-to-one part correspondence has a fixed method limit of 256
+matched renderable shapes. A larger equal-count comparison returns the
+explicit `roundtrip.part_count_limit_exceeded` error before allocating the
+quadratic cost matrix; it is not silently sampled or treated as a pass.
+
+Translator family is a declaration recorded as an assumption, not something
+CADCLAW infers or verifies. Independence is not applicable for `unknown` or
+`occt`; a named `non_occt` source is reported only as declared independent.
+An optional `authoring_reference_step_proxy` enables a clearly labeled
+STEP-to-STEP proxy comparison. It is never treated as native-CAD inspection.
+The gate does not compare PMI values or associations, topology or surface
+classes, graphical PMI, materials, process/general notes, or standards
+conformance.
 
 ### BOM-vs-CAD audit (the v0.6 headline)
 
@@ -290,6 +354,12 @@ Check part dimensions against expected ranges. Catches wrong thickness, swapped 
 Read declared semantic AP242 PMI class presence through OCCT XCAF and report
 each class independently. Graphical PMI, process/general notes, validation
 properties, and standards conformance are outside this gate.
+
+### `cadclaw.roundtrip`
+Export an imported STEP document as AP242, reimport it, and compare bounded
+geometry, declared interface-gap, and supported semantic-PMI class-count
+evidence. Reports translator provenance and optional authoring-reference STEP
+proxy comparison without claiming native-model fidelity or conformance.
 
 ### `cadclaw.kinematics`
 Structural load math from assembly parameters: beam deflection (Euler-Bernoulli), motor torque budget, and belt tension against breaking/working limits. Static analysis only; it does not sweep range of motion or check clearance through travel.

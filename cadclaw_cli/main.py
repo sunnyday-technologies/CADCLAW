@@ -9,6 +9,7 @@ Subcommands:
   cadclaw publish-audit  --rules cadclaw.yaml    # private-data boundary scan
   cadclaw inventory      --rules cadclaw.yaml    # part counts + regions
   cadclaw pmi-present    --rules cadclaw.yaml    # semantic AP242 PMI presence
+  cadclaw roundtrip-step --rules cadclaw.yaml    # AP242 export/reimport preservation
   cadclaw harness        --rules cadclaw.yaml    # union runner
   cadclaw inspect sigs|part|overlaps|cluster <step>  # diagnostic queries
 
@@ -182,6 +183,70 @@ def _cmd_pmi_present(args: argparse.Namespace) -> int:
         if item not in report.confidence_budget.assumptions:
             report.confidence_budget.assumptions.append(item)
     report.meta["rules"] = args.rules
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
+def _roundtrip_config_from_rules(rules):
+    """Convert strict YAML models to the round-trip module's immutable config."""
+    from cadclaw.roundtrip import (
+        InterfacePair,
+        PartSelector,
+        RoundtripConfig,
+        SourceTranslator,
+    )
+
+    model = rules.roundtrip_step
+
+    def _selector(item):
+        return PartSelector(
+            label=item.label,
+            near_mm=tuple(item.near_mm) if item.near_mm is not None else None,
+            max_center_distance_mm=item.max_center_distance_mm,
+        )
+
+    return RoundtripConfig(
+        source_translator=SourceTranslator(
+            family=model.source_translator.family,
+            name=model.source_translator.name,
+            version=model.source_translator.version,
+        ),
+        authoring_reference_step_proxy=model.authoring_reference_step_proxy,
+        interface_pairs=tuple(
+            InterfacePair(
+                id=pair.id,
+                a=_selector(pair.a),
+                b=_selector(pair.b),
+                tolerance_mm=pair.tolerance_mm,
+            )
+            for pair in model.interface_pairs
+        ),
+        bbox_tolerance_mm=model.bbox_tolerance_mm,
+        bbox_volume_relative_tolerance=model.bbox_volume_relative_tolerance,
+        bbox_volume_absolute_tolerance_mm3=(
+            model.bbox_volume_absolute_tolerance_mm3
+        ),
+        interface_gap_tolerance_mm=model.interface_gap_tolerance_mm,
+    )
+
+
+def _cmd_roundtrip_step(args: argparse.Namespace) -> int:
+    """Run the opt-in AP242 export/reimport preservation gate."""
+    from cadclaw.findings import ConfidenceBudget
+    from cadclaw.roundtrip import run_roundtrip_step
+    from cadclaw.rules import load_rules
+
+    rules = load_rules(args.rules)
+    report = run_roundtrip_step(
+        step_path=args.step or rules.meta.step,
+        config=_roundtrip_config_from_rules(rules),
+        output_path=args.roundtrip_out,
+        label_signatures=rules.label_to_sig(),
+    )
+    report.confidence_budget.merge(ConfidenceBudget(
+        not_checked=list(rules.confidence_budget.not_checked),
+        assumptions=list(rules.confidence_budget.assumptions),
+    ))
     _emit_report(report, args.report_format, args.out)
     return _exit_code_for(report)
 
@@ -452,6 +517,38 @@ def _cmd_harness(args: argparse.Namespace) -> int:
         }
         if only == {"pmi_present"}:
             aggregate.meta["applicability"] = sub.meta.get("applicability")
+
+    if _wants("roundtrip_step"):
+        if rules.roundtrip_step.enabled:
+            from cadclaw.roundtrip import run_roundtrip_step
+
+            sub = run_roundtrip_step(
+                step_path=rules.meta.step,
+                config=_roundtrip_config_from_rules(rules),
+                output_path=None,
+                label_signatures=rules.label_to_sig(),
+            )
+            aggregate.findings.extend(sub.findings)
+            aggregate.confidence_budget.merge(sub.confidence_budget)
+            aggregate.meta["roundtrip_step"] = {
+                key: value for key, value in sub.meta.items()
+                if key not in {"project", "rules"}
+            }
+            if only == {"roundtrip_step"}:
+                aggregate.meta["applicability"] = sub.meta.get("applicability")
+        else:
+            aggregate.meta["roundtrip_step"] = {
+                "gate": "ROUNDTRIP_STEP",
+                "applicability": "not_applicable",
+                "reason": (
+                    "disabled; opt in with roundtrip_step.enabled: true"
+                ),
+            }
+            aggregate.confidence_budget.not_checked.append(
+                "roundtrip_step (disabled; opt in with roundtrip_step.enabled: true)"
+            )
+            if only == {"roundtrip_step"}:
+                aggregate.meta["applicability"] = "not_applicable"
 
     # v0.9 gates need a shared label_fn + parts. Build once, reuse.
     label_specs = rules.label_specs()
@@ -766,6 +863,23 @@ def build_parser() -> argparse.ArgumentParser:
     p_pmi.add_argument("--step", default=None)
     _add_format_args(p_pmi)
     p_pmi.set_defaults(func=_cmd_pmi_present)
+
+    p_roundtrip = sub.add_parser(
+        "roundtrip-step",
+        help="Import, export as AP242, reimport, and compare declared evidence.",
+    )
+    p_roundtrip.add_argument("--rules", default="cadclaw.yaml")
+    p_roundtrip.add_argument("--step", default=None)
+    p_roundtrip.add_argument(
+        "--roundtrip-out",
+        default=None,
+        help=(
+            "Persist the AP242 derivative at a new path; omitted uses a "
+            "temporary derivative that is removed after comparison."
+        ),
+    )
+    _add_format_args(p_roundtrip)
+    p_roundtrip.set_defaults(func=_cmd_roundtrip_step)
 
     p_bom = sub.add_parser("bom-audit", help="Run the BOM-vs-CAD audit.")
     p_bom.add_argument("--rules", default="cadclaw.yaml")
