@@ -41,8 +41,8 @@ closeout. An open pull request or a started validation is not completion.
 | ID | Deliverable | Status | Dependency | Branch/task | PR | Merge commit |
 |---|---|---|---|---|---|---|
 | C1 | CADCLAW semantic AP242 PMI gate | COMPLETE | None | `feat/pmi-present-gate` (deleted after merge) | [#9](https://github.com/sunnyday-technologies/CADCLAW/pull/9) | `db41bea9495be8200490fa38bbd145c91bad716c` |
-| C2 | CADCLAW AP242 STEP round-trip gate | IN PROGRESS | C1 merged | `codex/roundtrip-step-gate` | [#11](https://github.com/sunnyday-technologies/CADCLAW/pull/11) | TBD |
-| M1 | MARB repeat-run reporting and acceptable-solution policy | IN PROGRESS | Independent | task `01a046b7-1430-7792-b891-709e5b60c7ff` | TBD | TBD |
+| C2 | CADCLAW AP242 STEP round-trip gate | COMPLETE | C1 merged | `codex/roundtrip-step-gate` (deleted after merge) | [#11](https://github.com/sunnyday-technologies/CADCLAW/pull/11) | `14c7864abea2568cb0c0a462619fe6e1f1183700` |
+| M1 | MARB repeat-run reporting and acceptable-solution policy | READY FOR REVIEW | Independent | `codex/marb-repeat-run-policy`; task `01a046b7-1430-7792-b891-709e5b60c7ff` | [MARB #5](https://github.com/sunnyday-technologies/MARB/pull/5) | TBD |
 | M2 | MARB `L2-RESOLVE` task | NOT STARTED | M1 method/version decisions | Same MARB task | TBD | TBD |
 | M3 | MARB `L4-ECO` task | NOT STARTED | M1; C2 only if used as a first-class gate | Same MARB task | TBD | TBD |
 | B1 | Fresh versioned benchmark cohort | BLOCKED | C1, C2, M1, M2, and M3 merged | N/A | N/A | N/A |
@@ -115,11 +115,11 @@ Evidence:
   remain decisive.
 - [x] The round-trip module passes on both Windows/OCP 7.8 and Linux/OCP 7.9.
 - [x] Clean-clone validation passes from the committed branch.
-- [ ] Separate PR is green, reviewed, merged, and read back from `main`.
+- [x] Separate PR is green, reviewed, merged, and read back from `main`.
 
 Evidence slots:
 
-- Gate-method version: `0.12.0` (implementation branch; not merged)
+- Gate-method version: `0.12.0`
 - OCP module versions: `7.8.1.1` in Windows validation and `7.9.3.1` in the
   isolated Linux compatibility validation. The Linux environment used
   CadQuery `2.8.0` and the `cadquery-ocp` package `7.9.3.1.1`, matching the
@@ -160,7 +160,13 @@ Evidence slots:
   `ret_error_provisionally_validated` only after artifact/schema/XCAF checks,
   leaves writer-reference and graphical-PMI integrity unchecked, and still
   requires the geometry and source-present semantic-PMI comparisons to pass.
-- Final PR/check links: pending corrected-head CI readback.
+- Corrected PR head: `60225ce272046311889e2c3288c0d9c0b937213f`.
+- Corrected-head GitHub Linux unit run:
+  [33150606045](https://github.com/sunnyday-technologies/CADCLAW/actions/runs/33150606045),
+  432 tests passed with 6 expected skips. Both CodeQL analyses and both
+  answer-key guards also passed on the exact head.
+- PR #11 merge commit, verified on `main`:
+  `14c7864abea2568cb0c0a462619fe6e1f1183700`.
 
 ### M1/M2/M3 - MARB
 
@@ -178,7 +184,11 @@ Evidence slots:
 
 Evidence slots:
 
-- M1 PR / merge / validation: TBD
+- M1 PR / merge / validation: [MARB #5](https://github.com/sunnyday-technologies/MARB/pull/5)
+  is open, mergeable, and green at
+  `0509ab68be430d0c2bc0f2944341fa97573c9123`; clean-clone focused validation
+  passed 30/30 tests and the full local suite passed 41/41. Merge remains
+  pending.
 - M2 PR / merge / validation: TBD
 - M3 PR / merge / validation: TBD
 
