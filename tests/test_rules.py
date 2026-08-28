@@ -9,6 +9,7 @@ from cadclaw.rules import (
     BomRuleModel,
     InterferenceModel,
     LabelSpec,
+    PmiPresentModel,
     RuleSet,
     SCHEMA_VERSION,
     dump_rules,
@@ -332,6 +333,21 @@ class TestInterferenceModel(unittest.TestCase):
     def test_extra_field_rejected(self):
         with self.assertRaises(ValidationError):
             InterferenceModel(skip_labels=["belt"], not_a_field=True)
+
+
+class TestPmiPresentModel(unittest.TestCase):
+    def test_omitted_section_is_not_applicable(self):
+        self.assertEqual(RuleSet().pmi_present.expected_classes, [])
+
+    def test_expected_classes_are_deduplicated_in_order(self):
+        model = PmiPresentModel(expected_classes=[
+            "dimensions", "datums", "dimensions",
+        ])
+        self.assertEqual(model.expected_classes, ["dimensions", "datums"])
+
+    def test_process_notes_are_rejected_until_semantic_import_is_supported(self):
+        with self.assertRaises(ValidationError):
+            PmiPresentModel(expected_classes=["process_notes"])
 
 
 if __name__ == "__main__":

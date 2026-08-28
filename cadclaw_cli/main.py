@@ -8,6 +8,7 @@ Subcommands:
   cadclaw claim-audit    --rules cadclaw.yaml    # text linter for docs/BOM notes
   cadclaw publish-audit  --rules cadclaw.yaml    # private-data boundary scan
   cadclaw inventory      --rules cadclaw.yaml    # part counts + regions
+  cadclaw pmi-present    --rules cadclaw.yaml    # semantic AP242 PMI presence
   cadclaw harness        --rules cadclaw.yaml    # union runner
   cadclaw inspect sigs|part|overlaps|cluster <step>  # diagnostic queries
 
@@ -159,6 +160,28 @@ def _cmd_inventory(args: argparse.Namespace) -> int:
               "inventory": result.inventory},
     )
     report.overall = report.compute_overall()
+    _emit_report(report, args.report_format, args.out)
+    return _exit_code_for(report)
+
+
+def _cmd_pmi_present(args: argparse.Namespace) -> int:
+    """Run the declared semantic AP242 PMI presence gate."""
+    from cadclaw.pmi import run_pmi_present
+    from cadclaw.rules import load_rules
+
+    rules = load_rules(args.rules)
+    step_path = args.step or rules.meta.step
+    report = run_pmi_present(
+        step_path=step_path,
+        expected_classes=rules.pmi_present.expected_classes,
+    )
+    for item in rules.confidence_budget.not_checked:
+        if item not in report.confidence_budget.not_checked:
+            report.confidence_budget.not_checked.insert(0, item)
+    for item in rules.confidence_budget.assumptions:
+        if item not in report.confidence_budget.assumptions:
+            report.confidence_budget.assumptions.append(item)
+    report.meta["rules"] = args.rules
     _emit_report(report, args.report_format, args.out)
     return _exit_code_for(report)
 
@@ -413,6 +436,22 @@ def _cmd_harness(args: argparse.Namespace) -> int:
         aggregate.confidence_budget.not_checked.append(
             "publish_audit (no globs configured)"
         )
+
+    if _wants("pmi_present"):
+        from cadclaw.pmi import run_pmi_present
+
+        sub = run_pmi_present(
+            step_path=rules.meta.step,
+            expected_classes=rules.pmi_present.expected_classes,
+        )
+        aggregate.findings.extend(sub.findings)
+        aggregate.confidence_budget.merge(sub.confidence_budget)
+        aggregate.meta["pmi_present"] = {
+            key: value for key, value in sub.meta.items()
+            if key not in {"project", "rules"}
+        }
+        if only == {"pmi_present"}:
+            aggregate.meta["applicability"] = sub.meta.get("applicability")
 
     # v0.9 gates need a shared label_fn + parts. Build once, reuse.
     label_specs = rules.label_specs()
@@ -718,6 +757,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_inv.add_argument("--step", default=None)
     _add_format_args(p_inv)
     p_inv.set_defaults(func=_cmd_inventory)
+
+    p_pmi = sub.add_parser(
+        "pmi-present",
+        help="Report declared semantic AP242 PMI classes (graphical PMI excluded).",
+    )
+    p_pmi.add_argument("--rules", default="cadclaw.yaml")
+    p_pmi.add_argument("--step", default=None)
+    _add_format_args(p_pmi)
+    p_pmi.set_defaults(func=_cmd_pmi_present)
 
     p_bom = sub.add_parser("bom-audit", help="Run the BOM-vs-CAD audit.")
     p_bom.add_argument("--rules", default="cadclaw.yaml")

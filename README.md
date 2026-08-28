@@ -8,7 +8,7 @@
 
 *Generated end-to-end with `render_radial_explode_gif("M3-2_Assembly.step", "out.gif")` — parts explode radially from the centroid, then camera orbits 360°. 99+ parts, no manual animation work.*
 
-CADCLAW does two things. It **assembles**: a declarative spec places your authored STEP parts by connector frames and datum chains, compiles the assembly with CadQuery, and emits a design inventory, a model-derived BOM, review renders, and step-by-step build sequences. It **verifies**: automated gates (inventory, interference, adjacency, dimensional, orientation, floating-part, color/material, structural, tolerance stacking, parity) plus a **BOM-vs-CAD audit** and an **honesty toolchain** (doctor, publish-audit, claim-audit).
+CADCLAW does two things. It **assembles**: a declarative spec places your authored STEP parts by connector frames and datum chains, compiles the assembly with CadQuery, and emits a design inventory, a model-derived BOM, review renders, and step-by-step build sequences. It **verifies**: automated gates (inventory, interference, adjacency, dimensional, orientation, floating-part, color/material, semantic PMI presence, structural, tolerance stacking, parity) plus a **BOM-vs-CAD audit** and an **honesty toolchain** (doctor, publish-audit, claim-audit).
 
 CADCLAW places parts you authored in real CAD. It does not generate geometry: no parametric plates, no bolt-circle helpers, no hole patterns. You draw the parts, CADCLAW seats them against each other and checks the result.
 
@@ -60,6 +60,7 @@ CADCLAW validates STEP assemblies + BOM JSON through a chain of automated gates:
 | **Orientation** | Rotated/mis-faced parts where a label declares an expected face plane. |
 | **Floating** | Parts isolated from configured structural labels beyond a max gap. |
 | **Color/material** | STEP AP242 color metadata against expected label colors. |
+| **PMI_PRESENT_SEMANTIC** | Presence or absence of each declared AP242 semantic PMI class: dimensions, geometric tolerances, and datums. Graphical PMI, material assignments, and process/general notes are excluded. |
 | **Structural** | Beam deflection, motor torque budget, belt tension. Static load math, not motion-clearance or full-travel sweeps. |
 | **Tolerance** | Worst-case, RSS, Monte Carlo tolerance stacking with Cpk and variance decomposition. |
 | **Parity** | STEP-vs-STEP comparison; flags hidden/suppressed-part export drift. |
@@ -67,7 +68,7 @@ CADCLAW validates STEP assemblies + BOM JSON through a chain of automated gates:
 | **Disassembly** | Sequenced part removal, radial exploded views, animation frame export. |
 | **Render** | STEP → PNG → animated GIF via offscreen VTK. |
 
-The CLI harness runs the checks declared in `cadclaw.yaml`; geometry checks share the STEP export when possible, while parity, render, disassembly, tolerance, and audits are also available as focused commands/APIs. Every report includes a **confidence budget** that lists what was checked, what was not, and what assumptions were made.
+The CLI harness runs the checks declared in `cadclaw.yaml`; geometry checks share the STEP export when possible, while parity, semantic PMI presence, render, disassembly, tolerance, and audits are also available as focused commands/APIs. Every report includes a **confidence budget** that lists what was checked, what was not, and what assumptions were made. Reports also carry a separate [gate-method version](docs/gate-spec.md), so method changes do not silently relabel historical results or force a rules-schema migration.
 
 CADCLAW also includes a local **MCP Server** with 23 declared tools. The six `assemble_*` tools build and inspect assemblies; the remainder expose checks, analysis, audits, and rendering. It does not provide native-CAD application control, but it is **not a security sandbox**: path-taking tools can read specified files, assembly tools can write configured outputs, and the server inherits the local process account's filesystem permissions. Use a least-privilege working copy and review tool inputs and outputs.
 
@@ -80,6 +81,7 @@ An approval-gated loop is: supply authored parts and a task, propose an assembly
 CADCLAW checks the geometry of a STEP file, the JSON of a BOM, and the text of your README against rules you write. It does **not** prove:
 
 - That the **native CAD model** has no hidden or suppressed parts. CADCLAW reads the STEP export, which can silently drop invisible parts.
+- That an AP242 file's PMI is graphically correct, completely constructed, standards-conformant, or faithful to the native model. `PMI_PRESENT_SEMANTIC` checks declared semantic class presence only.
 - That the **physical build** matches the CAD. CAD passing CADCLAW says nothing about whether the parts on your bench match the file.
 - That a **vendor part is in stock**, available, or the price you assumed.
 - That a **printed part is strong enough** for production use. CADCLAW's kinematics gates do bare-beam math; they don't simulate printed-PLA fatigue, layer adhesion, or thermal creep.
@@ -155,12 +157,41 @@ cadclaw doctor                                    # 1. verify the environment
 python examples/init_rules.py --step my.step      # 2. scaffold cadclaw.yaml
                               --bom bom.json
 cadclaw harness --rules cadclaw.yaml              # 3. run configured YAML-backed checks
+cadclaw pmi-present --rules cadclaw.yaml          # semantic AP242 class presence only
 cadclaw bom-audit --rules cadclaw.yaml            # or run a single gate
 cadclaw publish-audit --rules cadclaw.yaml        # before `git push`
 cadclaw claim-audit --rules cadclaw.yaml --report-format md -o report.md
 ```
 
 Exit codes: `0` pass, `1` fail, `2` warn-only (no fails), `3` internal error.
+
+### Semantic AP242 PMI presence
+
+> **Unreleased:** this gate is available on the repository's development
+> branch and is not part of the published `0.10.0` package.
+
+Declare only the semantic PMI classes the task requires:
+
+```yaml
+pmi_present:
+  expected_classes:
+    - dimensions
+    - geometric_tolerances
+    - datums
+```
+
+The gate emits a separate `present` or `absent` result for every declared
+class. If the list is empty or the section is omitted, it reports
+`not applicable — task has no declared PMI requirements` in the confidence
+budget; it does not silently pass or open the STEP. Supported classes are
+`dimensions`, `geometric_tolerances`, and `datums`.
+
+Scope is deliberately narrow. The gate reads semantic AP242 tables through
+OCCT XCAF, filters presentation-only dimension labels, and records the OCCT
+reader version in report metadata. It does not inspect graphical annotation
+presentation, material assignments, process or general notes, validation
+properties, every GD&T construction subtype, or native-model-to-STEP fidelity.
+It is a versioned declared check, not a PMI or interoperability certification.
 
 ### BOM-vs-CAD audit (the v0.6 headline)
 
@@ -255,6 +286,11 @@ Validate that parts of type A have a part of type B within N mm. Catches misplac
 ### `cadclaw.dimensional`
 Check part dimensions against expected ranges. Catches wrong thickness, swapped args, scaling errors.
 
+### `cadclaw.pmi`
+Read declared semantic AP242 PMI class presence through OCCT XCAF and report
+each class independently. Graphical PMI, process/general notes, validation
+properties, and standards conformance are outside this gate.
+
 ### `cadclaw.kinematics`
 Structural load math from assembly parameters: beam deflection (Euler-Bernoulli), motor torque budget, and belt tension against breaking/working limits. Static analysis only; it does not sweep range of motion or check clearance through travel.
 
@@ -308,8 +344,9 @@ python -m venv .venv
 .\.venv\Scripts\python -m unittest discover tests
 ```
 
-The test fixtures are generated from CadQuery — no external downloads needed.
-Three tiers of increasing complexity:
+Most geometry fixtures are generated from CadQuery. Two attributed NIST AP242
+files are committed under `tests/fixtures/pmi_semantic/`, so tests still need
+no network access. Three generated tiers provide increasing complexity:
 
 | Level | Parts | Tests |
 |-------|-------|-------|

@@ -133,7 +133,10 @@ expected_inventory:
   nema23: 6
 
 bom_audit:
-  ignore_labels: [other, belt]</pre>
+  ignore_labels: [other, belt]
+
+pmi_present:
+  expected_classes: [dimensions, geometric_tolerances, datums]</pre>
     <p class="muted">Every section is optional. A section you leave out skips its gate and is reported under <code>confidence_budget.not_checked</code> rather than silently passing. Scaffold the <code>labels</code> block from an existing STEP file with <code>examples/init_rules.py</code>. Full how-it-works write-up: <a href="/ci-for-cad/">CI for mechanical design →</a></p>
   </section>
 
@@ -146,6 +149,7 @@ bom_audit:
       <div class="gate"><h3>Interference</h3><p>Solid-solid overlaps via BRep boolean intersection — not just bbox.</p></div>
       <div class="gate"><h3>Adjacency</h3><p>Parts that should be near each other but aren't — the motor 600&nbsp;mm from its mount.</p></div>
       <div class="gate"><h3>Dimensional</h3><p>Wrong thickness, swapped <code>box()</code> args, impossible dimensions.</p></div>
+      <div class="gate new"><h3>PMI_PRESENT_SEMANTIC</h3><p>Unreleased on the development branch: presence or absence of declared AP242 semantic dimensions, geometric tolerances, and datums. Graphical PMI, material assignments, and process/general notes are excluded.</p></div>
       <div class="gate new"><h3>Floating</h3><p>Non-exempt parts isolated from the structural frame beyond a max gap.</p></div>
       <div class="gate"><h3>Structural</h3><p>Beam deflection, motor torque budget, belt tension. Static load math, not motion-clearance or full-travel sweeps.</p></div>
       <div class="gate"><h3>Tolerance</h3><p>Worst-case, RSS, Monte Carlo stacking with C<sub>pk</sub> and variance decomposition.</p></div>
@@ -170,6 +174,7 @@ bom_audit:
     <p class="lede">CADCLAW checks geometry, BOM JSON, and README text against rules <em>you</em> write. It does not prove:</p>
     <ul class="not-prove-list">
       <li>That the <strong>native CAD model</strong> has no hidden or suppressed parts — it reads the STEP export, which can silently drop invisible parts.</li>
+      <li>That AP242 PMI is <strong>graphically correct, fully constructed, standards-conformant, or faithful to the native model</strong> — the semantic PMI gate reports declared class presence only.</li>
       <li>That the <strong>physical build</strong> matches the CAD.</li>
       <li>That a <strong>vendor part is in stock</strong> or the price you assumed.</li>
       <li>That a <strong>printed part is strong enough</strong> for production — the structural gate does bare-beam math, not fatigue or creep.</li>

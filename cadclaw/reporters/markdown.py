@@ -21,7 +21,8 @@ def render_markdown(report: Report) -> str:
     """Render a Report as Markdown suitable for a PR comment or report file."""
     project = report.meta.get("project", "report")
     step = report.meta.get("step", "")
-    overall = report.overall.value.upper()
+    not_applicable = report.meta.get("applicability") == "not_applicable"
+    overall = "N/A" if not_applicable else report.overall.value.upper()
 
     n_fail = len(report.by_severity(Severity.FAIL))
     n_warn = len(report.by_severity(Severity.WARN))
@@ -35,7 +36,11 @@ def render_markdown(report: Report) -> str:
     )
     if step:
         summary += f"  ·  STEP: `{step}`"
-    summary += f"  ·  {report.duration_ms:.0f} ms  ·  schema {report.schema_version}"
+    summary += (
+        f"  ·  {report.duration_ms:.0f} ms"
+        f"  ·  schema {report.schema_version}"
+        f"  ·  gate-spec {report.gate_spec_version}"
+    )
     lines.append(summary)
     lines.append("")
 
@@ -63,7 +68,7 @@ def render_markdown(report: Report) -> str:
     else:
         lines.append("## Findings")
         lines.append("")
-        lines.append("_No findings._")
+        lines.append("_Not applicable._" if not_applicable else "_No findings._")
         lines.append("")
 
     cb = report.confidence_budget

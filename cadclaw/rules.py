@@ -26,7 +26,7 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -236,6 +236,28 @@ class FloatingCheckModel(_Strict):
     max_gap_mm: float = 5.0
 
 
+PmiClassName = Literal[
+    "dimensions",
+    "geometric_tolerances",
+    "datums",
+]
+
+
+class PmiPresentModel(_Strict):
+    """Declared semantic AP242 PMI classes for ``PMI_PRESENT_SEMANTIC``.
+
+    An empty list is explicitly not applicable.  It does not silently pass and
+    it does not cause the submitted STEP to be opened.
+    """
+
+    expected_classes: List[PmiClassName] = Field(default_factory=list)
+
+    @field_validator("expected_classes")
+    @classmethod
+    def _deduplicate_classes(cls, value: List[PmiClassName]) -> List[PmiClassName]:
+        return list(dict.fromkeys(value))
+
+
 class ConfidenceBudgetModel(_Strict):
     checked: List[str] = Field(default_factory=list)
     not_checked: List[str] = Field(default_factory=list)
@@ -260,6 +282,7 @@ class RuleSet(_Strict):
     publish_audit: PublishAuditModel = Field(default_factory=PublishAuditModel)
     interference: InterferenceModel = Field(default_factory=InterferenceModel)
     floating_check: FloatingCheckModel = Field(default_factory=FloatingCheckModel)
+    pmi_present: PmiPresentModel = Field(default_factory=PmiPresentModel)
     confidence_budget: ConfidenceBudgetModel = Field(default_factory=ConfidenceBudgetModel)
 
     @field_validator("schema_version")
