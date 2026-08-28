@@ -46,7 +46,7 @@ closeout. An open pull request or a started validation is not completion.
 | M2 | MARB `L2-RESOLVE` task contract | COMPLETE | M1 method/version decisions | `codex/marb-l2-resolve-v0.11` | [MARB #6](https://github.com/sunnyday-technologies/MARB/pull/6) | `24da2a6641a5681313d4b112b3e98fdeca5262c2` |
 | M3 | MARB `L4-ECO` task and authenticated evidence gates | COMPLETE | M1 and C2 | `codex/marb-l4-eco-v0.12` | [MARB #7](https://github.com/sunnyday-technologies/MARB/pull/7) | `072dfab66999c968facb8a640d39739a80353c7b` |
 | Q1 | Reproducible NIST AP242 qualification runner and evidence-integrity guards | COMPLETE | C1 and C2 | Runner/fix branches deleted after merge | [#13](https://github.com/sunnyday-technologies/CADCLAW/pull/13), [#14](https://github.com/sunnyday-technologies/CADCLAW/pull/14), [#15](https://github.com/sunnyday-technologies/CADCLAW/pull/15) | `2305d841c2ecf73d8ceb8e3a398766d2000e0912`; `94b0fd0072a9e6bf0a1ac54df5f3c9f0266b59c2`; `4579c5e925dfcc13236973aca295f42128704823` |
-| Q2 | Fresh NIST FTC11/STC06 software-qualification cohort | READY FOR REVIEW | Q1 merged | `codex/nist-ap242-qualification-evidence-20260828` | TBD | TBD |
+| Q2 | Fresh NIST FTC11/STC06 software-qualification cohort | READY FOR REVIEW | Q1 merged | `codex/nist-ap242-qualification-evidence-20260828` | [#16](https://github.com/sunnyday-technologies/CADCLAW/pull/16) | TBD |
 | H2 | Non-destructive, provenance-complete, isolated MARB cohort runner | IN PROGRESS | M1, M2, and M3 merged | `codex/marb-cohort-runner-plan`; task `01a046b7-1430-7792-b891-709e5b60c7ff` | TBD | TBD |
 | B1 | Fresh MARB model benchmark cohort | BLOCKED | H2; immutable gated-key revisions; provider/model/budget approval | N/A | N/A | N/A |
 | R1 | Evidence-backed update to Marc | BLOCKED | B1 complete | N/A | N/A | N/A |
@@ -257,7 +257,7 @@ Evidence:
   `b21d95857ffc57fb87eecb924f0b91c49cf06fa71aff3da416227ab34196d885`.
 - STC06 derivative SHA-256:
   `161a3ec55b152f367f4d77991fcb7f28aaf4b2e107cb736c4c1ccd24a2eb13f6`.
-- Evidence-only PR / merge: TBD.
+- Evidence-only PR / merge: [#16](https://github.com/sunnyday-technologies/CADCLAW/pull/16) / TBD.
 
 ### B1 - Fresh benchmark cohort
 
