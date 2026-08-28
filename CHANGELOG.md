@@ -9,6 +9,20 @@ changes bump MINOR and are called out explicitly under **Changed**.
 
 ### Added
 
+- **`PMI_PRESENT_SEMANTIC` declared gate.** AP242 submissions can declare
+  required semantic PMI classes (`dimensions`, `geometric_tolerances`,
+  and `datums`) and receive one versioned presence/absence result per class.
+  Presentation-only dimension labels are excluded. Empty requirements report
+  explicit not-applicable status. The gate excludes graphical PMI, material
+  assignments, process/general notes, validation properties, GD&T construction
+  correctness, native-model fidelity, and standards conformance.
+- **Authored AP242 fixture evidence.** Two unmodified NIST MBE PMI STEP files
+  ship under `tests/fixtures/pmi_semantic/` with source URLs, hashes, reuse
+  terms, and OCP 7.8.1.1 observations. Import errors and non-AP242 inputs are
+  tested as errors rather than misreported as absent PMI.
+- **Explicit gate-method version `0.11.0`.** Report metadata now carries
+  `gate_spec_version` independent of package, rules, and report-schema
+  versions; historical reports are not rewritten or re-scored.
 - **Third-party licence attribution.** README's License section now carries the
   notice required by the Open CASCADE Exception ("makes use of, and is based on,
   facilities provided by the Open CASCADE Technology software") plus a full

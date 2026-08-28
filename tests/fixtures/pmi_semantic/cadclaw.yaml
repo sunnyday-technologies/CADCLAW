@@ -1,0 +1,12 @@
+schema_version: "0.9"
+meta:
+  project: nist-pmi-ftc-11
+  step: tests/fixtures/pmi_semantic/nist_ftc_11_asme1_ap242-e2.stp
+pmi_present:
+  expected_classes:
+    - dimensions
+    - geometric_tolerances
+    - datums
+confidence_budget:
+  not_checked:
+    - native CAD source model was not supplied

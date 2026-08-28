@@ -49,6 +49,17 @@ class TestCompatShim(unittest.TestCase):
             from cadclaw.bom_audit import run_bom_audit as new_fn
         self.assertIs(old_fn, new_fn)
 
+    def test_new_gate_modules_resolve_to_cadclaw(self):
+        self._reimport_cadharness()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            import cadharness.gate_spec as old_gate_spec
+            import cadharness.pmi as old_pmi
+            import cadclaw.gate_spec as new_gate_spec
+            import cadclaw.pmi as new_pmi
+        self.assertIs(old_gate_spec, new_gate_spec)
+        self.assertIs(old_pmi, new_pmi)
+
     def test_findings_class_identity(self):
         self._reimport_cadharness()
         with warnings.catch_warnings():

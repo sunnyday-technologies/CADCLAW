@@ -82,8 +82,15 @@ class TestReportSerialization(unittest.TestCase):
         r = Report()
         d = r.to_dict()
         self.assertEqual(d["schema_version"], "0.7")
+        self.assertNotIn("gate_spec_version", d)
+        self.assertEqual(d["meta"]["gate_spec_version"], "0.11.0")
         self.assertIn("findings", d)
         self.assertIn("confidence_budget", d)
+
+    def test_gate_spec_metadata_preserves_positional_constructor(self):
+        r = Report("0.7", Severity.WARN)
+        self.assertEqual(r.overall, Severity.WARN)
+        self.assertEqual(r.meta["gate_spec_version"], "0.11.0")
 
     def test_to_dict_round_trips_through_json(self):
         r = Report(

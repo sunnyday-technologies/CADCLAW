@@ -30,7 +30,7 @@
 
 # Key-shaped paths. m3_reference_assembly.yaml is deliberately NOT matched here
 # (the redacted example keeps that name); the POSE check governs its contents.
-KEY_PATH_REGEX='(^|/)m3_reference_round1\.step$|(^|/)[^/]*reference[^/]*\.step$|(^|/)ph[0-9]+_reference|(^|/)_private/'
+KEY_PATH_REGEX='(^|/)m3_reference_round1\.(step|stp)$|(^|/)[^/]*reference[^/]*\.(step|stp)$|(^|/)ph[0-9]+_reference|(^|/)_private/'
 
 REDACTED_SPEC='examples/m3_crete/m3_reference_assembly.yaml'
 POSE_REGEX='^[[:space:]]*(translate_mm|rotate_deg|source_origin_mm):'
