@@ -109,7 +109,7 @@ Evidence:
 - [x] Focused round-trip reports omit the caller's absolute rules path.
 - [x] One-to-one matching errors before quadratic allocation above the fixed
   256-renderable-shape method limit.
-- [ ] Clean-clone validation passes from the committed branch.
+- [x] Clean-clone validation passes from the committed branch.
 - [ ] Separate PR is green, reviewed, merged, and read back from `main`.
 
 Evidence slots:
@@ -130,6 +130,10 @@ Evidence slots:
 - Local focused suite: 117 passed.
 - Local full suite: 427 passed, 6 expected skips.
 - Site allowlist build: 16 files, 112 links, 16/16 source-output hashes.
+- Clean clone of commit `67dce397d917d98c77f8f64a4e1d5cb020ea6978`:
+  fixture generation passed; full suite passed 427 tests with 16
+  environment-dependent skips; site build passed with 16 files, 112 links,
+  and 16/16 source-output hashes.
 - A formal security diff scan of the pre-hardening snapshot reported three
   low-severity findings: absolute rules-path disclosure, secondary OCCT reader
   diagnostics, and unbounded part-matching complexity. All three are fixed and
