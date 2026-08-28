@@ -29,7 +29,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    FiniteFloat,
+    field_validator,
+    model_validator,
+)
 
 
 SCHEMA_VERSION = "0.9"
@@ -258,6 +265,78 @@ class PmiPresentModel(_Strict):
         return list(dict.fromkeys(value))
 
 
+SourceTranslatorFamily = Literal["unknown", "occt", "non_occt"]
+
+
+class RoundtripSourceTranslatorModel(_Strict):
+    """Declared provenance for the STEP supplied to the round-trip gate.
+
+    The declaration is recorded as an assumption. CADCLAW does not infer an
+    independent source translator from file contents or a product name.
+    """
+
+    family: SourceTranslatorFamily = "unknown"
+    name: Optional[str] = None
+    version: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _require_non_occt_name(self):
+        if self.family == "non_occt" and not (self.name or "").strip():
+            raise ValueError(
+                "source_translator.name is required when family is non_occt"
+            )
+        return self
+
+
+class RoundtripSelectorModel(_Strict):
+    """Resolve one declared interface endpoint without guessing an instance."""
+
+    label: str = Field(min_length=1)
+    near_mm: Optional[Tuple[FiniteFloat, FiniteFloat, FiniteFloat]] = None
+    max_center_distance_mm: FiniteFloat = Field(default=2.0, ge=0)
+
+
+class RoundtripInterfacePairModel(_Strict):
+    """A pair whose minimum shape distance must survive the round trip."""
+
+    id: str = Field(
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$",
+    )
+    a: RoundtripSelectorModel
+    b: RoundtripSelectorModel
+    tolerance_mm: Optional[FiniteFloat] = Field(default=None, ge=0)
+
+
+class RoundtripStepModel(_Strict):
+    """Opt-in AP242 import/export/reimport comparison configuration."""
+
+    enabled: bool = False
+    source_translator: RoundtripSourceTranslatorModel = Field(
+        default_factory=RoundtripSourceTranslatorModel
+    )
+    authoring_reference_step_proxy: Optional[str] = None
+    bbox_tolerance_mm: FiniteFloat = Field(default=0.05, ge=0)
+    bbox_volume_relative_tolerance: FiniteFloat = Field(default=1e-6, ge=0)
+    bbox_volume_absolute_tolerance_mm3: FiniteFloat = Field(
+        default=0.001,
+        ge=0,
+    )
+    interface_gap_tolerance_mm: FiniteFloat = Field(default=0.05, ge=0)
+    interface_pairs: List[RoundtripInterfacePairModel] = Field(
+        default_factory=list,
+        max_length=100,
+    )
+
+    @model_validator(mode="after")
+    def _require_unique_interface_pair_ids(self):
+        pair_ids = [pair.id for pair in self.interface_pairs]
+        if len(pair_ids) != len(set(pair_ids)):
+            raise ValueError("roundtrip_step.interface_pairs IDs must be unique")
+        return self
+
+
 class ConfidenceBudgetModel(_Strict):
     checked: List[str] = Field(default_factory=list)
     not_checked: List[str] = Field(default_factory=list)
@@ -283,6 +362,7 @@ class RuleSet(_Strict):
     interference: InterferenceModel = Field(default_factory=InterferenceModel)
     floating_check: FloatingCheckModel = Field(default_factory=FloatingCheckModel)
     pmi_present: PmiPresentModel = Field(default_factory=PmiPresentModel)
+    roundtrip_step: RoundtripStepModel = Field(default_factory=RoundtripStepModel)
     confidence_budget: ConfidenceBudgetModel = Field(default_factory=ConfidenceBudgetModel)
 
     @field_validator("schema_version")

@@ -28,8 +28,9 @@ closeout. An open pull request or a started validation is not completion.
 - The round trip is an actual OCCT import -> AP242 export -> reimport.
 - Translator independence is reported only for a declared non-OCCT source;
   otherwise it is unknown or not applicable.
-- Native comparison is not applicable unless a readable native-reference
-  artifact or explicitly identified proxy is supplied.
+- Authoring-reference comparison is only a STEP-to-STEP proxy comparison; it
+  is not native-CAD inspection. It is not applicable unless an explicitly
+  identified authoring-reference STEP proxy is supplied.
 - Interface gaps are checked only for declared, unambiguous interface pairs.
 - CADCLAW semantic-PMI and round-trip work ship through separate pull requests.
 - MARB work remains in its separate repository and task. Existing benchmark
@@ -40,7 +41,7 @@ closeout. An open pull request or a started validation is not completion.
 | ID | Deliverable | Status | Dependency | Branch/task | PR | Merge commit |
 |---|---|---|---|---|---|---|
 | C1 | CADCLAW semantic AP242 PMI gate | COMPLETE | None | `feat/pmi-present-gate` (deleted after merge) | [#9](https://github.com/sunnyday-technologies/CADCLAW/pull/9) | `db41bea9495be8200490fa38bbd145c91bad716c` |
-| C2 | CADCLAW AP242 STEP round-trip gate | NOT STARTED | C1 merged | `codex/roundtrip-step-gate` | TBD | TBD |
+| C2 | CADCLAW AP242 STEP round-trip gate | IN PROGRESS | C1 merged | `codex/roundtrip-step-gate` | [#11](https://github.com/sunnyday-technologies/CADCLAW/pull/11) | TBD |
 | M1 | MARB repeat-run reporting and acceptable-solution policy | IN PROGRESS | Independent | task `01a046b7-1430-7792-b891-709e5b60c7ff` | TBD | TBD |
 | M2 | MARB `L2-RESOLVE` task | NOT STARTED | M1 method/version decisions | Same MARB task | TBD | TBD |
 | M3 | MARB `L4-ECO` task | NOT STARTED | M1; C2 only if used as a first-class gate | Same MARB task | TBD | TBD |
@@ -91,23 +92,75 @@ Evidence:
 
 ### C2 - AP242 STEP round trip
 
-- [ ] Actual OCCT import -> AP242 export -> reimport executes.
-- [ ] Exact part count and assembly/per-part bounding comparisons execute.
-- [ ] Every declared interface pair reports its gap comparison.
-- [ ] Semantic PMI classes present in the source are compared before/after.
-- [ ] A real intentionally dropped-PMI translation is detected.
-- [ ] Independence is not claimed for unknown or OCCT source translators.
-- [ ] Native comparison reports not applicable without a reference artifact.
-- [ ] Focused, full-suite, JSON-output, site, and clean-clone validation pass.
+- [x] Actual OCCT import -> AP242 export -> reimport executes.
+- [x] Exact CADCLAW-deduplicated renderable-shape count and
+  assembly/per-part bounding comparisons execute.
+- [x] Every declared interface pair reports its gap comparison or a structured
+  unresolved-selector error.
+- [x] Semantic PMI classes present in the source are compared before/after as
+  supported class counts.
+- [x] A real intentionally dropped-PMI AP242 translation is detected.
+- [x] Independence is not claimed for unknown or OCCT source translators.
+- [x] Authoring-reference STEP-proxy comparison reports not applicable without
+  an explicit proxy; no native-CAD correctness is implied.
+- [x] Focused, full-suite, JSON-output, and site validation pass.
+- [x] OCCT reader/writer global state is restored and malformed source/proxy
+  inputs cannot pollute focused JSON stdout or expose local paths.
+- [x] Focused round-trip reports omit the caller's absolute rules path.
+- [x] One-to-one matching errors before quadratic allocation above the fixed
+  256-renderable-shape method limit.
+- [x] OCCT `IFSelect_RetError` recovery is bounded to a non-empty,
+  non-symlink AP242 artifact that XCAF can reimport; the raw status and
+  provisional disposition remain visible and downstream scoped comparisons
+  remain decisive.
+- [x] The round-trip module passes on both Windows/OCP 7.8 and Linux/OCP 7.9.
+- [x] Clean-clone validation passes from the committed branch.
 - [ ] Separate PR is green, reviewed, merged, and read back from `main`.
 
 Evidence slots:
 
-- Gate-method version: TBD
-- OCP version: TBD
-- Normal round-trip report and artifact hashes: TBD
-- Broken-translation report and artifact hash: TBD
-- PR/check links: TBD
+- Gate-method version: `0.12.0` (implementation branch; not merged)
+- OCP module versions: `7.8.1.1` in Windows validation and `7.9.3.1` in the
+  isolated Linux compatibility validation. The Linux environment used
+  CadQuery `2.8.0` and the `cadquery-ocp` package `7.9.3.1.1`, matching the
+  dependency line selected by GitHub CI.
+- Positive evidence:
+  `TestNistRoundtripIntegration.test_real_ap242_export_reimport_preserves_geometry_and_pmi`
+  preserves the NIST FTC11 fixture's renderable-shape geometry evidence and
+  supported semantic-PMI class counts `6 / 4 / 4`. Source SHA-256 is recorded
+  above under C1; each generated derivative report emits source/output hashes.
+- Negative evidence:
+  `TestNistRoundtripIntegration.test_real_dimtol_disabled_export_is_detected_as_pmi_loss`
+  performs a real AP242 export with OCCT `DimTol` writing disabled. Geometry
+  evidence is preserved while all three supported PMI class-count comparisons
+  fail. The derivative is intentionally temporary and is not a distributed
+  fixture or compliance artifact.
+- Frozen-tree round-trip module: 25 tests plus 7 subtests passed on both
+  Windows/OCP 7.8.1.1 and Linux/OCP 7.9.3.1. The real NIST FTC11 positive
+  fixture remains unskipped and preserves the scoped renderable-shape geometry
+  evidence plus supported semantic-PMI counts `6 / 4 / 4`.
+- Local focused adjacent suite: 122 passed.
+- Local full suite: 432 passed, 6 expected skips.
+- Site allowlist build: 16 files, 112 links, 16/16 source-output hashes.
+- Clean clone of commit `67dce397d917d98c77f8f64a4e1d5cb020ea6978`:
+  fixture generation passed; full suite passed 427 tests with 16
+  environment-dependent skips; site build passed with 16 files, 112 links,
+  and 16/16 source-output hashes.
+- A formal security diff scan of the pre-hardening snapshot reported three
+  low-severity findings: absolute rules-path disclosure, secondary OCCT reader
+  diagnostics, and unbounded part-matching complexity. All three are fixed and
+  covered by regressions; frozen-tree review reports no remaining confirmed
+  finding. Historical scan snapshot digest:
+  `sha256:9e970ae7b753ca8dceccc7a9089d17ef297dd7e4347ad4a9a47a5c561db08275`.
+- Initial PR #11 Linux unit run
+  [33148644666](https://github.com/sunnyday-technologies/CADCLAW/actions/runs/33148644666)
+  exposed an OCP 7.9 portability issue: the writer created a reimportable
+  AP242 derivative but returned `IFSelect_RetError`. The bounded compatibility
+  fix never reclassifies that result as `RetDone`; it records
+  `ret_error_provisionally_validated` only after artifact/schema/XCAF checks,
+  leaves writer-reference and graphical-PMI integrity unchecked, and still
+  requires the geometry and source-present semantic-PMI comparisons to pass.
+- Final PR/check links: pending corrected-head CI readback.
 
 ### M1/M2/M3 - MARB
 

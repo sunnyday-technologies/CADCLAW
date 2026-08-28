@@ -50,6 +50,7 @@ _SUBMODULES = (
     "kinematics",
     "parity",
     "pmi",
+    "roundtrip",
     "publish_audit",
     "render",
     "rules",
