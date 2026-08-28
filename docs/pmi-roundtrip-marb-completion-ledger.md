@@ -46,10 +46,10 @@ closeout. An open pull request or a started validation is not completion.
 | M2 | MARB `L2-RESOLVE` task contract | COMPLETE | M1 method/version decisions | `codex/marb-l2-resolve-v0.11` | [MARB #6](https://github.com/sunnyday-technologies/MARB/pull/6) | `24da2a6641a5681313d4b112b3e98fdeca5262c2` |
 | M3 | MARB `L4-ECO` task and authenticated evidence gates | COMPLETE | M1 and C2 | `codex/marb-l4-eco-v0.12` | [MARB #7](https://github.com/sunnyday-technologies/MARB/pull/7) | `072dfab66999c968facb8a640d39739a80353c7b` |
 | Q1 | Reproducible NIST AP242 qualification runner and evidence-integrity guards | COMPLETE | C1 and C2 | Runner/fix branches deleted after merge | [#13](https://github.com/sunnyday-technologies/CADCLAW/pull/13), [#14](https://github.com/sunnyday-technologies/CADCLAW/pull/14), [#15](https://github.com/sunnyday-technologies/CADCLAW/pull/15) | `2305d841c2ecf73d8ceb8e3a398766d2000e0912`; `94b0fd0072a9e6bf0a1ac54df5f3c9f0266b59c2`; `4579c5e925dfcc13236973aca295f42128704823` |
-| Q2 | Fresh NIST FTC11/STC06 software-qualification cohort | COMPLETE | Q1 merged | `codex/nist-ap242-qualification-evidence-20260828` (deleted after merge) | [#16](https://github.com/sunnyday-technologies/CADCLAW/pull/16) | `cdbb45882fcd19092d4082cf490c27db12878d81` |
+| Q2 | Fresh NIST FTC11/STC06 software-qualification cohort and evidence closeout | COMPLETE | Q1 merged | Qualification/evidence branches deleted after merge | [#16](https://github.com/sunnyday-technologies/CADCLAW/pull/16), [#17](https://github.com/sunnyday-technologies/CADCLAW/pull/17) | `cdbb45882fcd19092d4082cf490c27db12878d81`; `251bfb96a50b3a79378c9171d9a485e4884eb58c` |
 | H2a | Deterministic, non-writing MARB cohort planner | COMPLETE | M1, M2, and M3 merged | `codex/marb-cohort-runner-plan` | [MARB #8](https://github.com/sunnyday-technologies/MARB/pull/8) | `d4f1dd836b94159bc72ed0b72be0e7c324239329` |
 | H2b | Non-destructive, provenance-complete, isolated MARB cohort executor | IN PROGRESS | H2a merged | `codex/marb-cohort-runner-executor`; task `01a046b7-1430-7792-b891-709e5b60c7ff` | TBD | TBD |
-| B1 | Fresh MARB model benchmark cohort | BLOCKED | H2b; immutable gated-key revisions; provider/model/budget approval | N/A | N/A | N/A |
+| B1 | Fresh MARB model benchmark cohort | BLOCKED | H2b; immutable gated-key revisions and trusted grading; approved immutable OCI runtime plus Windows Docker Desktop smoke; local-no-charge provider/model/data-sharing/run-limit authorization; aggregate campaign ledger | N/A | N/A | N/A |
 | R1 | Evidence-backed update to Marc | BLOCKED | B1 complete | N/A | N/A | N/A |
 | D1 | Material/process semantic-PMI expansion | DEFERRED | Positive fixture and verified extraction method | TBD | TBD | TBD |
 | H1 | Remove stale Open3DCP re-pushed branches | COMPLETE | None | Deleted `precedent-crosswalk` and `whitepaper-v1-1` | Already merged as Open3DCP #10/#11 | N/A |
@@ -262,6 +262,9 @@ Evidence:
   head `8236a267cc5caebc032be94349224d5a4db93f6f`, merge
   `cdbb45882fcd19092d4082cf490c27db12878d81`. Exact-head unit, CodeQL, and
   answer-key checks passed.
+- Documentation closeout PR / merge:
+  [#17](https://github.com/sunnyday-technologies/CADCLAW/pull/17), merge
+  `251bfb96a50b3a79378c9171d9a485e4884eb58c`.
 
 ### H2a/H2b - MARB cohort execution safety
 
@@ -301,6 +304,12 @@ Evidence:
   license, and provenance are verified through a dataset-intake PR.
 - [ ] A new run/cohort ID is used; no historical result is overwritten or
   silently re-scored.
+- [ ] An immutable approved OCI image `RepoDigest` and its build provenance are
+  recorded, and the exact Windows Docker Desktop host/image pair passes the
+  documented no-provider/no-network manual smoke before any model call.
+- [ ] An explicitly approved aggregate campaign ledger reserves every N>=3/N>=9
+  slot and enforces cohort-wide concurrency/uniqueness across checkouts and
+  hosts; H2b's checkout-local `.slot-claims` are not treated as a global lock.
 - [ ] CADCLAW commit, MARB commit, rules hash, fixture/kit hash, and gate-method
   version are recorded.
 - [ ] Exact model/provider/version, timestamps, seeds, runtime, tokens, and cost
@@ -324,8 +333,17 @@ Current blockers:
   executor branch and remains required before any fresh model execution.
 - `L2-RESOLVE` and `L4-ECO` require immutable gated-key revisions plus a trusted
   grading/readback path before their outputs can be called gradeable.
-- Provider, exact model/version, data-sharing choice, run limits, and budget
-  require explicit approval before model calls.
+- The executor requires an approved immutable OCI image `RepoDigest`, private
+  build provenance, and a successful no-provider/no-network manual smoke on the
+  exact Windows Docker Desktop host/image pair before any model call.
+- N>=3/N>=9 execution requires a separately approved aggregate campaign ledger
+  with cross-checkout/cross-host slot uniqueness and concurrency control; H2b
+  intentionally authorizes only one checkout-local slot at a time.
+- Provider, exact model/version, data-sharing choice, and run limits require
+  explicit approval before model calls. Current H2b accepts only an approved
+  `local-no-charge` billing mode and rejects metered calls; an approved dollar
+  budget alone cannot authorize a metered run until a frozen provider-specific
+  pre-call pricing/token policy is implemented and separately reviewed.
 
 ### R1 - Marc closeout
 
