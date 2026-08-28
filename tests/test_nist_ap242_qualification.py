@@ -166,6 +166,9 @@ switch ($env:CADCLAW_QUALIFICATION_TEST_CASE) {
     "path" {
         Assert-NoReparsePointInExistingAncestors -Path $env:CADCLAW_QUALIFICATION_TEST_PATH -Context "test output"
     }
+    "write-lf" {
+        Write-Utf8NoBom -Path $env:CADCLAW_QUALIFICATION_TEST_PATH -Content "alpha`r`nbeta`rgamma`n"
+    }
     default { throw "unknown test case" }
 }
 '''
@@ -216,6 +219,28 @@ switch ($env:CADCLAW_QUALIFICATION_TEST_CASE) {
         )
         self.assertIsNotNone(checkout)
 
+    def test_all_tracked_cohort_text_is_pinned_to_lf(self):
+        cohort = "evidence/qualifications/nist-ap242/example-cohort"
+        for path in (
+            f"{cohort}/README.md",
+            f"{cohort}/manifest.json",
+            f"{cohort}/example.pmi-present.json",
+            f"{cohort}/SHA256SUMS",
+        ):
+            with self.subTest(path=path):
+                completed = subprocess.run(
+                    ["git", "check-attr", "text", "eol", "--", path],
+                    cwd=REPO,
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                )
+                attributes = {}
+                for line in completed.stdout.splitlines():
+                    _, attribute, value = line.split(": ", 2)
+                    attributes[attribute] = value
+                self.assertEqual(attributes, {"text": "set", "eol": "lf"})
+
     def test_script_keeps_fresh_exact_main_and_nonoverwrite_guards(self):
         text = SCRIPT.read_text(encoding="utf-8")
         required_fragments = (
@@ -256,6 +281,9 @@ switch ($env:CADCLAW_QUALIFICATION_TEST_CASE) {
             '$qualificationGateSpecVersion = "0.12.0"',
             "PMI frozen count",
             "round-trip source count",
+            '$Content.Replace("`r`n", "`n").Replace("`r", "`n")',
+            "Write-Utf8NoBom -Path $qualificationPmiReportPath",
+            "Write-Utf8NoBom -Path $qualificationRoundtripReportPath",
         )
         for fragment in required_fragments:
             self.assertIn(fragment, text)
@@ -274,6 +302,27 @@ switch ($env:CADCLAW_QUALIFICATION_TEST_CASE) {
                 "Remove-Item -LiteralPath $qualificationSnapshotFull -Recurse"
             ),
         )
+        self.assertLess(
+            text.index("Write-Utf8NoBom -Path $qualificationPmiReportPath"),
+            text.index(
+                'Read-ValidatedJsonReport $qualificationPmiReportPath'
+            ),
+        )
+        self.assertLess(
+            text.index("Write-Utf8NoBom -Path $qualificationRoundtripReportPath"),
+            text.index(
+                'Read-ValidatedJsonReport $qualificationRoundtripReportPath'
+            ),
+        )
+
+    def test_utf8_writer_canonicalizes_line_endings_without_bom(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "canonical.txt"
+            completed = self._invoke_extracted_function(
+                "Write-Utf8NoBom", "write-lf", output
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(output.read_bytes(), b"alpha\nbeta\ngamma\n")
 
     def test_invalid_and_windows_device_cohort_ids_fail_before_fetch_or_write(self):
         powershell = self._powershell()
@@ -535,6 +584,19 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
         checksum_path = cohort_dir / "SHA256SUMS"
         for required in (manifest_path, readme_path, checksum_path):
             self.assertTrue(required.is_file(), required)
+
+        for tracked_text in cohort_dir.iterdir():
+            if tracked_text.is_file():
+                tracked_bytes = tracked_text.read_bytes()
+                self.assertFalse(
+                    tracked_bytes.startswith(b"\xef\xbb\xbf"),
+                    f"tracked evidence must not use a UTF-8 BOM: {tracked_text.name}",
+                )
+                self.assertNotIn(
+                    b"\r",
+                    tracked_bytes,
+                    f"tracked evidence must use canonical LF bytes: {tracked_text.name}",
+                )
 
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         self.assertEqual(manifest["schema_version"], MANIFEST_VERSION)
