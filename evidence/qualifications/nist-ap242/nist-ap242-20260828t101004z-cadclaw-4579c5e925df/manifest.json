@@ -1,0 +1,243 @@
+{
+  "schema_version": "nist-ap242-qualification-manifest.v1",
+  "cohort_id": "nist-ap242-20260828t101004z-cadclaw-4579c5e925df",
+  "qualification_kind": "software_qualification",
+  "classification": {
+    "type": "software_qualification",
+    "software_qualification": true,
+    "marb_benchmark": false,
+    "model_calls": 0,
+    "cost": {
+      "status": "not_incurred",
+      "value": 0,
+      "currency": "USD",
+      "scope": "model/provider API cost"
+    }
+  },
+  "outcome": "pass",
+  "qualification_passed": true,
+  "started_utc": "2026-08-28T10:10:05.8193710Z",
+  "completed_utc": "2026-08-28T10:10:20.9637665Z",
+  "repository": {
+    "url": "https://github.com/sunnyday-technologies/CADCLAW",
+    "target_commit": "4579c5e925dfcc13236973aca295f42128704823",
+    "target_tree": "581b78c92e049adfb00ad181e59a94d29ca3ef2a",
+    "fetched_origin_main_commit": "4579c5e925dfcc13236973aca295f42128704823",
+    "caller_head_commit": "4579c5e925dfcc13236973aca295f42128704823",
+    "target_equals_fetched_origin_main": true,
+    "caller_head_equals_fetched_origin_main": true,
+    "caller_worktree_clean": true,
+    "execution_source": "clean git archive of the exact target commit",
+    "runner_sha256": "1c031f7eb4318be9a38261b2545c765a60af1f634e2cbd01a5035d0d68ddb8c5"
+  },
+  "contracts": {
+    "manifest_schema_version": "nist-ap242-qualification-manifest.v1",
+    "report_schema_version": "0.7",
+    "rules_schema_version": "0.9",
+    "gate_spec_version": "0.12.0"
+  },
+  "runtime": {
+    "cadclaw_version": "0.10.0",
+    "cadquery_ocp_version": "7.8.1.1",
+    "cadquery_version": "2.7.0",
+    "operating_system": {
+      "machine": "AMD64",
+      "release": "10",
+      "system": "Windows",
+      "version": "10.0.26200"
+    },
+    "python": {
+      "implementation": "CPython",
+      "version": "3.11.15"
+    },
+    "powershell_version": "7.6.4"
+  },
+  "fixture_source": {
+    "publisher": "National Institute of Standards and Technology",
+    "dataset": "MBE PMI Validation and Conformance Testing STEP files",
+    "source_page": "https://www.nist.gov/ctl/smart-connected-systems-division/smart-connected-manufacturing-systems-group/mbe-pmi-0",
+    "source_document": "https://www.nist.gov/document/nist-pmi-step-files",
+    "retrieved_date": "2026-08-27",
+    "acknowledgement": "NIST supplied the authored test-case STEP files; use does not imply NIST recommendation or endorsement."
+  },
+  "rules": {
+    "path": "tests/fixtures/pmi_semantic/cadclaw.yaml",
+    "schema_version": "0.9",
+    "sha256": "e8d8a55004ec07224e00d9ded046c05f043b61d95631f9325b2ef48772364d8d",
+    "size_bytes": 293
+  },
+  "declared_semantic_pmi_classes": [
+    "dimensions",
+    "geometric_tolerances",
+    "datums"
+  ],
+  "fixtures": [
+    {
+      "id": "nist-ftc-11-ap242-e2",
+      "case": "Fully-Toleranced Test Case 11",
+      "ap242_edition": "e2",
+      "source_path": "tests/fixtures/pmi_semantic/nist_ftc_11_asme1_ap242-e2.stp",
+      "source_sha256": "20a92edf514ae0989d556f9c7b9f065aed741cfbb361b7fe4cb7938a1eb5c232",
+      "source_size_bytes": 1946454,
+      "source_kind": "authored NIST AP242 single-product qualification fixture",
+      "provenance_note": "The NIST archive member is AP242 e2, while its embedded Part 21 FILE_NAME reports AP242 e1; this cohort retains the archive-member e2 identity without normalization.",
+      "pmi_present": {
+        "started_utc": "2026-08-28T10:10:09.4683073Z",
+        "completed_utc": "2026-08-28T10:10:11.1424861Z",
+        "exit_code": 0,
+        "outcome": "pass",
+        "report_schema_version": "0.7",
+        "gate_spec_version": "0.12.0",
+        "argv_sanitized": [
+          "<python-executable>",
+          "-m",
+          "cadclaw_cli.main",
+          "pmi-present",
+          "--rules",
+          "tests/fixtures/pmi_semantic/cadclaw.yaml",
+          "--step",
+          "tests/fixtures/pmi_semantic/nist_ftc_11_asme1_ap242-e2.stp",
+          "--report-format",
+          "json",
+          "-o",
+          ".qualification-temp/nist-ap242/nist-ap242-20260828t101004z-cadclaw-4579c5e925df/cohort-staging/nist-ftc-11-ap242-e2.pmi-present.json"
+        ],
+        "semantic_class_counts": {
+          "dimensions": 6,
+          "geometric_tolerances": 4,
+          "datums": 4
+        },
+        "report": "nist-ftc-11-ap242-e2.pmi-present.json",
+        "report_sha256": "42fd8c0e4ac124747208d38ae296b0507ed7a5f1b352675c2f6ce3d61768e159",
+        "report_size_bytes": 3237
+      },
+      "roundtrip_step": {
+        "started_utc": "2026-08-28T10:10:11.1940077Z",
+        "completed_utc": "2026-08-28T10:10:14.7984256Z",
+        "exit_code": 0,
+        "outcome": "pass",
+        "report_schema_version": "0.7",
+        "gate_spec_version": "0.12.0",
+        "argv_sanitized": [
+          "<python-executable>",
+          "-m",
+          "cadclaw_cli.main",
+          "roundtrip-step",
+          "--rules",
+          "tests/fixtures/pmi_semantic/cadclaw.yaml",
+          "--step",
+          "tests/fixtures/pmi_semantic/nist_ftc_11_asme1_ap242-e2.stp",
+          "--roundtrip-out",
+          ".qualification-temp/nist-ap242/nist-ap242-20260828t101004z-cadclaw-4579c5e925df/derivatives/nist-ftc-11-ap242-e2.roundtrip.stp",
+          "--report-format",
+          "json",
+          "-o",
+          ".qualification-temp/nist-ap242/nist-ap242-20260828t101004z-cadclaw-4579c5e925df/cohort-staging/nist-ftc-11-ap242-e2.roundtrip-step.json"
+        ],
+        "write_status": "IFSelect_RetDone",
+        "write_disposition": "ret_done",
+        "derivative_sha256": "b21d95857ffc57fb87eecb924f0b91c49cf06fa71aff3da416227ab34196d885",
+        "derivative_size_bytes": 213595,
+        "derivative_schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF. {1 0 10303 442 1 1 4 }",
+        "derivative_retention": "local_only_ignored",
+        "report": "nist-ftc-11-ap242-e2.roundtrip-step.json",
+        "report_sha256": "055cb40bc7f200a00d6b351db24e365b95ebe8b958fe18b88d79887fa1546d08",
+        "report_size_bytes": 7080
+      }
+    },
+    {
+      "id": "nist-stc-06-ap242-e3",
+      "case": "Simplified Test Case 06",
+      "ap242_edition": "e3",
+      "source_path": "tests/fixtures/pmi_semantic/nist_stc_06_asme1_ap242-e3.stp",
+      "source_sha256": "71777c28da76da0e8a667e4cbe792d5f72c09b5c56440c9744d3d50ca96ecc8d",
+      "source_size_bytes": 1006401,
+      "source_kind": "authored NIST AP242 single-product qualification fixture",
+      "provenance_note": "The NIST archive member and this cohort identify the fixture as AP242 e3.",
+      "pmi_present": {
+        "started_utc": "2026-08-28T10:10:14.8570316Z",
+        "completed_utc": "2026-08-28T10:10:16.6399214Z",
+        "exit_code": 0,
+        "outcome": "pass",
+        "report_schema_version": "0.7",
+        "gate_spec_version": "0.12.0",
+        "argv_sanitized": [
+          "<python-executable>",
+          "-m",
+          "cadclaw_cli.main",
+          "pmi-present",
+          "--rules",
+          "tests/fixtures/pmi_semantic/cadclaw.yaml",
+          "--step",
+          "tests/fixtures/pmi_semantic/nist_stc_06_asme1_ap242-e3.stp",
+          "--report-format",
+          "json",
+          "-o",
+          ".qualification-temp/nist-ap242/nist-ap242-20260828t101004z-cadclaw-4579c5e925df/cohort-staging/nist-stc-06-ap242-e3.pmi-present.json"
+        ],
+        "semantic_class_counts": {
+          "dimensions": 17,
+          "geometric_tolerances": 25,
+          "datums": 51
+        },
+        "report": "nist-stc-06-ap242-e3.pmi-present.json",
+        "report_sha256": "53ce9bdbe0f51bedeb299e2701f8c59b4b221af9b17915ae2638d8a64ebde56e",
+        "report_size_bytes": 3247
+      },
+      "roundtrip_step": {
+        "started_utc": "2026-08-28T10:10:16.6627595Z",
+        "completed_utc": "2026-08-28T10:10:20.9289968Z",
+        "exit_code": 0,
+        "outcome": "pass",
+        "report_schema_version": "0.7",
+        "gate_spec_version": "0.12.0",
+        "argv_sanitized": [
+          "<python-executable>",
+          "-m",
+          "cadclaw_cli.main",
+          "roundtrip-step",
+          "--rules",
+          "tests/fixtures/pmi_semantic/cadclaw.yaml",
+          "--step",
+          "tests/fixtures/pmi_semantic/nist_stc_06_asme1_ap242-e3.stp",
+          "--roundtrip-out",
+          ".qualification-temp/nist-ap242/nist-ap242-20260828t101004z-cadclaw-4579c5e925df/derivatives/nist-stc-06-ap242-e3.roundtrip.stp",
+          "--report-format",
+          "json",
+          "-o",
+          ".qualification-temp/nist-ap242/nist-ap242-20260828t101004z-cadclaw-4579c5e925df/cohort-staging/nist-stc-06-ap242-e3.roundtrip-step.json"
+        ],
+        "write_status": "IFSelect_RetDone",
+        "write_disposition": "ret_done",
+        "derivative_sha256": "161a3ec55b152f367f4d77991fcb7f28aaf4b2e107cb736c4c1ccd24a2eb13f6",
+        "derivative_size_bytes": 1432186,
+        "derivative_schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF. {1 0 10303 442 1 1 4 }",
+        "derivative_retention": "local_only_ignored",
+        "report": "nist-stc-06-ap242-e3.roundtrip-step.json",
+        "report_sha256": "22a3f4f3d658b36ab20f7ed6832bc6d563854fd086073ede9c54e76df742a24e",
+        "report_size_bytes": 7097
+      }
+    }
+  ],
+  "derivative_policy": {
+    "tracked_derivatives": false,
+    "local_ignored_root": ".qualification-temp/nist-ap242/nist-ap242-20260828t101004z-cadclaw-4579c5e925df/derivatives",
+    "retained_for_local_review": true,
+    "note": "Derivative STEP files are intentionally excluded from Git; hashes and raw writer status/disposition remain in tracked evidence."
+  },
+  "scope": [
+    "semantic AP242 presence for dimensions, geometric tolerances, and datums",
+    "AP242 export and XCAF reimport",
+    "CADCLAW-deduplicated renderable-shape count and bounding geometry preservation",
+    "source-present supported semantic PMI class-count preservation"
+  ],
+  "limitations": [
+    "The two official NIST inputs are authored single-product qualification fixtures, not a blind assembly or model-performance benchmark.",
+    "Graphical PMI presentation, saved views, materials, process data, and general notes are outside this qualification.",
+    "Semantic PMI values, associations, construction correctness, and standards conformance are not certified.",
+    "Native CAD source models and independent-kernel translation were not supplied or established.",
+    "IFSelect_RetError, when observed, remains explicitly provisional after CADCLAW's bounded artifact, AP242-schema, and XCAF-reimport checks; writer-internal reference integrity and graphical PMI remain unchecked.",
+    "NIST publication of the fixtures does not imply recommendation, endorsement, or error-free conformance reference status.",
+    "No model, provider, token, cost, or paid benchmark work is part of this cohort."
+  ]
+}
