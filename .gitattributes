@@ -33,6 +33,9 @@ docs/_redirects text eol=lf
 *.sh text eol=lf
 scripts/hooks/* text eol=lf
 
+# NIST qualification checksum inventories are extensionless tracked text.
+evidence/qualifications/nist-ap242/**/SHA256SUMS text eol=lf
+
 # Binary assets are never line-ending converted, so the reviewed publish hashes
 # stay identical across Windows and Linux checkouts.
 *.png  -text
