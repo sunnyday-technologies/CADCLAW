@@ -8,9 +8,12 @@ build/
 .venv/
 .uv-cache/
 *.step
+*.stp
 # ...but the worked example's authored stand-in parts must ship, or the
 # example is broken on clone. Three ~15 KB boxes, no private geometry.
 !examples/relative_placement/parts/*.step
+!tests/fixtures/pmi_semantic/nist_stc_06_asme1_ap242-e3.stp
+!tests/fixtures/pmi_semantic/nist_ftc_11_asme1_ap242-e2.stp
 
 # Private working tree: design plans, frame canon, unpublished notes. This was
 # previously ignored only via .git/info/exclude, which is local to one clone
@@ -21,7 +24,9 @@ _private/
 # MARB answer-key material must never land in this public repo. It is
 # distributed through the gated Hugging Face dataset.
 **/m3_reference_round1.step
+**/m3_reference_round1.stp
 **/*reference*.step
+**/*reference*.stp
 **/ph[0-9]*_reference*
 *.stl
 .DS_Store

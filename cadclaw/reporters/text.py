@@ -42,7 +42,11 @@ def render_text(report: Report, color: bool | None = None) -> str:
     project = report.meta.get("project", "")
     step = report.meta.get("step", "")
     rules = report.meta.get("rules", "")
-    header_bits = [f"CADCLAW {__version__}", f"schema {report.schema_version}"]
+    header_bits = [
+        f"CADCLAW {__version__}",
+        f"schema {report.schema_version}",
+        f"gate-spec {report.gate_spec_version}",
+    ]
     if project:
         header_bits.append(project)
     if step:
@@ -58,8 +62,12 @@ def render_text(report: Report, color: bool | None = None) -> str:
         "",
     ]
 
+    not_applicable = report.meta.get("applicability") == "not_applicable"
     if not report.findings:
-        lines.append(f"  {_sev_tag(Severity.PASS, color)} no findings")
+        if not_applicable:
+            lines.append("  [ N/A] not applicable")
+        else:
+            lines.append(f"  {_sev_tag(Severity.PASS, color)} no findings")
     else:
         groups = _group_findings_by_category(report.findings)
         for cat, items in sorted(groups.items()):
@@ -70,7 +78,7 @@ def render_text(report: Report, color: bool | None = None) -> str:
                     lines.append(f"          fix: {f.suggested_fix}")
 
     lines.append("")
-    overall = report.overall.value.upper()
+    overall = "N/A" if not_applicable else report.overall.value.upper()
     summary = f"{n_pass} pass, {n_warn} warn, {n_fail} fail. overall: {overall}"
     lines.append(summary)
 

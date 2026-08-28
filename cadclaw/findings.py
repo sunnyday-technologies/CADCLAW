@@ -26,6 +26,8 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from .gate_spec import GATE_SPEC_VERSION
+
 
 class Severity(str, Enum):
     PASS = "pass"
@@ -83,6 +85,17 @@ class Report:
     confidence_budget: ConfidenceBudget = field(default_factory=ConfidenceBudget)
     duration_ms: float = 0.0
     meta: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # ``meta`` is the report schema's extension point.  Keeping the gate
+        # method version here preserves both the v0.7 JSON shape and the
+        # positional Report constructor used by older callers.
+        self.meta.setdefault("gate_spec_version", GATE_SPEC_VERSION)
+
+    @property
+    def gate_spec_version(self) -> str:
+        """Version of the gate method that produced this report."""
+        return str(self.meta["gate_spec_version"])
 
     def compute_overall(self) -> Severity:
         sevs = {f.severity for f in self.findings}

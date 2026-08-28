@@ -90,6 +90,11 @@ Validation domains (each maps to a module under `cadclaw/`):
   configured structural labels beyond a max gap.
 - Color/material (`cadclaw/color_check.py`) — compares STEP AP242 color
   metadata against expected label colors.
+- Semantic PMI presence (`cadclaw/pmi.py`) — reports presence or absence for
+  each declared AP242 semantic class: dimensions, geometric tolerances,
+  and datums. Graphical PMI, material assignments, and process/general notes
+  are excluded. This gate is unreleased on the development branch and is not
+  part of the published 0.10.0 package.
 - Structural (`cadclaw/kinematics.py`) — beam deflection (Euler-Bernoulli),
   motor torque budget, belt tension. Static load math; not motion-clearance
   or full-travel sweeps.
