@@ -1,6 +1,6 @@
 # CADCLAW gate-method specification
 
-Current gate-method version: **0.11.0**.
+Current gate-method version: **0.12.0**.
 
 This version is independent of:
 
@@ -12,7 +12,72 @@ Every newly generated `Report` carries `meta.gate_spec_version`. The existing
 top-level report schema and positional `Report` constructor remain unchanged.
 Historical reports are not silently re-scored. A report without this metadata
 key is a legacy, pre-0.11 gate-method report; consumers must use its stored
-package/report-schema context and must not infer the 0.11 method tag.
+package/report-schema context and must not infer a newer method tag. Reports
+tagged `0.11.0` retain the semantic-PMI method below and must not be relabeled
+as `0.12.0`.
+
+## 0.12.0 — bounded AP242 STEP round-trip preservation
+
+`ROUNDTRIP_STEP` is opt-in. When enabled, it performs an actual OCCT XCAF
+import of the submitted STEP, exports that document with the AP242 schema, and
+reimports the derivative. A disabled gate is `not_applicable` and does not run
+the exporter. The source cannot be selected as the output, and a caller must
+not overwrite an existing derivative. When no output path is supplied, the
+temporary derivative is removed after comparison.
+
+The translation comparison checks:
+
+- exact count of CADCLAW-deduplicated imported renderable shapes: solids and
+  shells collected by the shared render loader and deduplicated by coincident
+  bounding-box signatures rounded to 0.1 mm (not a STEP product count);
+- assembly and deterministically one-to-one-matched per-part axis-aligned
+  bounding measures, within configured absolute/relative tolerances;
+- the minimum shape distance for every explicitly declared, unambiguous
+  interface pair, within its configured tolerance; and
+- counts for each supported semantic-PMI class that is present in the source.
+
+The minimum-cost one-to-one part-correspondence method is limited to 256
+matched renderable shapes. If an equal-count comparison exceeds that boundary,
+the gate returns `roundtrip.part_count_limit_exceeded` before allocating its
+quadratic cost matrix. It does not sample, truncate, or call the omitted
+per-part comparison a pass.
+
+Every declared interface pair receives a result. A missing or ambiguous
+selector is an error, not an omitted comparison or a guessed nearest part.
+Semantic PMI is limited to class-count preservation for dimensions, geometric
+tolerances, and datums. It does not compare PMI element identity, values,
+references, associations, or construction correctness. If the source contains
+none of those supported classes, the PMI comparison is `not_applicable`.
+
+Source-translator family and product/version are caller declarations recorded
+as assumptions. `unknown` and `occt` do not establish an independent-kernel
+translation. A named `non_occt` source is described only as *declared
+independent*; CADCLAW does not infer or verify translator identity from the
+STEP header. An optional `authoring_reference_step_proxy` is another STEP
+artifact and produces a separately labeled proxy comparison. It is not a
+native-CAD model, native-reader check, or proof of authoring correctness.
+
+Public report metadata contains content hashes plus bounded aggregate statuses
+and deltas rather than full per-part geometry snapshots, source/proxy paths, or
+duplicated finding trees. Import, transfer, export, reimport, selector,
+measurement, and cleanup failures remain explicit errors. Repository
+regression coverage uses an authored NIST AP242 fixture for the positive path
+and a real AP242 export
+with semantic-PMI writing disabled for the negative control; the latter must
+preserve the tested geometry evidence while failing semantic-PMI class-count
+preservation.
+
+### Known omissions
+
+This method does not check:
+
+- proprietary native-CAD state or suppressed/hidden native parts;
+- verified translator identity or general cross-kernel interoperability;
+- topology identity, surface/curve classes, tessellation, or design history;
+- PMI element values, references, associations, construction, or presentation;
+- graphical PMI, materials, process/general notes, or validation properties;
+- assembly kinematics, manufacturability, physical performance, or safety; or
+- compliance or conformance with AP242, ASME Y14, or another standard.
 
 ## 0.11.0 — semantic AP242 PMI presence
 
