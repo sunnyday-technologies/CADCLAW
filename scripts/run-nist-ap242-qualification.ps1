@@ -488,7 +488,7 @@ function Invoke-CadclawGate {
     }
 }
 
-if ($CohortId -notmatch '^[a-z0-9][a-z0-9._-]{5,79}$') {
+if ($CohortId -cnotmatch '^[a-z0-9][a-z0-9._-]{5,79}$') {
     throw "CohortId must be 6-80 lowercase ASCII letters, digits, dots, underscores, or hyphens"
 }
 if ($CohortId.EndsWith(".", [System.StringComparison]::Ordinal) -or $CohortId.EndsWith(" ", [System.StringComparison]::Ordinal)) {
