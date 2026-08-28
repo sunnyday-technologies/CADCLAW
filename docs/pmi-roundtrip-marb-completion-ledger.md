@@ -39,7 +39,7 @@ closeout. An open pull request or a started validation is not completion.
 
 | ID | Deliverable | Status | Dependency | Branch/task | PR | Merge commit |
 |---|---|---|---|---|---|---|
-| C1 | CADCLAW semantic AP242 PMI gate | IN PROGRESS | None | `feat/pmi-present-gate` | [#9](https://github.com/sunnyday-technologies/CADCLAW/pull/9) | TBD |
+| C1 | CADCLAW semantic AP242 PMI gate | MERGED | None | `feat/pmi-present-gate` (deleted after merge) | [#9](https://github.com/sunnyday-technologies/CADCLAW/pull/9) | `db41bea9495be8200490fa38bbd145c91bad716c` |
 | C2 | CADCLAW AP242 STEP round-trip gate | NOT STARTED | C1 merged | `codex/roundtrip-step-gate` | TBD | TBD |
 | M1 | MARB repeat-run reporting and acceptable-solution policy | IN PROGRESS | Independent | task `01a046b7-1430-7792-b891-709e5b60c7ff` | TBD | TBD |
 | M2 | MARB `L2-RESOLVE` task | NOT STARTED | M1 method/version decisions | Same MARB task | TBD | TBD |
@@ -62,21 +62,26 @@ closeout. An open pull request or a started validation is not completion.
   rules schema contracts.
 - [x] Focused and full local suites pass: 397 passed, 6 skipped.
 - [x] CodeQL and answer-key guards pass on PR #9.
-- [ ] GitHub unit tests pass in the Linux headless runner.
-- [ ] PR disclosure and approved deferral receive final readback.
-- [ ] PR #9 is merged and the merge commit is verified on `main`.
+- [x] GitHub unit tests pass in the Linux headless runner.
+- [x] PR disclosure and approved deferral receive final readback.
+- [x] PR #9 is merged and the merge commit is verified on `main`.
 
 Evidence:
 
 - Semantic-PMI implementation head before tracking/CI follow-ups:
   `ccc0f11d95802f093e46b36a0bb4b86fbe0222ca`
+- Final PR head: `dc386bc492192cf3bd1dfd3a1ad3f48344e97821`
+- Merge commit on `main`: `db41bea9495be8200490fa38bbd145c91bad716c`
+- GitHub Linux unit run:
+  [33145078839](https://github.com/sunnyday-technologies/CADCLAW/actions/runs/33145078839),
+  397 tests passed under Xvfb; all CodeQL and answer-key checks also passed.
 - NIST STC06 fixture SHA-256:
   `71777C28DA76DA0E8A667E4CBE792D5F72C09B5C56440C9744D3D50CA96ECC8D`
 - NIST FTC11 fixture SHA-256:
   `20A92EDF514AE0989D556F9C7B9F065AED741CFBB361B7FE4CB7938A1EB5C232`
-- Current blocker: the GitHub Linux job reaches VTK rendering without an X,
-  EGL, or OSMesa display and exits 139. This is a CI-environment failure, not a
-  semantic-PMI assertion failure.
+- Resolved CI issue: the GitHub Linux runner initially reached VTK rendering
+  without a display and exited 139. The full, unchanged suite now runs under
+  Xvfb; no rendering tests are skipped.
 
 ### C2 - AP242 STEP round trip
 
