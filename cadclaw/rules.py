@@ -34,6 +34,7 @@ from pydantic import (
     ConfigDict,
     Field,
     FiniteFloat,
+    ValidationError,
     field_validator,
     model_validator,
 )
@@ -430,6 +431,142 @@ def load_rules(path: Union[str, Path]) -> RuleSet:
     if not isinstance(data, dict):
         raise ValueError(f"rule file must be a YAML mapping at top level, got {type(data).__name__}")
     return RuleSet.model_validate(data)
+
+
+class RulesConfigError(RuntimeError):
+    """Safe external-boundary projection of a rule-file load failure.
+
+    Raw YAML, Pydantic inputs/messages, arbitrary mapping keys, submitted
+    paths, and underlying exception objects are intentionally not retained.
+    ``load_rules`` remains the compatible low-level API; external CLI, MCP,
+    and canonical library entry points use ``load_rules_safe``.
+    """
+
+    def __init__(
+        self,
+        reason_code: str,
+        *,
+        stage: str,
+        error_count: int = 1,
+        locations: tuple[tuple[Union[str, int], ...], ...] = (),
+        line: Optional[int] = None,
+        column: Optional[int] = None,
+    ):
+        self.reason_code = reason_code
+        self.stage = stage
+        self.error_count = max(1, int(error_count))
+        self.locations = locations
+        self.line = line if isinstance(line, int) and line > 0 else None
+        self.column = column if isinstance(column, int) and column > 0 else None
+        super().__init__("rule configuration could not be loaded")
+
+    def to_dict(self) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            "reason_code": self.reason_code,
+            "stage": self.stage,
+            "error_count": self.error_count,
+        }
+        if self.locations:
+            payload["locations"] = [list(location) for location in self.locations]
+        if self.line is not None:
+            payload["line"] = self.line
+        if self.column is not None:
+            payload["column"] = self.column
+        return payload
+
+
+_RULE_MODEL_TYPES = (
+    LabelSpec,
+    MetaModel,
+    RegionModel,
+    BomRuleModel,
+    BomAuditModel,
+    SourceRegexRuleModel,
+    ClaimAuditModel,
+    PublishAuditModel,
+    InterferenceModel,
+    FloatingCheckModel,
+    PmiPresentModel,
+    RoundtripSourceTranslatorModel,
+    RoundtripSelectorModel,
+    RoundtripInterfacePairModel,
+    RoundtripStepModel,
+    ConfidenceBudgetModel,
+    RuleSet,
+)
+_SAFE_RULE_LOCATION_NAMES = frozenset(
+    name
+    for model_type in _RULE_MODEL_TYPES
+    for name in model_type.model_fields
+)
+
+
+def _safe_validation_location(raw_location) -> tuple[Union[str, int], ...]:
+    safe = []
+    for component in tuple(raw_location):
+        if isinstance(component, int) and component >= 0:
+            safe.append(component)
+        elif isinstance(component, str) and component in _SAFE_RULE_LOCATION_NAMES:
+            safe.append(component)
+        else:
+            safe.append("<item>")
+    return tuple(safe)
+
+
+def load_rules_safe(path: Union[str, Path]) -> RuleSet:
+    """Load rules through a typed, value-redacting external boundary."""
+    safe_error: Optional[RulesConfigError] = None
+    try:
+        try:
+            return load_rules(path)
+        except ValidationError as exc:
+            projected = []
+            for item in exc.errors(
+                include_url=False,
+                include_context=False,
+                include_input=False,
+            ):
+                location = _safe_validation_location(item.get("loc", ()))
+                if location not in projected:
+                    projected.append(location)
+            safe_error = RulesConfigError(
+                "rules.validation_failed",
+                stage="validation",
+                error_count=exc.error_count(),
+                locations=tuple(projected),
+            )
+        except yaml.YAMLError as exc:
+            mark = getattr(exc, "problem_mark", None)
+            line = getattr(mark, "line", None)
+            column = getattr(mark, "column", None)
+            safe_error = RulesConfigError(
+                "rules.yaml_invalid",
+                stage="parse",
+                line=(line + 1) if isinstance(line, int) else None,
+                column=(column + 1) if isinstance(column, int) else None,
+            )
+        except (OSError, UnicodeError):
+            safe_error = RulesConfigError(
+                "rules.file_unavailable",
+                stage="read",
+            )
+        except (TypeError, ValueError):
+            safe_error = RulesConfigError(
+                "rules.validation_failed",
+                stage="validation",
+            )
+    except Exception:
+        # Includes parser recursion limits and any future validator failure
+        # class.  The raw exception is discarded before the safe error is
+        # raised below.
+        safe_error = RulesConfigError(
+            "rules.processing_failed",
+            stage="processing",
+        )
+    # Raise after leaving the source exception handler so even ``__context__``
+    # cannot expose the raw parser/validator object to an external caller.
+    assert safe_error is not None
+    raise safe_error from None
 
 
 def dump_rules(rules: RuleSet, path: Union[str, Path]) -> None:

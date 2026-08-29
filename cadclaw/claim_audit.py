@@ -237,30 +237,48 @@ def _scan_text_for_claims(
         claim_line = claim_lines[line_no - 1] if line_no - 1 < len(claim_lines) else ""
         numeric_line = numeric_lines[line_no - 1] if line_no - 1 < len(numeric_lines) else ""
 
-        for word in forbidden:
+        for rule_ordinal, word in enumerate(forbidden, start=1):
             idx = _find_unnegated(claim_line, word)
             if idx >= 0:
                 out.append(Finding(
                     id="claim.forbidden_absolute",
                     category="claim_audit",
                     severity=Severity.FAIL,
-                    message=f"{rel_path}:{line_no}: contains forbidden absolute {word!r}.",
-                    suggested_fix=SUGGESTED_REWRITES.get(
-                        word.lower(),
-                        f"Replace {word!r} with an evidence-backed phrase or remove.",
+                    message=(
+                        f"{rel_path}:{line_no}: contains a configured "
+                        "forbidden absolute."
                     ),
-                    evidence={"path": rel_path, "line": line_no, "word": word},
+                    suggested_fix=(
+                        "Replace the flagged absolute at this location with "
+                        "an evidence-backed phrase or remove it."
+                    ),
+                    evidence={
+                        "path": rel_path,
+                        "line": line_no,
+                        "kind": "forbidden_absolute",
+                        "rule_ordinal": rule_ordinal,
+                    },
                 ))
-        for term in stale_terms:
+        for rule_ordinal, term in enumerate(stale_terms, start=1):
             idx = _find_unnegated(claim_line, term)
             if idx >= 0:
                 out.append(Finding(
                     id="claim.stale_term",
                     category="claim_audit",
                     severity=Severity.FAIL,
-                    message=f"{rel_path}:{line_no}: contains stale term {term!r}.",
-                    suggested_fix=f"Remove {term!r} from {rel_path}.",
-                    evidence={"path": rel_path, "line": line_no, "term": term},
+                    message=(
+                        f"{rel_path}:{line_no}: contains a configured stale term."
+                    ),
+                    suggested_fix=(
+                        "Remove or replace the configured stale term at this "
+                        "location."
+                    ),
+                    evidence={
+                        "path": rel_path,
+                        "line": line_no,
+                        "kind": "stale_term",
+                        "rule_ordinal": rule_ordinal,
+                    },
                 ))
         for regex in numeric_patterns:
             if regex.search(numeric_line):
@@ -273,7 +291,8 @@ def _scan_text_for_claims(
                             f"{rel_path}:{line_no}: numeric claim missing evidence tag."
                         ),
                         suggested_fix=(
-                            f"Append an evidence tag from {evidence_tags!r} or rephrase."
+                            "Append an allowed evidence tag from the rule file "
+                            "or rephrase."
                         ),
                         evidence={"path": rel_path, "line": line_no},
                     ))
@@ -288,50 +307,74 @@ def _scan_json_notes(
     numeric_patterns: List[re.Pattern],
     evidence_tags: List[str],
     stale_terms: List[str],
-) -> List[Finding]:
-    """For BOM JSON: scan only the `name`, `description`, `notes` fields."""
+) -> tuple[List[Finding], str]:
+    """Recursively scan string ``name``/``description``/``notes`` fields.
+
+    Returns ``scanned``, ``unsupported``, or ``error`` so a valid JSON object
+    with no claim-bearing fields cannot be counted as evidence.
+    """
     try:
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return []
-    items = data["items"] if isinstance(data, dict) and "items" in data else data
-    if not isinstance(items, list):
-        return []
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError):
+        return [], "error"
+
+    claim_strings: List[str] = []
+
+    def _collect(value) -> None:
+        if isinstance(value, dict):
+            for key, nested in value.items():
+                if key in {"name", "description", "notes"} and isinstance(
+                    nested, str
+                ):
+                    claim_strings.append(nested)
+                _collect(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                _collect(nested)
+
+    try:
+        _collect(data)
+    except Exception:
+        # A syntactically valid but pathologically nested manifest must not
+        # leak a recursion/runtime exception through a CLI or MCP audit.
+        return [], "error"
+    if not claim_strings:
+        return [], "unsupported"
+
     out: List[Finding] = []
-    for i, item in enumerate(items):
-        if not isinstance(item, dict):
-            continue
-        haystack = " ".join(
-            str(item.get(k, "")) for k in ("name", "description", "notes")
-        )
-        synth = f"{rel_path} (id={item.get('id', i)})"
+    for ordinal, haystack in enumerate(claim_strings, start=1):
+        synth = f"{rel_path} (claim field {ordinal})"
         out.extend(_scan_text_for_claims(
             haystack, synth, forbidden, numeric_patterns, evidence_tags, stale_terms,
         ))
-    return out
+    return out, "scanned"
 
 
 def _scan_python_for_source_rules(
     path: Path,
     rel_path: str,
     rules_models,
-) -> List[Finding]:
+) -> tuple[List[Finding], bool]:
     out: List[Finding] = []
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError:
-        return out
-    for srule in rules_models:
+    except (OSError, UnicodeError):
+        return out, False
+    for ordinal, srule in rules_models:
         try:
             regex = re.compile(srule.pattern)
-        except re.error as e:
+        except re.error as exc:
+            evidence = {"rule_ordinal": ordinal, "status": "error"}
+            position = getattr(exc, "pos", None)
+            if isinstance(position, int) and position >= 0:
+                evidence["position"] = position
             out.append(Finding(
                 id="claim.bad_source_pattern",
                 category="claim_audit",
                 severity=Severity.WARN,
-                message=f"source_regex_rule pattern {srule.pattern!r} is not valid: {e}",
-                evidence={"pattern": srule.pattern},
+                message="a configured source-regex pattern is invalid",
+                evidence=evidence,
             ))
             continue
         for line_no, line in enumerate(text.splitlines(), start=1):
@@ -343,11 +386,18 @@ def _scan_python_for_source_rules(
                     id="claim.source_regex",
                     category="claim_audit",
                     severity=sev,
-                    message=f"{rel_path}:{line_no}: {srule.message}",
-                    evidence={"path": rel_path, "line": line_no,
-                              "pattern": srule.pattern},
+                    message=(
+                        f"{rel_path}:{line_no}: configured source-regex "
+                        f"rule {ordinal} matched (value redacted)"
+                    ),
+                    evidence={
+                        "path": rel_path,
+                        "line": line_no,
+                        "kind": "source_regex",
+                        "rule_ordinal": ordinal,
+                    },
                 ))
-    return out
+    return out, True
 
 
 def _expand_globs(globs: List[str], repo: Path) -> List[Path]:
@@ -375,65 +425,172 @@ def run_claim_audit(rules: RuleSet, repo_root: str = ".") -> Report:
     forbidden = list(DEFAULT_FORBIDDEN_ABSOLUTES) + list(
         rules.claim_audit.forbidden_absolutes_extra
     )
-    numeric = [
-        re.compile(p, re.IGNORECASE)
-        for p in (
-            list(DEFAULT_NUMERIC_PATTERNS)
-            + list(rules.claim_audit.evidence_tags_required_for)
-        )
-    ]
+    numeric = []
+    numeric_config_errors = 0
+    for ordinal, pattern in enumerate(
+        list(DEFAULT_NUMERIC_PATTERNS)
+        + list(rules.claim_audit.evidence_tags_required_for),
+        start=1,
+    ):
+        try:
+            numeric.append(re.compile(pattern, re.IGNORECASE))
+        except re.error as exc:
+            evidence = {"pattern_ordinal": ordinal, "status": "error"}
+            position = getattr(exc, "pos", None)
+            if isinstance(position, int) and position >= 0:
+                evidence["position"] = position
+            findings.append(Finding(
+                id="claim.bad_numeric_pattern",
+                category="claim_audit",
+                severity=Severity.WARN,
+                message="a configured numeric-claim pattern is invalid",
+                evidence=evidence,
+            ))
+            numeric_config_errors += 1
     evidence_tags = list(rules.claim_audit.evidence_tags_allowed)
     stale = list(rules.claim_audit.stale_terms)
 
     # Text + BOM JSON scan
     files = _expand_globs(rules.claim_audit.scan_paths, repo)
     n_text = 0
-    for path in files:
+    n_scan_errors = numeric_config_errors
+    for file_ordinal, path in enumerate(files, start=1):
         try:
             rel = str(path.relative_to(repo)).replace("\\", "/")
         except ValueError:
             rel = str(path)
         suffix = path.suffix.lower()
         if suffix == ".json":
-            findings.extend(_scan_json_notes(
+            scanned_findings, scan_status = _scan_json_notes(
                 path, rel, forbidden, numeric, evidence_tags, stale,
-            ))
-            n_text += 1
+            )
+            findings.extend(scanned_findings)
+            if scan_status == "scanned":
+                n_text += 1
+            else:
+                n_scan_errors += 1
+                findings.append(Finding(
+                    id=(
+                        "claim.no_scannable_claim_fields"
+                        if scan_status == "unsupported"
+                        else "claim.scan_error"
+                    ),
+                    category="claim_audit",
+                    severity=Severity.FAIL,
+                    message=(
+                        "a configured JSON file has no scannable claim fields"
+                        if scan_status == "unsupported"
+                        else "a configured JSON file could not be read and parsed"
+                    ),
+                    evidence={
+                        "file_ordinal": file_ordinal,
+                        "status": "error",
+                    },
+                ))
         else:
             try:
                 text = path.read_text(encoding="utf-8")
-            except OSError:
+            except (OSError, UnicodeError):
+                n_scan_errors += 1
+                findings.append(Finding(
+                    id="claim.scan_error",
+                    category="claim_audit",
+                    severity=Severity.FAIL,
+                    message="a configured text file could not be read",
+                    evidence={
+                        "file_ordinal": file_ordinal,
+                        "status": "error",
+                    },
+                ))
                 continue
             findings.extend(_scan_text_for_claims(
                 text, rel, forbidden, numeric, evidence_tags, stale,
             ))
             n_text += 1
 
+    # Validate source-regex assertions independently of whether their globs
+    # happen to match a file.  An invalid configured assertion is an error,
+    # not an empty/no-evidence pass or not-checked result.
+    valid_source_rules = []
+    for ordinal, source_rule in enumerate(
+        rules.claim_audit.source_regex_rules,
+        start=1,
+    ):
+        try:
+            re.compile(source_rule.pattern)
+        except re.error as exc:
+            evidence = {"rule_ordinal": ordinal, "status": "error"}
+            position = getattr(exc, "pos", None)
+            if isinstance(position, int) and position >= 0:
+                evidence["position"] = position
+            findings.append(Finding(
+                id="claim.bad_source_pattern",
+                category="claim_audit",
+                severity=Severity.WARN,
+                message="a configured source-regex pattern is invalid",
+                evidence=evidence,
+            ))
+        else:
+            valid_source_rules.append((ordinal, source_rule))
+
     # Source-regex pass over .py files
-    if rules.claim_audit.source_regex_rules:
-        py_globs = list({s.file_glob for s in rules.claim_audit.source_regex_rules})
+    n_source = 0
+    if valid_source_rules:
+        py_globs = list({
+            source_rule.file_glob
+            for _ordinal, source_rule in valid_source_rules
+        })
         py_files = _expand_globs(py_globs, repo)
-        for path in py_files:
+        for file_ordinal, path in enumerate(py_files, start=1):
             try:
                 rel = str(path.relative_to(repo)).replace("\\", "/")
             except ValueError:
                 rel = str(path)
-            findings.extend(_scan_python_for_source_rules(
-                path, rel, rules.claim_audit.source_regex_rules,
-            ))
+            source_findings, scan_ok = _scan_python_for_source_rules(
+                path, rel, valid_source_rules,
+            )
+            findings.extend(source_findings)
+            if scan_ok:
+                n_source += 1
+            else:
+                n_scan_errors += 1
+                findings.append(Finding(
+                    id="claim.scan_error",
+                    category="claim_audit",
+                    severity=Severity.FAIL,
+                    message="a configured source file could not be read",
+                    evidence={
+                        "file_ordinal": file_ordinal,
+                        "status": "error",
+                    },
+                ))
 
     duration_ms = (time.time() - t0) * 1000
+    execution_error = bool(n_scan_errors) or any(
+        finding.id in {
+            "claim.bad_numeric_pattern",
+            "claim.bad_source_pattern",
+            "claim.no_scannable_claim_fields",
+            "claim.scan_error",
+        }
+        for finding in findings
+    )
+    meta = {
+        "category": "claim_audit",
+        "files_scanned": n_text,
+        "source_files_scanned": n_source,
+        "scan_error_count": n_scan_errors,
+        "n_forbidden": len(forbidden),
+        "n_numeric_patterns": len(numeric),
+        "n_stale_terms": len(stale),
+        "execution_status": "error" if execution_error else "complete",
+    }
+    if not execution_error:
+        meta["repo"] = str(repo)
     rep = Report(
         findings=findings,
         duration_ms=duration_ms,
-        meta={
-            "category": "claim_audit",
-            "repo": str(repo),
-            "files_scanned": n_text,
-            "n_forbidden": len(forbidden),
-            "n_numeric_patterns": len(numeric),
-            "n_stale_terms": len(stale),
-        },
+        meta=meta,
         confidence_budget=ConfidenceBudget(
             checked=[
                 "forbidden absolutes (substring)",

@@ -30,6 +30,7 @@ Once connected, the assistant can call these tools directly:
 
 | Tool | What it does |
 |------|-------------|
+| `run_harness` | Statelessly run selected versioned `cadclaw.yaml` gates and return the report 0.7 envelope plus an exhaustive status ledger |
 | `load_assembly` | Load a STEP file, label parts by bbox signature |
 | `check_inventory` | Validate part counts against expected |
 | `check_interference` | Find solid-solid overlaps (BRep boolean) |

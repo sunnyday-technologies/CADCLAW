@@ -25,11 +25,27 @@ SUPPORTED_PMI_CLASSES: Tuple[str, ...] = (
 )
 
 
+_PMI_ERROR_MESSAGES = {
+    "pmi.input_unreadable": "STEP input could not be read",
+    "pmi.schema_missing": "STEP schema could not be classified",
+    "pmi.schema_unsupported": "STEP schema is unsupported for semantic PMI",
+    "pmi.reader_unavailable": "semantic PMI reader is unavailable",
+    "pmi.read_failed": "semantic PMI reader could not read the STEP input",
+    "pmi.transfer_failed": "semantic PMI data could not be transferred",
+    "pmi.extract_failed": "semantic PMI data could not be extracted",
+}
+
+
 class PmiExtractionError(RuntimeError):
     """A STEP could not be classified or imported for semantic PMI checks."""
 
-    def __init__(self, code: str, message: str):
-        super().__init__(message)
+    def __init__(self, code: str, message: str | None = None):
+        # ``message`` remains accepted for source compatibility, but external
+        # diagnostics use only a fixed code-to-message projection.
+        super().__init__(_PMI_ERROR_MESSAGES.get(
+            code,
+            "semantic PMI evaluation could not be completed",
+        ))
         self.code = code
 
 
@@ -51,11 +67,10 @@ def _read_step_schema(step_path: Path) -> str:
     try:
         with step_path.open("r", encoding="utf-8", errors="replace") as stream:
             header = stream.read(256 * 1024)
-    except OSError as exc:
+    except OSError:
         raise PmiExtractionError(
             "pmi.input_unreadable",
-            f"could not read STEP input: {exc}",
-        ) from exc
+        ) from None
 
     # Part 21 comments and other HEADER strings are not schema declarations.
     # Limit the search to the actual HEADER section and anchor FILE_SCHEMA at
@@ -117,7 +132,7 @@ def extract_semantic_pmi(step_path: str | Path) -> SemanticPmiSnapshot:
     if not re.match(r"^AP242(?:_|$)", schema.upper()):
         raise PmiExtractionError(
             "pmi.schema_unsupported",
-            f"semantic PMI gate requires STEP AP242; input declares {schema}",
+            "semantic PMI gate requires STEP AP242",
         )
 
     try:
@@ -132,11 +147,11 @@ def extract_semantic_pmi(step_path: str | Path) -> SemanticPmiSnapshot:
             XCAFDimTolObjects_DimensionType_DimensionPresentation,
         )
         from OCP.XCAFDoc import XCAFDoc_Dimension, XCAFDoc_DocumentTool
-    except ImportError as exc:
+    except ImportError:
         raise PmiExtractionError(
             "pmi.reader_unavailable",
             "OCCT XCAF semantic PMI reader is unavailable",
-        ) from exc
+        ) from None
 
     try:
         document = TDocStd_Document(TCollection_ExtendedString("XmlXCAF"))
@@ -149,23 +164,23 @@ def extract_semantic_pmi(step_path: str | Path) -> SemanticPmiSnapshot:
         # explicitly after transfer below.
         reader.SetViewMode(False)
         status = reader.ReadFile(str(path))
-    except Exception as exc:
+    except Exception:
         raise PmiExtractionError(
             "pmi.read_failed",
             "OCCT could not read the STEP input",
-        ) from exc
+        ) from None
     if status != IFSelect_ReturnStatus.IFSelect_RetDone:
         raise PmiExtractionError(
             "pmi.read_failed",
-            f"OCCT could not read STEP input (status {status.name})",
+            "OCCT could not read STEP input",
         )
     try:
         transferred = reader.Transfer(document)
-    except Exception as exc:
+    except Exception:
         raise PmiExtractionError(
             "pmi.transfer_failed",
             "OCCT could not transfer AP242 semantic data",
-        ) from exc
+        ) from None
     if not transferred:
         raise PmiExtractionError(
             "pmi.transfer_failed",
@@ -190,11 +205,11 @@ def extract_semantic_pmi(step_path: str | Path) -> SemanticPmiSnapshot:
             XCAFDoc_Dimension.Set_s,
             presentation_types,
         )
-    except Exception as exc:
+    except Exception:
         raise PmiExtractionError(
             "pmi.extract_failed",
             "OCCT imported the STEP but semantic PMI extraction failed",
-        ) from exc
+        ) from None
 
     return SemanticPmiSnapshot(
         step_path=str(path),
@@ -275,8 +290,15 @@ def run_pmi_present(
             id=exc.code,
             category="pmi_present",
             severity=Severity.FAIL,
-            message=str(exc),
-            evidence={"status": "error", "semantic_only": True},
+            message=_PMI_ERROR_MESSAGES.get(
+                exc.code,
+                "semantic PMI evaluation could not be completed",
+            ),
+            evidence={
+                "status": "error",
+                "semantic_only": True,
+                "reason_code": exc.code,
+            },
         ))
         report.confidence_budget.not_checked.append(
             f"{GATE_NAME}: input could not be evaluated"

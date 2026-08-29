@@ -16,10 +16,11 @@ Or programmatically:
     h.add_dimensional(rules=[...])
     report = h.run()
 """
+import os
 import sys
 import time
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
 from .inventory import InventoryCheck, InventoryResult, load_and_dedup, sig
 from .interference import InterferenceCheck, InterferenceResult
 from .adjacency import AdjacencyCheck, AdjacencyResult, AdjacencyRule
@@ -232,7 +233,17 @@ class Harness:
                 findings=findings))
             all_findings.extend(findings)
 
-        all_passed = all(r.passed for r in results)
+        if not results:
+            all_findings.append(Finding(
+                id="harness.no_gates_configured",
+                category="harness",
+                severity=Severity.FAIL,
+                message="the harness has no configured gates",
+            ))
+
+        # ``all([])`` is mathematically true but operationally unsafe here:
+        # an empty validation plan has established nothing about the CAD.
+        all_passed = bool(results) and all(r.passed for r in results)
         duration_ms = (time.time() - t0) * 1000
 
         rich = Report(
@@ -314,6 +325,29 @@ def _format_clip_detail(c) -> str:
 
 def _interference_findings(r: InterferenceResult) -> List[Finding]:
     out: List[Finding] = []
+    if r.not_checked_reason and not r.error_count:
+        out.append(Finding(
+            id="interference.not_checked",
+            category="interference",
+            severity=Severity.FAIL,
+            message=f"interference was not checked: {r.not_checked_reason}",
+            evidence={"eligible_parts": r.eligible_parts},
+        ))
+    if r.error_count:
+        out.append(Finding(
+            id="interference.execution_error",
+            category="interference",
+            severity=Severity.FAIL,
+            message=(
+                f"{r.error_count} interference evaluation(s) could not "
+                "complete"
+            ),
+            evidence={
+                "error_count": r.error_count,
+                "candidate_pairs_attempted": r.checked_pairs,
+                "eligible_parts": r.eligible_parts,
+            },
+        ))
     for c in r.clips:
         suggestion = _format_shift_suggestion(c)
         out.append(Finding(
@@ -524,3 +558,756 @@ def _orientation_findings(r: OrientationResult) -> List[Finding]:
             },
         ))
     return out
+
+
+def _roundtrip_config_from_rules(rules):
+    """Convert strict YAML models to the round-trip module's config."""
+    from .roundtrip import (
+        InterfacePair,
+        PartSelector,
+        RoundtripConfig,
+        SourceTranslator,
+    )
+
+    model = rules.roundtrip_step
+
+    def _selector(item):
+        return PartSelector(
+            label=item.label,
+            near_mm=tuple(item.near_mm) if item.near_mm is not None else None,
+            max_center_distance_mm=item.max_center_distance_mm,
+        )
+
+    return RoundtripConfig(
+        source_translator=SourceTranslator(
+            family=model.source_translator.family,
+            name=model.source_translator.name,
+            version=model.source_translator.version,
+        ),
+        authoring_reference_step_proxy=model.authoring_reference_step_proxy,
+        interface_pairs=tuple(
+            InterfacePair(
+                id=pair.id,
+                a=_selector(pair.a),
+                b=_selector(pair.b),
+                tolerance_mm=pair.tolerance_mm,
+            )
+            for pair in model.interface_pairs
+        ),
+        bbox_tolerance_mm=model.bbox_tolerance_mm,
+        bbox_volume_relative_tolerance=model.bbox_volume_relative_tolerance,
+        bbox_volume_absolute_tolerance_mm3=(
+            model.bbox_volume_absolute_tolerance_mm3
+        ),
+        interface_gap_tolerance_mm=model.interface_gap_tolerance_mm,
+    )
+
+
+def run_configured_harness(
+    rules_path: str = "cadclaw.yaml",
+    *,
+    repo_root: str = ".",
+    only=None,
+    skip=None,
+) -> Report:
+    """Run the versioned YAML-backed gate union and return one ``Report``.
+
+    This is the canonical library entry point used by both the CLI and MCP.
+    Gate selection is validated before any gate runs, and ``meta.gate_registry``
+    contains exactly one terminal ledger row for every registered gate.
+    Operational errors are redacted and fail closed without being represented
+    as design failures established by the affected gate.
+    """
+    from .bom_audit import run_bom_audit
+    from .claim_audit import run_claim_audit
+    from .color_check import ColorCheck
+    from .findings import ConfidenceBudget
+    from .floating import FloatingCheck
+    from .gate_registry import (
+        GateLedgerEntry,
+        GateStatus,
+        HARNESS_GATE_REGISTRY,
+    )
+    from .inventory import InventoryCheck, Region
+    from .orientation import OrientationCheck
+    from .pmi import run_pmi_present
+    from .publish_audit import run_publish_audit
+    from .roundtrip import run_roundtrip_step
+    from .rules import RulesConfigError, load_rules_safe
+
+    started = time.time()
+    rules_path = os.fspath(rules_path)
+    repo_root = os.fspath(repo_root)
+    selection = HARNESS_GATE_REGISTRY.resolve(only=only, skip=skip)
+    try:
+        rules = load_rules_safe(rules_path)
+    except RulesConfigError as exc:
+        report = Report(
+            meta={
+                "error": "rules_configuration_error",
+                **exc.to_dict(),
+                "gate_registry": {
+                    "version": selection.registry_version,
+                    "registered_gate_ids": list(HARNESS_GATE_REGISTRY.ids),
+                    "selected_gate_ids": list(selection.selected_ids),
+                    "requested_gate_ids": list(selection.selected_ids),
+                    "only_gate_ids": (
+                        list(selection.only_ids)
+                        if selection.only_ids is not None else None
+                    ),
+                    "skip_gate_ids": list(selection.skip_ids),
+                    "aggregate_status": "error",
+                    "configuration_unavailable": True,
+                    "gates": [],
+                },
+            },
+            confidence_budget=ConfidenceBudget(
+                not_checked=[
+                    "harness gates could not be configured from the rule file"
+                ]
+            ),
+        )
+        report.add(Finding(
+            id=exc.reason_code,
+            category="harness",
+            severity=Severity.FAIL,
+            message="rule configuration could not be loaded",
+            evidence={**exc.to_dict(), "status": "error"},
+        ))
+        report.overall = report.compute_overall()
+        report.duration_ms = (time.time() - started) * 1000
+        return report
+    selected = set(selection.selected_ids)
+    explicitly_skipped = set(selection.skip_ids)
+
+    configured: Dict[str, bool] = {
+        "inventory": bool(rules.expected_inventory) or any(
+            region.expected for region in rules.regions
+        ),
+        "interference": "interference" in rules.model_fields_set,
+        "bom_audit": bool(rules.bom_audit.rules),
+        "claim_audit": bool(
+            rules.claim_audit.scan_paths
+            or rules.claim_audit.source_regex_rules
+        ),
+        "publish_audit": bool(
+            rules.publish_audit.ignore_globs
+            or rules.publish_audit.scan_globs
+        ),
+        "pmi_present": bool(rules.pmi_present.expected_classes),
+        "roundtrip_step": bool(rules.roundtrip_step.enabled),
+        "orientation": any(
+            spec.expected_face for spec in rules.label_specs().values()
+        ),
+        "floating": bool(rules.floating_check.structural_labels),
+        "color": any(
+            spec.expected_color for spec in rules.label_specs().values()
+        ),
+    }
+
+    entries: Dict[str, GateLedgerEntry] = {}
+    for gate_id in HARNESS_GATE_REGISTRY.ids:
+        entry = GateLedgerEntry(
+            gate_id=gate_id,
+            selected=gate_id in selected,
+            configured=configured[gate_id],
+        )
+        if gate_id in explicitly_skipped:
+            entry.status = GateStatus.SKIPPED
+            entry.reason = "excluded by --skip"
+        elif gate_id not in selected:
+            entry.status = GateStatus.NOT_CHECKED
+            entry.reason = "not selected by --only"
+        entries[gate_id] = entry
+
+    aggregate = Report(
+        meta={
+            "project": rules.meta.project or "",
+            "rules": rules_path,
+        },
+        confidence_budget=ConfidenceBudget(
+            checked=[],
+            not_checked=list(rules.confidence_budget.not_checked),
+            assumptions=list(rules.confidence_budget.assumptions),
+        ),
+    )
+
+    def _finding_counts(findings: List[Finding]) -> Dict[str, int]:
+        return {
+            severity.value: sum(
+                1 for finding in findings if finding.severity == severity
+            )
+            for severity in (Severity.PASS, Severity.WARN, Severity.FAIL)
+        }
+
+    def _status_from_findings(findings: List[Finding]):
+        severities = {finding.severity for finding in findings}
+        if Severity.FAIL in severities:
+            return GateStatus.FAIL
+        if Severity.WARN in severities:
+            return GateStatus.WARN
+        return GateStatus.PASS
+
+    def _terminal(
+        gate_id: str,
+        status,
+        *,
+        reason: Optional[str] = None,
+        findings: Optional[List[Finding]] = None,
+    ) -> None:
+        entry = entries[gate_id]
+        entry.status = status
+        entry.reason = reason
+        if findings is not None:
+            entry.finding_counts = _finding_counts(findings)
+        if status in (GateStatus.PASS, GateStatus.WARN, GateStatus.FAIL):
+            if gate_id not in aggregate.confidence_budget.checked:
+                aggregate.confidence_budget.checked.append(gate_id)
+        elif status in (GateStatus.ERROR, GateStatus.NOT_CHECKED):
+            disclosure = f"{gate_id} ({reason or status.value})"
+            if disclosure not in aggregate.confidence_budget.not_checked:
+                aggregate.confidence_budget.not_checked.append(disclosure)
+
+    def _extend_subreport(sub: Report) -> None:
+        aggregate.findings.extend(sub.findings)
+        # Gate identities, rather than gate-specific prose, are the canonical
+        # checked set. Preserve the sub-report's assumptions and omissions.
+        for item in sub.confidence_budget.not_checked:
+            if item not in aggregate.confidence_budget.not_checked:
+                aggregate.confidence_budget.not_checked.append(item)
+        for item in sub.confidence_budget.assumptions:
+            if item not in aggregate.confidence_budget.assumptions:
+                aggregate.confidence_budget.assumptions.append(item)
+
+    def _record_exception(gate_id: str, _exc: Exception) -> None:
+        before = len(aggregate.findings)
+        aggregate.add(Finding(
+            id="harness.gate_execution_error",
+            category=gate_id,
+            severity=Severity.FAIL,
+            message=f"{gate_id} could not complete",
+            evidence={
+                "gate_id": gate_id,
+                "reason_code": "harness.gate_execution_failed",
+                "status": "error",
+            },
+        ))
+        _terminal(
+            gate_id,
+            GateStatus.ERROR,
+            reason="gate execution error",
+            findings=aggregate.findings[before:],
+        )
+
+    def _missing_prerequisite(gate_id: str, prerequisite: str) -> None:
+        before = len(aggregate.findings)
+        aggregate.add(Finding(
+            id="harness.gate_prerequisite_missing",
+            category=gate_id,
+            severity=Severity.FAIL,
+            message=(
+                f"{gate_id} requires configured prerequisite {prerequisite}"
+            ),
+            evidence={
+                "gate_id": gate_id,
+                "prerequisite": prerequisite,
+                "status": "error",
+            },
+        ))
+        _terminal(
+            gate_id,
+            GateStatus.ERROR,
+            reason=f"missing prerequisite: {prerequisite}",
+            findings=aggregate.findings[before:],
+        )
+
+    def _execute(gate_id: str, callback) -> None:
+        before = len(aggregate.findings)
+        try:
+            outcome = callback()
+        except Exception as exc:
+            _record_exception(gate_id, exc)
+            return
+        new_findings = aggregate.findings[before:]
+        status = None
+        reason = None
+        if outcome is not None:
+            status, reason = outcome
+        if status is None:
+            status = _status_from_findings(new_findings)
+        if (
+            status == GateStatus.ERROR
+            and not any(
+                finding.severity == Severity.FAIL for finding in new_findings
+            )
+        ):
+            aggregate.add(Finding(
+                id="harness.gate_execution_error",
+                category=gate_id,
+                severity=Severity.FAIL,
+                message=f"{gate_id} could not complete every configured check",
+                evidence={"gate_id": gate_id, "status": "error"},
+            ))
+            new_findings = aggregate.findings[before:]
+        _terminal(
+            gate_id,
+            status,
+            reason=reason,
+            findings=new_findings,
+        )
+
+    label_specs = rules.label_specs()
+    step_path = rules.meta.step
+    loaded_parts = None
+    label_fn = None
+
+    def _load_geometry():
+        nonlocal loaded_parts, label_fn
+        if loaded_parts is not None:
+            return loaded_parts, label_fn
+        from .inventory import load_and_dedup, sig as part_signature
+
+        signature_labels = rules.sig_to_label()
+        belt_heuristic = rules.belt_heuristic
+
+        def _label(part):
+            dimensions = part_signature(part)
+            if dimensions in signature_labels:
+                return signature_labels[dimensions]
+            if (
+                belt_heuristic
+                and len(dimensions) >= 2
+                and dimensions[0] == 1.5
+                and dimensions[1] == 6.0
+            ):
+                return "belt"
+            return "other"
+
+        loaded_parts = load_and_dedup(step_path)
+        label_fn = _label
+        return loaded_parts, label_fn
+
+    for gate_id in selection.selected_ids:
+        if not configured[gate_id]:
+            if HARNESS_GATE_REGISTRY.allows_not_applicable(gate_id):
+                if gate_id == "pmi_present":
+                    sub = run_pmi_present(
+                        step_path=step_path,
+                        expected_classes=(),
+                    )
+                    _extend_subreport(sub)
+                    aggregate.meta["pmi_present"] = {
+                        key: value for key, value in sub.meta.items()
+                        if key not in {"project", "rules"}
+                    }
+                elif gate_id == "roundtrip_step":
+                    aggregate.meta["roundtrip_step"] = {
+                        "gate": "ROUNDTRIP_STEP",
+                        "applicability": "not_applicable",
+                        "reason": (
+                            "disabled; opt in with "
+                            "roundtrip_step.enabled: true"
+                        ),
+                    }
+                    aggregate.confidence_budget.not_checked.append(
+                        "roundtrip_step (disabled; opt in with "
+                        "roundtrip_step.enabled: true)"
+                    )
+                _terminal(
+                    gate_id,
+                    GateStatus.NOT_APPLICABLE,
+                    reason="no applicable gate assertions configured",
+                    findings=[],
+                )
+            else:
+                _terminal(
+                    gate_id,
+                    GateStatus.NOT_CHECKED,
+                    reason="gate assertions are not configured",
+                    findings=[],
+                )
+            continue
+
+        if gate_id == "inventory":
+            if not step_path:
+                _missing_prerequisite(gate_id, "rules.meta.step")
+                continue
+
+            def _inventory_gate():
+                signature_labels = rules.sig_to_label()
+                regions = [
+                    Region(
+                        name=region.name,
+                        x_range=(
+                            tuple(region.x_range) if region.x_range else None
+                        ),
+                        y_range=(
+                            tuple(region.y_range) if region.y_range else None
+                        ),
+                        z_range=(
+                            tuple(region.z_range) if region.z_range else None
+                        ),
+                        expected=dict(region.expected),
+                    )
+                    for region in rules.regions
+                ] or None
+                result = InventoryCheck(
+                    step_path,
+                    dict(signature_labels),
+                    dict(rules.expected_inventory),
+                    belt_heuristic=rules.belt_heuristic,
+                    regions=regions,
+                ).run()
+                aggregate.findings.extend(_inventory_findings(result))
+
+            _execute(gate_id, _inventory_gate)
+
+        elif gate_id == "interference":
+            if not step_path:
+                _missing_prerequisite(gate_id, "rules.meta.step")
+                continue
+
+            def _interference_gate():
+                parts, resolved_label_fn = _load_geometry()
+                result = InterferenceCheck(
+                    parts,
+                    resolved_label_fn,
+                    skip_labels=set(rules.interference.skip_labels),
+                    min_volume=rules.interference.min_volume_mm3,
+                    min_clearance_mm=rules.interference.min_clearance_mm,
+                ).run()
+                aggregate.findings.extend(_interference_findings(result))
+                if result.error_count:
+                    return GateStatus.ERROR, "one or more pair evaluations errored"
+                if result.not_checked_reason:
+                    return GateStatus.NOT_CHECKED, result.not_checked_reason
+                return None
+
+            _execute(gate_id, _interference_gate)
+
+        elif gate_id == "bom_audit":
+            if not rules.bom_audit.bom_path:
+                _missing_prerequisite(gate_id, "bom_audit.bom_path")
+                continue
+            if not step_path:
+                _missing_prerequisite(gate_id, "rules.meta.step")
+                continue
+
+            def _bom_gate():
+                sub = run_bom_audit(
+                    bom_path=rules.bom_audit.bom_path,
+                    step_path=step_path,
+                    rules=rules,
+                )
+                _extend_subreport(sub)
+
+            _execute(gate_id, _bom_gate)
+
+        elif gate_id == "claim_audit":
+            def _claim_gate():
+                sub = run_claim_audit(rules, repo_root=repo_root)
+                _extend_subreport(sub)
+                if any(
+                    finding.id in {
+                        "claim.bad_numeric_pattern",
+                        "claim.bad_source_pattern",
+                        "claim.no_scannable_claim_fields",
+                        "claim.scan_error",
+                    }
+                    for finding in sub.findings
+                ) or int(sub.meta.get("scan_error_count", 0)):
+                    return GateStatus.ERROR, "configured claim scan errored"
+                missing_lanes = []
+                if (
+                    rules.claim_audit.scan_paths
+                    and int(sub.meta.get("files_scanned", 0)) == 0
+                ):
+                    missing_lanes.append("claim text paths")
+                if (
+                    rules.claim_audit.source_regex_rules
+                    and int(sub.meta.get("source_files_scanned", 0)) == 0
+                ):
+                    missing_lanes.append("source-regex paths")
+                if missing_lanes:
+                    return (
+                        GateStatus.NOT_CHECKED,
+                        "no files scanned for: " + ", ".join(missing_lanes),
+                    )
+                return None
+
+            _execute(gate_id, _claim_gate)
+
+        elif gate_id == "publish_audit":
+            def _publish_gate():
+                sub = run_publish_audit(rules, repo_root=repo_root)
+                _extend_subreport(sub)
+                if any(
+                    finding.id in {
+                        "publish.bad_pattern",
+                        "publish.git_classification_error",
+                        "publish.scan_error",
+                    }
+                    for finding in sub.findings
+                ) or int(sub.meta.get("n_content_scan_errors", 0)) or int(
+                    sub.meta.get("n_git_classification_errors", 0)
+                ) or sub.meta.get("execution_status") == "error":
+                    return GateStatus.ERROR, "configured publish scan errored"
+                classified = sum(
+                    int(sub.meta.get(name, 0))
+                    for name in ("n_tracked", "n_staged", "n_untracked")
+                )
+                if classified == 0:
+                    return GateStatus.NOT_CHECKED, "no repository files were classified"
+                if (
+                    rules.publish_audit.scan_globs
+                    and int(sub.meta.get("n_content_scan_files", 0)) == 0
+                ):
+                    return (
+                        GateStatus.NOT_CHECKED,
+                        "no files matched the configured content-scan lane",
+                    )
+                return None
+
+            _execute(gate_id, _publish_gate)
+
+        elif gate_id == "pmi_present":
+            if not step_path:
+                _missing_prerequisite(gate_id, "rules.meta.step")
+                continue
+
+            def _pmi_gate():
+                sub = run_pmi_present(
+                    step_path=step_path,
+                    expected_classes=rules.pmi_present.expected_classes,
+                )
+                _extend_subreport(sub)
+                aggregate.meta["pmi_present"] = {
+                    key: value for key, value in sub.meta.items()
+                    if key not in {"project", "rules"}
+                }
+                applicability = sub.meta.get("applicability")
+                if applicability == "error":
+                    return GateStatus.ERROR, "semantic PMI evaluation errored"
+                if applicability == "not_applicable":
+                    return GateStatus.NOT_APPLICABLE, "no applicable PMI assertions"
+                return None
+
+            _execute(gate_id, _pmi_gate)
+
+        elif gate_id == "roundtrip_step":
+            if not step_path:
+                _missing_prerequisite(gate_id, "rules.meta.step")
+                continue
+
+            def _roundtrip_gate():
+                sub = run_roundtrip_step(
+                    step_path=step_path,
+                    config=_roundtrip_config_from_rules(rules),
+                    output_path=None,
+                    label_signatures=rules.label_to_sig(),
+                )
+                _extend_subreport(sub)
+                aggregate.meta["roundtrip_step"] = {
+                    key: value for key, value in sub.meta.items()
+                    if key not in {"project", "rules"}
+                }
+                if sub.meta.get("applicability") == "error":
+                    return GateStatus.ERROR, "round-trip evaluation errored"
+                return None
+
+            _execute(gate_id, _roundtrip_gate)
+
+        elif gate_id == "orientation":
+            if not step_path:
+                _missing_prerequisite(gate_id, "rules.meta.step")
+                continue
+
+            def _orientation_gate():
+                parts, resolved_label_fn = _load_geometry()
+                result = OrientationCheck(
+                    parts,
+                    resolved_label_fn,
+                    label_specs,
+                ).run()
+                aggregate.findings.extend(_orientation_findings(result))
+                if result.checked == 0:
+                    return GateStatus.NOT_CHECKED, "no matching labeled parts"
+                return None
+
+            _execute(gate_id, _orientation_gate)
+
+        elif gate_id == "floating":
+            if not step_path:
+                _missing_prerequisite(gate_id, "rules.meta.step")
+                continue
+
+            def _floating_gate():
+                parts, resolved_label_fn = _load_geometry()
+                result = FloatingCheck(
+                    parts,
+                    resolved_label_fn,
+                    structural_labels=set(
+                        rules.floating_check.structural_labels
+                    ),
+                    max_gap_mm=rules.floating_check.max_gap_mm,
+                    exempt_labels=set(rules.floating_check.exempt_labels),
+                ).run()
+                aggregate.findings.extend(_floating_findings(result))
+                if result.checked == 0:
+                    return (
+                        GateStatus.NOT_CHECKED,
+                        "no eligible parts or structural anchors",
+                    )
+                return None
+
+            _execute(gate_id, _floating_gate)
+
+        elif gate_id == "color":
+            if not step_path:
+                _missing_prerequisite(gate_id, "rules.meta.step")
+                continue
+
+            def _color_gate():
+                result = ColorCheck(step_path, label_specs).run()
+                aggregate.findings.extend(_color_findings(result))
+                if result.checked == 0:
+                    return GateStatus.NOT_CHECKED, "no configured labels evaluated"
+                return None
+
+            _execute(gate_id, _color_gate)
+
+    rows = [entries[gate_id] for gate_id in HARNESS_GATE_REGISTRY.ids]
+    all_status_ids = {
+        status.value: [
+            entry.gate_id for entry in rows if entry.status == status
+        ]
+        for status in GateStatus
+    }
+    status_ids = {
+        status.value: [
+            entry.gate_id for entry in rows
+            if entry.selected and entry.status == status
+        ]
+        for status in GateStatus
+    }
+    checked_gate_ids = [
+        entry.gate_id for entry in rows
+        if entry.status in (GateStatus.PASS, GateStatus.WARN, GateStatus.FAIL)
+    ]
+    selected_rows = [entry for entry in rows if entry.selected]
+    all_selected_not_applicable = bool(selected_rows) and all(
+        entry.status == GateStatus.NOT_APPLICABLE for entry in selected_rows
+    )
+    explicit_not_checked = [
+        entry.gate_id for entry in selected_rows
+        if entry.status == GateStatus.NOT_CHECKED
+    ] if selection.only_ids is not None else []
+    configured_not_checked = [
+        entry.gate_id for entry in selected_rows
+        if entry.configured and entry.status == GateStatus.NOT_CHECKED
+    ]
+    selected_not_checked = [
+        entry.gate_id for entry in selected_rows
+        if entry.status == GateStatus.NOT_CHECKED
+    ]
+    outside_selection = [
+        entry.gate_id for entry in rows
+        if not entry.selected and entry.status == GateStatus.NOT_CHECKED
+    ]
+
+    aggregate.meta["gate_registry"] = {
+        "version": selection.registry_version,
+        "registered_gate_ids": list(HARNESS_GATE_REGISTRY.ids),
+        "selected_gate_ids": list(selection.selected_ids),
+        # Retained for report consumers introduced by the initial hardening
+        # draft; it is an alias of selected_gate_ids.
+        "requested_gate_ids": list(selection.selected_ids),
+        "only_gate_ids": (
+            list(selection.only_ids) if selection.only_ids is not None else None
+        ),
+        "skip_gate_ids": list(selection.skip_ids),
+        "configured_gate_ids": [
+            gate_id for gate_id in HARNESS_GATE_REGISTRY.ids
+            if configured[gate_id]
+        ],
+        "checked_gate_ids": checked_gate_ids,
+        "executed_gate_ids": [
+            entry.gate_id for entry in rows
+            if entry.selected and entry.status in (
+                GateStatus.PASS,
+                GateStatus.WARN,
+                GateStatus.FAIL,
+                GateStatus.ERROR,
+            )
+        ],
+        "not_applicable_gate_ids": status_ids["not_applicable"],
+        "not_checked_gate_ids": selected_not_checked,
+        "outside_selection_gate_ids": outside_selection,
+        "skipped_gate_ids": list(selection.skip_ids),
+        "configured_not_checked_gate_ids": configured_not_checked,
+        "all_selected_not_applicable": all_selected_not_applicable,
+        "status_gate_ids": status_ids,
+        "all_status_gate_ids": all_status_ids,
+        "gates": [entry.to_dict() for entry in rows],
+    }
+
+    if all_selected_not_applicable:
+        aggregate.meta["applicability"] = "not_applicable"
+    elif (
+        len(selection.selected_ids) == 1
+        and selection.selected_ids[0] in {"pmi_present", "roundtrip_step"}
+    ):
+        gate_id = selection.selected_ids[0]
+        nested_applicability = aggregate.meta.get(gate_id, {}).get(
+            "applicability"
+        )
+        if nested_applicability:
+            aggregate.meta["applicability"] = nested_applicability
+
+    if explicit_not_checked or configured_not_checked or (
+        not checked_gate_ids and not all_selected_not_applicable
+        and not status_ids["error"]
+    ):
+        finding_id = (
+            "harness.requested_gate_not_checked"
+            if explicit_not_checked
+            else (
+                "harness.configured_gate_not_checked"
+                if configured_not_checked
+                else "harness.no_checks_executed"
+            )
+        )
+        aggregate.add(Finding(
+            id=finding_id,
+            category="harness",
+            severity=Severity.FAIL,
+            message=(
+                "selected harness gates did not establish a check result"
+            ),
+            evidence={
+                "selected_gate_ids": list(selection.selected_ids),
+                "not_checked_gate_ids": explicit_not_checked,
+                "configured_not_checked_gate_ids": configured_not_checked,
+            },
+        ))
+
+    # Canonical checked-set parity: report prose from nested gates never adds
+    # identities here, and registry order is stable.
+    aggregate.confidence_budget.checked = checked_gate_ids
+    aggregate.overall = aggregate.compute_overall()
+    if status_ids["error"]:
+        aggregate.meta["gate_registry"]["aggregate_status"] = "error"
+        # Error reports must not disclose operator-selected config paths or
+        # arbitrary project labels. Successful/evaluated reports retain them.
+        aggregate.meta.pop("rules", None)
+        aggregate.meta.pop("project", None)
+    elif all_selected_not_applicable:
+        aggregate.meta["gate_registry"]["aggregate_status"] = (
+            "not_applicable"
+        )
+    else:
+        aggregate.meta["gate_registry"]["aggregate_status"] = (
+            aggregate.overall.value
+        )
+    aggregate.duration_ms = (time.time() - started) * 1000
+    return aggregate

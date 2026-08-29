@@ -136,7 +136,7 @@ class TestRedactPatternScan(unittest.TestCase):
                 ),
             )
             report = run_publish_audit(rules, repo_root=str(td))
-            self.assertTrue(any(f.id == "publish.scan_api_key"
+            self.assertTrue(any(f.id == "publish.scan_match"
                                 for f in report.findings))
 
     def test_match_value_never_appears_in_finding(self):
@@ -187,7 +187,7 @@ class TestRedactPatternScan(unittest.TestCase):
             )
             report = run_publish_audit(rules, repo_root=str(td))
             email_findings = [f for f in report.findings
-                              if f.id == "publish.scan_email"]
+                              if f.id == "publish.scan_match"]
             # Only the non-allowlisted email should fire
             self.assertEqual(len(email_findings), 1)
 

@@ -28,6 +28,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Dict, Tuple, List, Optional
 
+from .bbox import bbox_center, bbox_tuple
+
 
 @dataclass
 class Region:
@@ -89,22 +91,17 @@ class InventoryResult:
 
 def sig(solid) -> Tuple[float, ...]:
     """Compute the bbox signature of a solid: sorted (dx, dy, dz) rounded to 0.1mm."""
-    bb = solid.BoundingBox()
+    xmin, ymin, zmin, xmax, ymax, zmax = bbox_tuple(solid)
     return tuple(sorted([
-        round(bb.xmax - bb.xmin, 1),
-        round(bb.ymax - bb.ymin, 1),
-        round(bb.zmax - bb.zmin, 1),
+        round(xmax - xmin, 1),
+        round(ymax - ymin, 1),
+        round(zmax - zmin, 1),
     ]))
 
 
 def center(solid) -> Tuple[float, float, float]:
     """Compute the bbox center of a solid."""
-    bb = solid.BoundingBox()
-    return (
-        (bb.xmin + bb.xmax) / 2.0,
-        (bb.ymin + bb.ymax) / 2.0,
-        (bb.zmin + bb.zmax) / 2.0,
-    )
+    return bbox_center(bbox_tuple(solid))
 
 
 def load_and_dedup(step_path: str) -> list:
@@ -114,9 +111,8 @@ def load_and_dedup(step_path: str) -> list:
     seen = set()
     parts = []
     for s in raw:
-        bb = s.BoundingBox()
-        k = (round(bb.xmin, 1), round(bb.ymin, 1), round(bb.zmin, 1),
-             round(bb.xmax, 1), round(bb.ymax, 1), round(bb.zmax, 1))
+        bbox = bbox_tuple(s)
+        k = tuple(round(value, 1) for value in bbox)
         if k not in seen:
             seen.add(k)
             parts.append(s)

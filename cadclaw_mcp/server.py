@@ -7,6 +7,7 @@ the user describes what they want checked, and the client calls the appropriate
 CADCLAW tool.
 
 Tools:
+  - run_harness: Stateless versioned cadclaw.yaml gate union
   - load_assembly: Load a STEP file and return part inventory summary
   - check_inventory: Validate part counts against expected
   - check_interference: Find solid-solid overlaps between parts
@@ -51,7 +52,6 @@ import io
 import sys
 import os
 import json
-import traceback
 
 # Add parent to path so cadclaw imports work
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -66,8 +66,9 @@ from cadclaw.disassembly import DisassemblySequence
 
 # v0.6 additions — gates that take a rule file and return a structured Report.
 from cadclaw.findings import Severity
+from cadclaw.gate_registry import HARNESS_GATE_REGISTRY
 from cadclaw.doctor import run_doctor
-from cadclaw.rules import load_rules
+from cadclaw.rules import RulesConfigError, load_rules_safe
 from cadclaw.bom_audit import run_bom_audit
 from cadclaw.publish_audit import run_publish_audit
 from cadclaw.claim_audit import run_claim_audit
@@ -180,10 +181,66 @@ def tool_check_interference(skip_labels: list = None, min_volume: float = 1.0,
 
     return {
         "passed": result.passed,
+        "status": (
+            "error"
+            if result.error_count
+            else ("not_checked" if result.not_checked_reason else (
+                "pass" if result.passed else "fail"
+            ))
+        ),
         "checked_pairs": result.checked_pairs,
+        "error_count": result.error_count,
+        "eligible_parts": result.eligible_parts,
+        "not_checked_reason": result.not_checked_reason,
         "interferences": len(clips),
         "clips": clips,
     }
+
+
+def tool_run_harness(
+    rules_path: str,
+    repo_root: str = ".",
+    only: list = None,
+    skip: list = None,
+) -> dict:
+    """Run the YAML-backed harness without depending on loaded MCP state."""
+    from cadclaw.findings import ConfidenceBudget, Finding, Report, Severity
+    from cadclaw.gate_registry import (
+        GateSelectionError,
+        HARNESS_GATE_REGISTRY,
+    )
+    from cadclaw.harness import run_configured_harness
+
+    try:
+        report = run_configured_harness(
+            rules_path,
+            repo_root=repo_root,
+            only=only,
+            skip=skip,
+        )
+    except GateSelectionError as exc:
+        report = Report(
+            meta={
+                "error": "invalid_gate_selection",
+                "reason_code": exc.reason_code,
+                "gate_registry": {
+                    "version": HARNESS_GATE_REGISTRY.version,
+                    "aggregate_status": "error",
+                    "known_gate_ids": list(HARNESS_GATE_REGISTRY.ids),
+                },
+            },
+            confidence_budget=ConfidenceBudget(
+                not_checked=["harness gate selection was invalid"]
+            ),
+        )
+        report.add(Finding(
+            id="harness.invalid_gate_selection",
+            category="harness",
+            severity=Severity.FAIL,
+            message=str(exc),
+        ))
+        report.overall = report.compute_overall()
+    return report.to_dict()
 
 
 def tool_check_adjacency(rules: list) -> dict:
@@ -390,7 +447,7 @@ def tool_check_bom_against_cad(rules_path: str,
                                 bom_path: str = None,
                                 step_path: str = None) -> dict:
     """Compare a BOM JSON against a STEP assembly using a cadclaw.yaml rule file."""
-    rules = load_rules(rules_path)
+    rules = load_rules_safe(rules_path)
     bp = bom_path or rules.bom_audit.bom_path
     sp = step_path or rules.meta.step
     if not bp:
@@ -403,21 +460,21 @@ def tool_check_bom_against_cad(rules_path: str,
 
 def tool_check_publish_boundary(rules_path: str, repo_root: str = ".") -> dict:
     """Privacy-boundary scan: ignore_globs vs git state + redact-pattern content scan."""
-    rules = load_rules(rules_path)
+    rules = load_rules_safe(rules_path)
     report = run_publish_audit(rules, repo_root=repo_root)
     return report.to_dict()
 
 
 def tool_check_claims(rules_path: str, repo_root: str = ".") -> dict:
     """Scan README/docs/BOM notes for forbidden absolutes, untagged numerics, stale terms."""
-    rules = load_rules(rules_path)
+    rules = load_rules_safe(rules_path)
     report = run_claim_audit(rules, repo_root=repo_root)
     return report.to_dict()
 
 
 def tool_check_region_inventory(rules_path: str, step_path: str = None) -> dict:
     """Run the inventory gate with per-region constraints from cadclaw.yaml."""
-    rules = load_rules(rules_path)
+    rules = load_rules_safe(rules_path)
     sp = step_path or rules.meta.step
     if not sp:
         return {"error": "step_path required (pass argument or set meta.step in rules)"}
@@ -706,6 +763,49 @@ def tool_assemble_render_sequence(spec: str, output_dir: str = None,
 # ============================================================
 
 TOOLS = [
+    {
+        "name": "run_harness",
+        "description": (
+            "Statelessly run the versioned cadclaw.yaml gate union. "
+            "Returns the report-schema 0.7 envelope plus an exhaustive "
+            "per-gate status ledger; unknown, empty, or incomplete "
+            "selections fail closed."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "rules_path": {
+                    "type": "string",
+                    "description": "Path to cadclaw.yaml",
+                },
+                "repo_root": {
+                    "type": "string",
+                    "description": "Repository root for text/publication audits",
+                },
+                "only": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": list(HARNESS_GATE_REGISTRY.ids),
+                    },
+                    "minItems": 1,
+                    "uniqueItems": True,
+                    "description": "Optional exact registered gate IDs to run",
+                },
+                "skip": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": list(HARNESS_GATE_REGISTRY.ids),
+                    },
+                    "minItems": 1,
+                    "uniqueItems": True,
+                    "description": "Optional exact registered gate IDs to skip",
+                },
+            },
+            "required": ["rules_path"],
+        },
+    },
     {
         "name": "load_assembly",
         "description": "Load a STEP file and return a summary of all parts found, labeled by bounding-box signature. Must be called before any check_ tool.",
@@ -1073,6 +1173,7 @@ TOOLS = [
 
 # Tool dispatch
 TOOL_HANDLERS = {
+    "run_harness": lambda args: tool_run_harness(**args),
     "load_assembly": lambda args: tool_load_assembly(**args),
     "check_inventory": lambda args: tool_check_inventory(**args),
     "check_interference": lambda args: tool_check_interference(**args),
@@ -1168,14 +1269,26 @@ def handle_request(request: dict) -> dict:
                 "id": req_id,
                 "result": {"content": content},
             }
-        except Exception as e:
+        except RulesConfigError as exc:
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
                 "result": {
                     "content": [{"type": "text", "text": json.dumps({
-                        "error": str(e),
-                        "traceback": traceback.format_exc(),
+                        "error": "rules_configuration_error",
+                        **exc.to_dict(),
+                    })}],
+                    "isError": True,
+                },
+            }
+        except Exception:
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps({
+                        "error": "tool_execution_error",
+                        "reason_code": "mcp.unexpected_error",
                     })}],
                     "isError": True,
                 },
@@ -1212,11 +1325,11 @@ def main():
                 sys.stdout.write(json.dumps(response) + "\n")
                 sys.stdout.flush()
 
-        except json.JSONDecodeError as e:
-            sys.stderr.write(f"JSON parse error: {e}\n")
+        except json.JSONDecodeError:
+            sys.stderr.write("JSON parse error\n")
             sys.stderr.flush()
-        except Exception as e:
-            sys.stderr.write(f"Server error: {e}\n")
+        except Exception:
+            sys.stderr.write("Server error\n")
             sys.stderr.flush()
 
 
