@@ -79,14 +79,16 @@ context processing, including repeated cached-context replay after long turns
 and compaction; they are not unique authored words, human labor hours, or an
 API invoice. Active time is reconstructed from task start/complete intervals,
 includes tool/test wait time, and excludes pauses between task turns.
+Snapshot cutoffs are parsed from each raw ISO-8601 event timestamp before JSON
+object conversion so the UTC marker cannot be lost to local-time coercion.
 
 | Snapshot | Reconstructed tokens | Input (cached / non-cached) | Output | Compactions | Wall span | Active task span |
 |---|---:|---:|---:|---:|---:|---:|
-| Original merged-delivery closeout, 2026-08-28 13:42:38 UTC | 123,137,894 | 122,877,399 (121,310,080 / 1,567,319) | 260,495 | 10 | 14h 13m 23s | 13h 40m 03s |
-| Follow-on session snapshot, 2026-08-29 23:17:11 UTC | 558,826,950 | 557,667,628 (550,036,608 / 7,631,020) | 1,159,322 | 16 | 1d 23h 47m 55s | 23h 02m 00s |
+| Original merged-delivery closeout, 2026-08-28 13:42:38 UTC | 252,920,161 | 252,431,305 (249,292,928 / 3,138,377) | 488,856 | 10 | 14h 13m 23s | 13h 40m 03s |
+| Follow-on session snapshot, 2026-08-29 18:26:16 UTC | 565,060,522 | 563,886,489 (556,214,400 / 7,672,089) | 1,174,033 | 16 | 1d 18h 57m 01s | 18h 11m 05s |
 
-The difference after the original merged-delivery closeout is 435,689,056
-model tokens and approximately 9h 21m 57s of additional active task span. That
+The difference after the original merged-delivery closeout is 312,140,361
+model tokens and approximately 4h 31m 02s of additional active task span. That
 later interval includes coordination, pauses/resumes, GateRegistry and STEP
 capture hardening, Nightwatch/autoresearch design, and the unmerged local-model
 profile work; it must not be represented as effort required solely to implement
