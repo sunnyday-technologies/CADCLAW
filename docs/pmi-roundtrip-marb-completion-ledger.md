@@ -1,10 +1,10 @@
 # PMI -> Round-trip -> MARB -> Benchmark Completion Ledger
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 
 Owner: Sunnyday Technologies
 
-Overall status: **IN PROGRESS**
+Overall status: **IN PROGRESS — original implementation merged; S1/R1 pending**
 
 Status values: `NOT STARTED`, `IN PROGRESS`, `READY FOR REVIEW`, `MERGED`,
 `COMPLETE`, `BLOCKED`, and `DEFERRED`.
@@ -49,10 +49,48 @@ closeout. An open pull request or a started validation is not completion.
 | Q2 | Fresh NIST FTC11/STC06 software-qualification cohort and evidence closeout | COMPLETE | Q1 merged | Qualification/evidence branches deleted after merge | [#16](https://github.com/sunnyday-technologies/CADCLAW/pull/16), [#17](https://github.com/sunnyday-technologies/CADCLAW/pull/17) | `cdbb45882fcd19092d4082cf490c27db12878d81`; `251bfb96a50b3a79378c9171d9a485e4884eb58c` |
 | H2a | Deterministic, non-writing MARB cohort planner | COMPLETE | M1, M2, and M3 merged | `codex/marb-cohort-runner-plan` | [MARB #8](https://github.com/sunnyday-technologies/MARB/pull/8) | `d4f1dd836b94159bc72ed0b72be0e7c324239329` |
 | H2b | Non-destructive, provenance-complete, isolated MARB cohort executor | COMPLETE | H2a merged | `codex/marb-cohort-runner-executor` (deleted after merge); task `01a046b7-1430-7792-b891-709e5b60c7ff` | [MARB #9](https://github.com/sunnyday-technologies/MARB/pull/9) | `56177ae5815c99dce6a90ad509902cd196d840fd` |
+| S1 | One boxed local-no-charge `L1-ASSEMBLE` smoke run | BLOCKED | H2b complete; exact local model runtime and immutable OCI image qualified | N/A | N/A | N/A |
 | B1 | Fresh MARB model benchmark cohort | BLOCKED | H2b complete; immutable gated-key revisions and trusted grading; approved immutable OCI runtime plus Windows Docker Desktop smoke; local-no-charge provider/model/data-sharing/run-limit authorization; aggregate campaign ledger | N/A | N/A | N/A |
-| R1 | Evidence-backed update to Marc | BLOCKED | B1 complete | N/A | N/A | N/A |
+| R1 | Evidence-backed original-scope update to Marc | BLOCKED | S1 complete | N/A | N/A | N/A |
 | D1 | Material/process semantic-PMI expansion | DEFERRED | Positive fixture and verified extraction method | TBD | TBD | TBD |
 | H1 | Remove stale Open3DCP re-pushed branches | COMPLETE | None | Deleted `precedent-crosswalk` and `whitepaper-v1-1` | Already merged as Open3DCP #10/#11 | N/A |
+
+## Scope boundary and effort telemetry
+
+The original PMI/round-trip delivery tranche is merged: C1, C2, M1, M2, M3,
+Q1, Q2, H2a, and H2b are complete. Nightwatch/autoresearch, Hugging Face model
+selection and loading, repeated variability campaigns, and new dataset intake
+are follow-on work. They are not prerequisites for reporting the merged gate
+and task-contract updates. Before that report is sent, S1 requires one real,
+boxed, local-no-charge `L1-ASSEMBLE` smoke run. S1 is an execution smoke, not a
+publishable benchmark cell; MARB's repeat-run policy still requires its stated
+sample count before a board result or distribution claim is published.
+
+The follow-on HF/autoresearch implementation is isolated on MARB branch
+`codex/hf-local-model-profile` and is not merged or part of the original-scope
+closeout. No model download, external-provider call, or benchmark run is
+attributed to that branch at this snapshot.
+
+Effort figures below come from the retained Codex task telemetry for task
+`01a0458e-6340-7e83-988a-4715438fbd92`. Token counters reset across long task
+segments, so totals are reconstructed by summing the maximum of each monotonic
+counter segment. Cached input is a subset of input. These figures measure model
+context processing, including repeated cached-context replay after long turns
+and compaction; they are not unique authored words, human labor hours, or an
+API invoice. Active time is reconstructed from task start/complete intervals,
+includes tool/test wait time, and excludes pauses between task turns.
+
+| Snapshot | Reconstructed tokens | Input (cached / non-cached) | Output | Compactions | Wall span | Active task span |
+|---|---:|---:|---:|---:|---:|---:|
+| Original merged-delivery closeout, 2026-08-28 13:42:38 UTC | 123,137,894 | 122,877,399 (121,310,080 / 1,567,319) | 260,495 | 10 | 14h 13m 23s | 13h 40m 03s |
+| Follow-on session snapshot, 2026-08-29 23:17:11 UTC | 558,826,950 | 557,667,628 (550,036,608 / 7,631,020) | 1,159,322 | 16 | 1d 23h 47m 55s | 23h 02m 00s |
+
+The difference after the original merged-delivery closeout is 435,689,056
+model tokens and approximately 9h 21m 57s of additional active task span. That
+later interval includes coordination, pauses/resumes, GateRegistry and STEP
+capture hardening, Nightwatch/autoresearch design, and the unmerged local-model
+profile work; it must not be represented as effort required solely to implement
+the two original CADCLAW gates.
 
 ## Acceptance evidence
 
@@ -310,7 +348,39 @@ Evidence:
 - No Docker run, provider/model call, deployment, or provider cost is authorized
   or claimed by H2a/H2b implementation and validation.
 
-### B1 - Fresh benchmark cohort
+### S1 - one boxed local smoke
+
+- [ ] Use the merged H2b executor and the frozen public `L1-ASSEMBLE` kit.
+- [ ] Use exactly one explicitly authorized local-no-charge model identity; no
+  Grok, GPT, Claude, or other metered/external call is implied or authorized.
+- [ ] Record and verify the immutable OCI image `RepoDigest`, model/runtime
+  identity, CADCLAW/MARB revisions, plan and authorization digests, timestamps,
+  token usage, and retained artifact hashes.
+- [ ] Complete the documented no-provider/no-network container smoke before the
+  model call.
+- [ ] Grade and read back the single retained attempt without mutating a public
+  board row or presenting N=1 as a benchmark distribution.
+- [ ] Preserve checked/not-checked scope and any failure; a failed real smoke is
+  evidence to fix the harness, not a result to hide or rerun until lucky.
+
+Current blockers:
+
+- No suitable local LLM endpoint/model was visible on the current Windows host
+  at the 2026-08-29 inventory snapshot, and the two-GX10 runtime was not
+  reachable from this task.
+- The exact immutable model-server and CadQuery sandbox images still require
+  qualification and no-provider/no-network readback before a real call.
+- The HF/autoresearch branch is follow-on and must not be merged merely to
+  manufacture an S1 pass; use it only after its profile/runtime-attestation
+  chain is complete and independently reviewed.
+
+Evidence slots:
+
+- Run ID: TBD
+- Exact model/runtime authorization: TBD
+- Artifact manifest and grade: TBD
+
+### B1 - Fresh benchmark cohort (follow-on)
 
 - [ ] Dataset/task contract is versioned and frozen before runs begin.
 - [x] Merge the separate bounded official NIST AP242 software-qualification
@@ -359,9 +429,10 @@ Current blockers:
   budget alone cannot authorize a metered run until a frozen provider-specific
   pre-call pricing/token policy is implemented and separately reviewed.
 
-### R1 - Marc closeout
+### R1 - Marc original-scope closeout
 
-- [ ] Report uses merged-code and fresh-benchmark evidence only.
+- [ ] Report uses merged-code and S1 smoke evidence only; it does not present
+  the single run as a board benchmark or performance distribution.
 - [ ] Authoring, translation, and benchmark findings are separated.
 - [ ] Limitations and deferred scope are explicit.
 - [ ] No PMI/interoperability compliance or manufacturability claim is made.
@@ -386,6 +457,7 @@ PMI success.
 
 ## Completion rule
 
-Mark the overall plan `COMPLETE` only when C1, C2, M1, M2, M3, Q1, Q2, H2a,
-H2b, B1, and R1 are complete and their evidence slots are populated. D1 may remain
-`DEFERRED`.
+Mark the original PMI/round-trip PR-and-report tranche `COMPLETE` only when C1,
+C2, M1, M2, M3, Q1, Q2, H2a, H2b, S1, and R1 are complete and their evidence
+slots are populated. B1 is the follow-on repeated benchmark program and may
+continue after the original-scope report. D1 may remain `DEFERRED`.
