@@ -28,7 +28,14 @@ _warnings.warn(
 
 # Eagerly import cadclaw (the real package) and re-export public API.
 import cadclaw as _cadclaw  # noqa: E402
-from cadclaw import __version__, __author__  # noqa: E402, F401
+from cadclaw import (  # noqa: E402, F401
+    Harness,
+    RulesConfigError,
+    __author__,
+    __version__,
+    load_rules_safe,
+    run_configured_harness,
+)
 
 # Submodules that user code reaches into directly. Order doesn't matter,
 # but `reporters` is a subpackage so we expose its leaf modules too.
@@ -36,11 +43,13 @@ _SUBMODULES = (
     "adjacency",
     "bom_audit",
     "bom_loader",
+    "bbox",
     "claim_audit",
     "dimensional",
     "disassembly",
     "doctor",
     "findings",
+    "gate_registry",
     "gate_spec",
     "geometry_import",
     "harness",

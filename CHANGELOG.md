@@ -9,6 +9,16 @@ changes bump MINOR and are called out explicitly under **Changed**.
 
 ### Added
 
+- **Versioned configured-harness registry and shared runner.**
+  `harness-gates.v1` freezes the ordered YAML union-gate IDs and is used by
+  the public `run_configured_harness` library entry point, the CLI wrapper,
+  and a new stateless MCP `run_harness` tool. The local MCP surface is now 24
+  tools. Every run includes one terminal ledger row per registry gate plus
+  disjoint selected-gate status partitions.
+- **Gate-method version `0.13.0`.** This version adds configured-harness
+  execution integrity and interference error accounting. Rules schema 0.9
+  and report schema 0.7 are unchanged; immutable 0.12.0 qualification
+  artifacts remain historical and are not relabeled.
 - **`PMI_PRESENT_SEMANTIC` declared gate.** AP242 submissions can declare
   required semantic PMI classes (`dimensions`, `geometric_tolerances`,
   and `datums`) and receive one versioned presence/absence result per class.
@@ -47,6 +57,24 @@ changes bump MINOR and are called out explicitly under **Changed**.
 
 ### Changed
 
+- **Harness execution now fails closed.** Unknown, duplicate, overlapping,
+  blank, and empty selectors are typed errors. Missing prerequisites,
+  malformed or unreadable configured evidence, invalid audit regexes,
+  zero-evidence configured lanes, label/bounding-box failures, and native BRep
+  failures cannot produce a passing gate. The CLI distinguishes execution
+  errors (exit 3) from evaluated failures (exit 1); all-not-applicable remains
+  explicit. The low-level `Harness` no longer treats zero gates as a vacuous
+  pass, and interference with fewer than two eligible parts is not checked.
+- **External gate diagnostics are value-redacting and typed.** CLI, MCP, and
+  the configured-harness library boundary project rule-file parse/validation
+  failures without raw YAML, submitted values, arbitrary mapping keys,
+  exception text, tracebacks, or submitted paths. Invalid claim/publish regex
+  diagnostics are ordinal-only; failed git classification lanes are execution
+  errors; valid JSON without claim-bearing fields is not scan evidence; color
+  reader failures are distinct from successfully read files with no color
+  metadata; matched configured claim terms/evidence tags are not echoed; and
+  registered geometry gates reject non-finite or inverted bounding boxes
+  through one shared typed validator.
 - **Bounded OCP writer-status portability.** `IFSelect_RetDone` remains the
   normal AP242 writer result. Only `IFSelect_RetError` may proceed
   provisionally, and only after a non-empty, non-symlink AP242 artifact

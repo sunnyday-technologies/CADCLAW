@@ -16,7 +16,7 @@ $ErrorActionPreference = "Stop"
 $qualificationManifestVersion = "nist-ap242-qualification-manifest.v1"
 $qualificationReportSchemaVersion = "0.7"
 $qualificationRulesSchemaVersion = "0.9"
-$qualificationGateSpecVersion = "0.12.0"
+$qualificationGateSpecVersion = "0.13.0"
 $qualificationExpectedClasses = @(
     "dimensions",
     "geometric_tolerances",

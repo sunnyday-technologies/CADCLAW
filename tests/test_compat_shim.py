@@ -9,6 +9,8 @@ Three things must hold:
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
+import subprocess
 import sys
 import unittest
 import warnings
@@ -54,14 +56,48 @@ class TestCompatShim(unittest.TestCase):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             import cadharness.gate_spec as old_gate_spec
+            import cadharness.gate_registry as old_gate_registry
             import cadharness.pmi as old_pmi
             import cadharness.roundtrip as old_roundtrip
             import cadclaw.gate_spec as new_gate_spec
+            import cadclaw.gate_registry as new_gate_registry
             import cadclaw.pmi as new_pmi
             import cadclaw.roundtrip as new_roundtrip
         self.assertIs(old_gate_spec, new_gate_spec)
+        self.assertIs(old_gate_registry, new_gate_registry)
         self.assertIs(old_pmi, new_pmi)
         self.assertIs(old_roundtrip, new_roundtrip)
+
+    def test_configured_harness_entrypoint_identity(self):
+        self._reimport_cadharness()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            from cadharness import run_configured_harness as old_runner
+            from cadclaw import run_configured_harness as new_runner
+        self.assertIs(old_runner, new_runner)
+
+    def test_top_level_cadclaw_import_does_not_require_geometry_stack(self):
+        repo = Path(__file__).resolve().parents[1]
+        program = """
+import importlib.abc
+import sys
+class BlockGeometry(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == 'cadquery' or fullname.startswith('cadquery.') or fullname == 'OCP' or fullname.startswith('OCP.'):
+            raise RuntimeError('geometry stack imported during lightweight cadclaw import')
+        return None
+sys.meta_path.insert(0, BlockGeometry())
+import cadclaw
+assert cadclaw.__version__
+"""
+        completed = subprocess.run(
+            [sys.executable, "-c", program],
+            cwd=repo,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_findings_class_identity(self):
         self._reimport_cadharness()

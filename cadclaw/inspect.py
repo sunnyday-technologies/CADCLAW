@@ -145,34 +145,95 @@ def find_overlaps(parts: list,
 
     Returns `(clips, target_count)` — the second value lets the CLI say
     "no parts matched the target" vs "target had no overlaps".
+    A matched target excluded by `skip_labels` raises the typed
+    `interference.not_checked` error instead of reporting a false clear.
+    Labels are resolved once per exact part identity and the same cached
+    values are used by the interference check.
     """
-    from .interference import InterferenceCheck
+    from .interference import InterferenceCheck, InterferenceExecutionError
 
     if target_label is None and target_at is None:
         raise ValueError("find_overlaps requires target_label or target_at")
 
+    effective_skip_labels = set(skip_labels or ())
+    labels_by_identity: Dict[int, Tuple[object, object]] = {}
     matching_idx = set()
+    skipped_matching_idx = set()
     for i, p in enumerate(parts):
-        try:
-            lbl = label_fn(p)
-        except Exception:
-            lbl = ""
+        cached = labels_by_identity.get(id(p))
+        if cached is None:
+            try:
+                lbl = label_fn(p)
+            except Exception as exc:
+                raise InterferenceExecutionError(
+                    "interference.label_error",
+                    "target labels could not be resolved for interference inspection",
+                    error_count=1,
+                ) from exc
+            # Keep a strong reference beside the value. This makes the cache
+            # identity-based even for unhashable or equality-overloaded parts
+            # and prevents object-id reuse while the inspection is running.
+            labels_by_identity[id(p)] = (p, lbl)
+        else:
+            cached_part, lbl = cached
+            if cached_part is not p:
+                raise InterferenceExecutionError(
+                    "interference.label_error",
+                    "target label identity could not be bound for interference inspection",
+                    error_count=1,
+                )
         if target_label is not None and lbl != target_label:
             continue
         if target_at is not None:
-            bb = _bbox_tuple(p)
+            try:
+                bb = _bbox_tuple(p)
+            except Exception as exc:
+                raise InterferenceExecutionError(
+                    "interference.bounding_box_error",
+                    "target bounding boxes could not be evaluated",
+                    error_count=1,
+                ) from exc
             if not _bbox_contains(bb, target_at, tol):
                 continue
         matching_idx.add(i)
+        if lbl in effective_skip_labels:
+            skipped_matching_idx.add(i)
 
     if not matching_idx:
         return [], 0
+    if skipped_matching_idx:
+        raise InterferenceExecutionError(
+            "interference.not_checked",
+            "interference was not checked: one or more target parts are "
+            "excluded by skip_labels",
+        )
 
-    check = InterferenceCheck(parts, label_fn,
-                              skip_labels=skip_labels,
+    def _cached_label_fn(part):
+        cached = labels_by_identity.get(id(part))
+        if cached is None or cached[0] is not part:
+            raise InterferenceExecutionError(
+                "interference.label_error",
+                "cached target label is unavailable for interference inspection",
+                error_count=1,
+            )
+        return cached[1]
+
+    check = InterferenceCheck(parts, _cached_label_fn,
+                              skip_labels=effective_skip_labels,
                               min_volume=min_volume,
                               min_clearance_mm=min_clearance_mm)
     result = check.run()
+    if result.error_count:
+        raise InterferenceExecutionError(
+            "interference.execution_error",
+            "one or more interference pair evaluations could not complete",
+            error_count=result.error_count,
+        )
+    if result.not_checked_reason:
+        raise InterferenceExecutionError(
+            "interference.not_checked",
+            f"interference was not checked: {result.not_checked_reason}",
+        )
 
     matching_centers = []
     for i in matching_idx:

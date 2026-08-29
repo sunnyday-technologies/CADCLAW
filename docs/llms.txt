@@ -172,12 +172,12 @@ using the local process account's filesystem permissions. Run it in a
 least-privilege working copy, inspect tool arguments, and require human review
 for write-producing operations.
 
-MCP coverage is 23 tools spanning both halves.
+MCP coverage is 24 tools spanning both halves.
 
 Assembly (6): assemble_validate_spec, assemble_build, assemble_check_round,
 assemble_inspect_component, assemble_render_views, assemble_render_sequence.
 
-Validation and analysis (17): check_inventory, check_interference,
+Validation and analysis (18): run_harness, check_inventory, check_interference,
 check_adjacency, check_dimensions, check_region_inventory,
 check_bom_against_cad, check_claims, check_publish_boundary,
 compare_step_parity, compute_deflection, compute_motor_budget,
