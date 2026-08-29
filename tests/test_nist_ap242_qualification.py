@@ -22,7 +22,8 @@ TEST_WORKFLOW = REPO / ".github" / "workflows" / "tests.yml"
 MANIFEST_VERSION = "nist-ap242-qualification-manifest.v1"
 REPORT_SCHEMA_VERSION = "0.7"
 RULES_SCHEMA_VERSION = "0.9"
-GATE_SPEC_VERSION = "0.12.0"
+CURRENT_GATE_SPEC_VERSION = "0.13.0"
+HISTORICAL_GATE_SPEC_VERSION = "0.12.0"
 EXPECTED_CLASSES = ("dimensions", "geometric_tolerances", "datums")
 EXPECTED_FIXTURES = {
     "nist-ftc-11-ap242-e2": {
@@ -278,7 +279,7 @@ switch ($env:CADCLAW_QUALIFICATION_TEST_CASE) {
             'model_calls = 0',
             '$qualificationReportSchemaVersion = "0.7"',
             '$qualificationRulesSchemaVersion = "0.9"',
-            '$qualificationGateSpecVersion = "0.12.0"',
+            f'$qualificationGateSpecVersion = "{CURRENT_GATE_SPEC_VERSION}"',
             "PMI frozen count",
             "round-trip source count",
             '$Content.Replace("`r`n", "`n").Replace("`r", "`n")',
@@ -631,7 +632,7 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
                 "manifest_schema_version": MANIFEST_VERSION,
                 "report_schema_version": REPORT_SCHEMA_VERSION,
                 "rules_schema_version": RULES_SCHEMA_VERSION,
-                "gate_spec_version": GATE_SPEC_VERSION,
+                "gate_spec_version": HISTORICAL_GATE_SPEC_VERSION,
             },
         )
 
@@ -723,9 +724,13 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
             self.assertEqual(
                 roundtrip_gate["report_schema_version"], REPORT_SCHEMA_VERSION
             )
-            self.assertEqual(pmi_gate["gate_spec_version"], GATE_SPEC_VERSION)
             self.assertEqual(
-                roundtrip_gate["gate_spec_version"], GATE_SPEC_VERSION
+                pmi_gate["gate_spec_version"],
+                HISTORICAL_GATE_SPEC_VERSION,
+            )
+            self.assertEqual(
+                roundtrip_gate["gate_spec_version"],
+                HISTORICAL_GATE_SPEC_VERSION,
             )
             self.assertEqual(pmi_gate["semantic_class_counts"], expected["counts"])
             self.assertEqual(
@@ -903,7 +908,7 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
                 "gate": "PMI_PRESENT_SEMANTIC",
                 "applicability": "applicable",
                 "scope": "semantic_only",
-                "gate_spec_version": GATE_SPEC_VERSION,
+                "gate_spec_version": HISTORICAL_GATE_SPEC_VERSION,
                 "step": expected["path"],
                 "rules": "tests/fixtures/pmi_semantic/cadclaw.yaml",
                 "step_schema": "AP242_TEST",
@@ -922,7 +927,7 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
             "meta": {
                 "gate": "ROUNDTRIP_STEP",
                 "applicability": "applicable",
-                "gate_spec_version": GATE_SPEC_VERSION,
+                "gate_spec_version": HISTORICAL_GATE_SPEC_VERSION,
                 "derivative": {
                     "persisted": True,
                     "source_sha256": expected["sha256"],
@@ -966,7 +971,10 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
         self.assertEqual(meta["gate"], "PMI_PRESENT_SEMANTIC")
         self.assertEqual(meta["applicability"], "applicable")
         self.assertEqual(meta["scope"], "semantic_only")
-        self.assertEqual(meta["gate_spec_version"], GATE_SPEC_VERSION)
+        self.assertEqual(
+            meta["gate_spec_version"],
+            HISTORICAL_GATE_SPEC_VERSION,
+        )
         self.assertEqual(normalized_relative(meta["step"]), expected["path"])
         self.assertEqual(
             normalized_relative(meta["rules"]),
@@ -989,7 +997,10 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
         meta = report["meta"]
         self.assertEqual(meta["gate"], "ROUNDTRIP_STEP")
         self.assertEqual(meta["applicability"], "applicable")
-        self.assertEqual(meta["gate_spec_version"], GATE_SPEC_VERSION)
+        self.assertEqual(
+            meta["gate_spec_version"],
+            HISTORICAL_GATE_SPEC_VERSION,
+        )
         derivative = meta["derivative"]
         self.assertTrue(derivative["persisted"])
         self.assertEqual(derivative["source_sha256"], expected["sha256"])

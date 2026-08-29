@@ -36,6 +36,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Tuple
 
+from .bbox import bbox_center, bbox_tuple
 from .rules import LabelSpec
 
 
@@ -69,15 +70,12 @@ def unsorted_dims(solid) -> Tuple[float, float, float]:
     suitable for invariant-fingerprint matching. Orientation needs the
     raw per-axis dims to detect rotation.
     """
-    bb = solid.BoundingBox()
-    return (bb.xmax - bb.xmin, bb.ymax - bb.ymin, bb.zmax - bb.zmin)
+    xmin, ymin, zmin, xmax, ymax, zmax = bbox_tuple(solid)
+    return (xmax - xmin, ymax - ymin, zmax - zmin)
 
 
 def part_center(solid) -> Tuple[float, float, float]:
-    bb = solid.BoundingBox()
-    return ((bb.xmin + bb.xmax) / 2.0,
-            (bb.ymin + bb.ymax) / 2.0,
-            (bb.zmin + bb.zmax) / 2.0)
+    return bbox_center(bbox_tuple(solid))
 
 
 def thinnest_axis(dims: Tuple[float, float, float],
@@ -134,10 +132,10 @@ class OrientationCheck:
         checked = 0
 
         for part in self.parts:
-            try:
-                label = self.label_fn(part)
-            except Exception:
-                continue
+            # A failed label resolution is an execution error.  Omitting the
+            # affected part could turn an incomplete check into a false pass;
+            # callers surface the typed/redacted error at their boundary.
+            label = self.label_fn(part)
             spec = self.label_specs.get(label)
             if spec is None or spec.expected_face is None:
                 continue
@@ -145,13 +143,18 @@ class OrientationCheck:
             if expected_axis is None:
                 continue  # spec has no orientation hint after all
 
-            dims = unsorted_dims(part)
+            bbox = bbox_tuple(part)
+            dims = (
+                bbox[3] - bbox[0],
+                bbox[4] - bbox[1],
+                bbox[5] - bbox[2],
+            )
             actual_axis = thinnest_axis(dims, tol_mm=self.tol_mm)
             checked += 1
 
             entry = Misorientation(
                 label=label,
-                center=part_center(part),
+                center=bbox_center(bbox),
                 actual_dims=dims,
                 actual_axis=actual_axis,
                 expected_face=spec.expected_face,

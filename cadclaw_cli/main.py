@@ -27,6 +27,10 @@ from typing import List, Optional
 
 from cadclaw import __version__
 from cadclaw.findings import Report, Severity
+from cadclaw.gate_registry import (
+    GateSelectionError,
+    HARNESS_GATE_REGISTRY,
+)
 from cadclaw.reporters import render_json, render_markdown, render_text
 
 
@@ -107,11 +111,11 @@ def _cmd_parity(args: argparse.Namespace) -> int:
 
 
 def _cmd_inventory(args: argparse.Namespace) -> int:
-    from cadclaw.rules import load_rules
+    from cadclaw.rules import load_rules_safe
     from cadclaw.inventory import InventoryCheck, Region
     from cadclaw.findings import Finding
 
-    rules = load_rules(args.rules)
+    rules = load_rules_safe(args.rules)
     if not rules.expected_inventory:
         print("error: rule file has no `expected_inventory:` section", file=sys.stderr)
         return 3
@@ -168,9 +172,9 @@ def _cmd_inventory(args: argparse.Namespace) -> int:
 def _cmd_pmi_present(args: argparse.Namespace) -> int:
     """Run the declared semantic AP242 PMI presence gate."""
     from cadclaw.pmi import run_pmi_present
-    from cadclaw.rules import load_rules
+    from cadclaw.rules import load_rules_safe
 
-    rules = load_rules(args.rules)
+    rules = load_rules_safe(args.rules)
     step_path = args.step or rules.meta.step
     report = run_pmi_present(
         step_path=step_path,
@@ -182,7 +186,8 @@ def _cmd_pmi_present(args: argparse.Namespace) -> int:
     for item in rules.confidence_budget.assumptions:
         if item not in report.confidence_budget.assumptions:
             report.confidence_budget.assumptions.append(item)
-    report.meta["rules"] = args.rules
+    if report.meta.get("applicability") != "error":
+        report.meta["rules"] = args.rules
     _emit_report(report, args.report_format, args.out)
     return _exit_code_for(report)
 
@@ -234,9 +239,9 @@ def _cmd_roundtrip_step(args: argparse.Namespace) -> int:
     """Run the opt-in AP242 export/reimport preservation gate."""
     from cadclaw.findings import ConfidenceBudget
     from cadclaw.roundtrip import run_roundtrip_step
-    from cadclaw.rules import load_rules
+    from cadclaw.rules import load_rules_safe
 
-    rules = load_rules(args.rules)
+    rules = load_rules_safe(args.rules)
     report = run_roundtrip_step(
         step_path=args.step or rules.meta.step,
         config=_roundtrip_config_from_rules(rules),
@@ -252,8 +257,8 @@ def _cmd_roundtrip_step(args: argparse.Namespace) -> int:
 
 
 def _cmd_bom_audit(args: argparse.Namespace) -> int:
-    from cadclaw.rules import load_rules
-    rules = load_rules(args.rules)
+    from cadclaw.rules import load_rules_safe
+    rules = load_rules_safe(args.rules)
     bom_path = args.bom or rules.bom_audit.bom_path
     if not bom_path:
         print("error: --bom or rules.bom_audit.bom_path required", file=sys.stderr)
@@ -376,282 +381,48 @@ def _cmd_assemble_render_sequence(args: argparse.Namespace) -> int:
 
 
 def _cmd_claim_audit(args: argparse.Namespace) -> int:
-    from cadclaw.rules import load_rules
-    rules = load_rules(args.rules)
+    from cadclaw.rules import load_rules_safe
+    rules = load_rules_safe(args.rules)
     from cadclaw.claim_audit import run_claim_audit
     report = run_claim_audit(rules, repo_root=args.repo)
     _emit_report(report, args.report_format, args.out)
+    if report.meta.get("execution_status") == "error":
+        return 3
     return _exit_code_for(report)
 
 
 def _cmd_publish_audit(args: argparse.Namespace) -> int:
-    from cadclaw.rules import load_rules
-    rules = load_rules(args.rules)
+    from cadclaw.rules import load_rules_safe
+    rules = load_rules_safe(args.rules)
     from cadclaw.publish_audit import run_publish_audit
     report = run_publish_audit(rules, repo_root=args.repo)
     _emit_report(report, args.report_format, args.out)
+    if report.meta.get("execution_status") == "error":
+        return 3
     return _exit_code_for(report)
 
 
 def _cmd_harness(args: argparse.Namespace) -> int:
     """Union runner — runs YAML-backed checks that the rule file configures."""
-    import time
-    from cadclaw.findings import Finding, ConfidenceBudget
-    from cadclaw.rules import load_rules
+    from cadclaw.harness import run_configured_harness
 
-    t0 = time.time()
-    rules = load_rules(args.rules)
-
-    only = set(args.only.split(",")) if args.only else None
-    skip = set(args.skip.split(",")) if args.skip else set()
-
-    def _wants(name: str) -> bool:
-        if only is not None and name not in only:
-            return False
-        if name in skip:
-            return False
-        return True
-
-    aggregate = Report(meta={"project": rules.meta.project or "",
-                             "rules": args.rules})
-    aggregate.confidence_budget = ConfidenceBudget(
-        checked=[],
-        not_checked=list(rules.confidence_budget.not_checked),
-        assumptions=list(rules.confidence_budget.assumptions),
+    report = run_configured_harness(
+        args.rules,
+        repo_root=args.repo,
+        only=args.only,
+        skip=args.skip,
     )
-
-    if _wants("inventory") and rules.expected_inventory:
-        sub_args = argparse.Namespace(rules=args.rules, step=None,
-                                       report_format="json", out=None)
-        # Reuse the inventory subcommand's logic by importing it inline.
-        # We just need the findings, so call into the same path:
-        from cadclaw.inventory import InventoryCheck, Region
-        sig_to_label = rules.sig_to_label()
-        label_dict = {sig: name for sig, name in sig_to_label.items()}
-        regions = [
-            Region(
-                name=r.name,
-                x_range=tuple(r.x_range) if r.x_range else None,
-                y_range=tuple(r.y_range) if r.y_range else None,
-                z_range=tuple(r.z_range) if r.z_range else None,
-                expected=dict(r.expected),
-            )
-            for r in rules.regions
-        ] or None
-        step_path = rules.meta.step
-        if step_path:
-            check = InventoryCheck(step_path, label_dict,
-                                   dict(rules.expected_inventory),
-                                   belt_heuristic=rules.belt_heuristic,
-                                   regions=regions)
-            result = check.run()
-            for m in result.mismatches:
-                aggregate.add(Finding("inventory.count_mismatch", "inventory",
-                                       Severity.FAIL, m))
-            for region_name, rr in result.region_results.items():
-                for m in rr.mismatches:
-                    aggregate.add(Finding("inventory.region_count_mismatch",
-                                           "inventory", Severity.FAIL,
-                                           f"region {region_name}: {m}",
-                                           evidence={"region": region_name}))
-            aggregate.confidence_budget.checked.append("inventory")
-        else:
-            aggregate.confidence_budget.not_checked.append(
-                "inventory (no rules.meta.step set)"
-            )
-    elif _wants("inventory"):
-        aggregate.confidence_budget.not_checked.append(
-            "inventory (no expected_inventory in rules)"
-        )
-
-    if _wants("bom_audit") and rules.bom_audit.rules:
-        from cadclaw.bom_audit import run_bom_audit
-        bom_path = rules.bom_audit.bom_path
-        step_path = rules.meta.step
-        if bom_path and step_path:
-            sub = run_bom_audit(bom_path=bom_path, step_path=step_path, rules=rules)
-            aggregate.findings.extend(sub.findings)
-            aggregate.confidence_budget.checked.append("bom_audit")
-        else:
-            aggregate.confidence_budget.not_checked.append(
-                "bom_audit (missing bom_path or step path)"
-            )
-    elif _wants("bom_audit"):
-        aggregate.confidence_budget.not_checked.append(
-            "bom_audit (no rules in cadclaw.yaml)"
-        )
-
-    if _wants("claim_audit") and rules.claim_audit.scan_paths:
-        from cadclaw.claim_audit import run_claim_audit
-        sub = run_claim_audit(rules, repo_root=args.repo)
-        aggregate.findings.extend(sub.findings)
-        aggregate.confidence_budget.checked.append("claim_audit")
-    elif _wants("claim_audit"):
-        aggregate.confidence_budget.not_checked.append(
-            "claim_audit (no scan_paths in rules)"
-        )
-
-    if _wants("publish_audit") and (rules.publish_audit.ignore_globs
-                                    or rules.publish_audit.scan_globs):
-        from cadclaw.publish_audit import run_publish_audit
-        sub = run_publish_audit(rules, repo_root=args.repo)
-        aggregate.findings.extend(sub.findings)
-        aggregate.confidence_budget.checked.append("publish_audit")
-    elif _wants("publish_audit"):
-        aggregate.confidence_budget.not_checked.append(
-            "publish_audit (no globs configured)"
-        )
-
-    if _wants("pmi_present"):
-        from cadclaw.pmi import run_pmi_present
-
-        sub = run_pmi_present(
-            step_path=rules.meta.step,
-            expected_classes=rules.pmi_present.expected_classes,
-        )
-        aggregate.findings.extend(sub.findings)
-        aggregate.confidence_budget.merge(sub.confidence_budget)
-        aggregate.meta["pmi_present"] = {
-            key: value for key, value in sub.meta.items()
-            if key not in {"project", "rules"}
-        }
-        if only == {"pmi_present"}:
-            aggregate.meta["applicability"] = sub.meta.get("applicability")
-
-    if _wants("roundtrip_step"):
-        if rules.roundtrip_step.enabled:
-            from cadclaw.roundtrip import run_roundtrip_step
-
-            sub = run_roundtrip_step(
-                step_path=rules.meta.step,
-                config=_roundtrip_config_from_rules(rules),
-                output_path=None,
-                label_signatures=rules.label_to_sig(),
-            )
-            aggregate.findings.extend(sub.findings)
-            aggregate.confidence_budget.merge(sub.confidence_budget)
-            aggregate.meta["roundtrip_step"] = {
-                key: value for key, value in sub.meta.items()
-                if key not in {"project", "rules"}
-            }
-            if only == {"roundtrip_step"}:
-                aggregate.meta["applicability"] = sub.meta.get("applicability")
-        else:
-            aggregate.meta["roundtrip_step"] = {
-                "gate": "ROUNDTRIP_STEP",
-                "applicability": "not_applicable",
-                "reason": (
-                    "disabled; opt in with roundtrip_step.enabled: true"
-                ),
-            }
-            aggregate.confidence_budget.not_checked.append(
-                "roundtrip_step (disabled; opt in with roundtrip_step.enabled: true)"
-            )
-            if only == {"roundtrip_step"}:
-                aggregate.meta["applicability"] = "not_applicable"
-
-    # v0.9 gates need a shared label_fn + parts. Build once, reuse.
-    label_specs = rules.label_specs()
-    has_orientation = any(s.expected_face for s in label_specs.values())
-    has_floating = bool(rules.floating_check.structural_labels)
-    step_path = rules.meta.step
-
-    _v09_parts = None
-    _v09_label_fn = None
-
-    def _ensure_v09_loaded():
-        nonlocal _v09_parts, _v09_label_fn
-        if _v09_parts is not None:
-            return True
-        if not step_path:
-            return False
-        from cadclaw.inventory import load_and_dedup, sig as _sig
-        sig_to_label = rules.sig_to_label()
-        belt_heuristic = rules.belt_heuristic
-
-        def _label_fn(part):
-            d = _sig(part)
-            if d in sig_to_label:
-                return sig_to_label[d]
-            if belt_heuristic and len(d) >= 2 and d[0] == 1.5 and d[1] == 6.0:
-                return "belt"
-            return "other"
-
-        _v09_parts = load_and_dedup(step_path)
-        _v09_label_fn = _label_fn
-        return True
-
-    # v0.9 gate #1 — orientation. Runs only when at least one label has
-    # `expected_face` set.
-    if _wants("orientation") and has_orientation:
-        from cadclaw.orientation import OrientationCheck
-        from cadclaw.harness import _orientation_findings
-        if _ensure_v09_loaded():
-            check = OrientationCheck(_v09_parts, _v09_label_fn, label_specs)
-            sub = check.run()
-            aggregate.findings.extend(_orientation_findings(sub))
-            aggregate.confidence_budget.checked.append("orientation")
-        else:
-            aggregate.confidence_budget.not_checked.append(
-                "orientation (no rules.meta.step set)"
-            )
-    elif _wants("orientation"):
-        aggregate.confidence_budget.not_checked.append(
-            "orientation (no labels carry expected_face)"
-        )
-
-    # v0.9 gate #3 — floating-part. Runs only when structural_labels is
-    # non-empty.
-    if _wants("floating") and has_floating:
-        from cadclaw.floating import FloatingCheck
-        from cadclaw.harness import _floating_findings
-        if _ensure_v09_loaded():
-            check = FloatingCheck(
-                _v09_parts, _v09_label_fn,
-                structural_labels=set(rules.floating_check.structural_labels),
-                max_gap_mm=rules.floating_check.max_gap_mm,
-                exempt_labels=set(rules.floating_check.exempt_labels),
-            )
-            sub = check.run()
-            aggregate.findings.extend(_floating_findings(sub))
-            aggregate.confidence_budget.checked.append("floating")
-        else:
-            aggregate.confidence_budget.not_checked.append(
-                "floating (no rules.meta.step set)"
-            )
-    elif _wants("floating"):
-        aggregate.confidence_budget.not_checked.append(
-            "floating (no structural_labels configured)"
-        )
-
-    # v0.9 gate #2 — color/material attribute check. Runs only when at
-    # least one label has expected_color set.
-    has_color = any(s.expected_color for s in label_specs.values())
-    if _wants("color") and has_color:
-        from cadclaw.color_check import ColorCheck
-        from cadclaw.harness import _color_findings
-        if step_path:
-            check = ColorCheck(step_path, label_specs)
-            sub = check.run()
-            aggregate.findings.extend(_color_findings(sub))
-            aggregate.confidence_budget.checked.append("color")
-        else:
-            aggregate.confidence_budget.not_checked.append(
-                "color (no rules.meta.step set)"
-            )
-    elif _wants("color"):
-        aggregate.confidence_budget.not_checked.append(
-            "color (no labels carry expected_color)"
-        )
-
-    aggregate.overall = aggregate.compute_overall()
-    aggregate.duration_ms = (time.time() - t0) * 1000
-    _emit_report(aggregate, args.report_format, args.out)
-    return _exit_code_for(aggregate)
+    _emit_report(report, args.report_format, args.out)
+    if (
+        report.meta.get("gate_registry", {}).get("aggregate_status")
+        == "error"
+    ):
+        return 3
+    return _exit_code_for(report)
 
 
 def _parse_xyz(text: str, flag: str) -> tuple:
-    """Parse 'X,Y,Z' (or 'X Y Z') into a 3-float tuple. Raises SystemExit on error."""
+    """Parse 'X,Y,Z' (or 'X Y Z') into a 3-float tuple."""
     bits = [b.strip() for b in text.replace(" ", ",").split(",") if b.strip()]
     if len(bits) != 3:
         print(f"error: {flag} expects 'X,Y,Z' (got {text!r})", file=sys.stderr)
@@ -670,17 +441,22 @@ def _resolve_label_fn(rules_path: str | None):
     if not rules_path:
         return lambda part: ""
 
-    from cadclaw.rules import load_rules
-    rules = load_rules(rules_path)
+    from cadclaw.rules import load_rules_safe
+    rules = load_rules_safe(rules_path)
     sig_to_label = rules.sig_to_label()
 
     def label_fn(part):
-        d = sig(part)
-        if len(d) == 3:
-            key = (d[0], d[1], d[2])
+        dimensions = sig(part)
+        if len(dimensions) == 3:
+            key = (dimensions[0], dimensions[1], dimensions[2])
             if key in sig_to_label:
                 return sig_to_label[key]
-        if rules.belt_heuristic and len(d) >= 2 and d[0] == 1.5 and d[1] == 6.0:
+        if (
+            rules.belt_heuristic
+            and len(dimensions) >= 2
+            and dimensions[0] == 1.5
+            and dimensions[1] == 6.0
+        ):
             return "belt"
         return "other"
 
@@ -746,6 +522,7 @@ def _cmd_inspect_part(args: argparse.Namespace) -> int:
 def _cmd_inspect_overlaps(args: argparse.Namespace) -> int:
     from cadclaw.inspect import find_overlaps, load_parts
     from cadclaw.harness import _format_clip_detail
+    from cadclaw.interference import InterferenceExecutionError
 
     if not args.label and not args.at:
         print("error: provide --label or --at to identify the target",
@@ -765,14 +542,18 @@ def _cmd_inspect_overlaps(args: argparse.Namespace) -> int:
     target_at = _parse_xyz(args.at, "--at") if args.at else None
     skip = set(args.skip.split(",")) if args.skip else None
 
-    clips, target_count = find_overlaps(
-        parts, label_fn,
-        target_label=args.label, target_at=target_at,
-        skip_labels=skip,
-        min_volume=args.min_volume,
-        min_clearance_mm=args.clearance,
-        tol=args.tol,
-    )
+    try:
+        clips, target_count = find_overlaps(
+            parts, label_fn,
+            target_label=args.label, target_at=target_at,
+            skip_labels=skip,
+            min_volume=args.min_volume,
+            min_clearance_mm=args.clearance,
+            tol=args.tol,
+        )
+    except InterferenceExecutionError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
 
     if target_count == 0:
         print("no parts matched the target filter.")
@@ -1076,9 +857,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_h.add_argument("--rules", default="cadclaw.yaml")
     p_h.add_argument("--repo", default=".")
     p_h.add_argument("--only", default=None,
-                     help="comma-separated list of gates to run.")
+                     help=("comma-separated list of gates to run: "
+                           + ", ".join(HARNESS_GATE_REGISTRY.ids)))
     p_h.add_argument("--skip", default=None,
-                     help="comma-separated list of gates to skip.")
+                     help=("comma-separated list of gates to skip: "
+                           + ", ".join(HARNESS_GATE_REGISTRY.ids)))
     _add_format_args(p_h)
     p_h.set_defaults(func=_cmd_harness)
 
@@ -1198,10 +981,65 @@ def main(argv: Optional[List[str]] = None) -> int:
     _force_utf8_stdio()
     parser = build_parser()
     args = parser.parse_args(argv)
+    from cadclaw.rules import RulesConfigError
     try:
         return args.func(args)
-    except FileNotFoundError as e:
-        print(f"error: {e}", file=sys.stderr)
+    except GateSelectionError as e:
+        if getattr(args, "report_format", None) == "json":
+            from cadclaw.findings import ConfidenceBudget, Finding
+            report = Report(
+                meta={
+                    "error": "invalid_gate_selection",
+                    "reason_code": e.reason_code,
+                    "gate_registry": {
+                        "version": HARNESS_GATE_REGISTRY.version,
+                        "aggregate_status": "error",
+                        "known_gate_ids": list(HARNESS_GATE_REGISTRY.ids),
+                    },
+                },
+                confidence_budget=ConfidenceBudget(
+                    not_checked=["harness gate selection was invalid"]
+                ),
+            )
+            report.add(Finding(
+                id="harness.invalid_gate_selection",
+                category="harness",
+                severity=Severity.FAIL,
+                message=str(e),
+            ))
+            report.overall = report.compute_overall()
+            _emit_report(report, args.report_format, args.out)
+        else:
+            print(f"error: {e}", file=sys.stderr)
+        return 3
+    except RulesConfigError as exc:
+        from cadclaw.findings import ConfidenceBudget, Finding
+
+        report = Report(
+            meta={
+                "error": "rules_configuration_error",
+                **exc.to_dict(),
+            },
+            confidence_budget=ConfidenceBudget(
+                not_checked=["configured checks could not load the rule file"]
+            ),
+        )
+        report.add(Finding(
+            id=exc.reason_code,
+            category="configuration",
+            severity=Severity.FAIL,
+            message="rule configuration could not be loaded",
+            evidence={**exc.to_dict(), "status": "error"},
+        ))
+        report.overall = report.compute_overall()
+        _emit_report(
+            report,
+            getattr(args, "report_format", "text"),
+            getattr(args, "out", None),
+        )
+        return 3
+    except FileNotFoundError:
+        print("error: required input was not found", file=sys.stderr)
         return 3
     except KeyboardInterrupt:
         return 130

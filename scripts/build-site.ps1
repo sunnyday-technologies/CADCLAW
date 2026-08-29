@@ -311,12 +311,12 @@ if ($packageRecord.Count -ne 1 -or $packageRecord[0].version -ne $packageVersion
 $serverText = Get-Content -LiteralPath (Join-Path $RepoRoot "cadclaw_mcp/server.py") -Raw -Encoding UTF8
 $definitionNames = @([regex]::Matches($serverText, '(?m)^\s{8}"name":\s*"([^"]+)"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
 $handlerNames = @([regex]::Matches($serverText, '(?m)^\s{4}"([^"]+)":\s*lambda\s+args:') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
-if ($definitionNames.Count -ne 23 -or $handlerNames.Count -ne 23) { throw "Expected 23 declared MCP tools and 23 handlers" }
+if ($definitionNames.Count -ne 24 -or $handlerNames.Count -ne 24) { throw "Expected 24 declared MCP tools and 24 handlers" }
 if (($definitionNames -join "`n") -ne ($handlerNames -join "`n")) { throw "MCP tool declarations and handlers differ" }
 $assembleCount = @($handlerNames | Where-Object { $_.StartsWith("assemble_") }).Count
 if ($assembleCount -ne 6) { throw "Expected six assemble_* MCP tools" }
 foreach ($surface in @($homeText, $articleText, $llmsText, $manifestText)) {
-  if ($surface -notmatch '\b23\b') { throw "A public agent surface is missing the derived 23-tool declaration" }
+  if ($surface -notmatch '\b24\b') { throw "A public agent surface is missing the derived 24-tool declaration" }
 }
 
 if ($manifest.status -ne "experimental-nonstandard-static-discovery") { throw "MCP discovery status must remain experimental and non-standard" }

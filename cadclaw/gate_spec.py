@@ -5,4 +5,4 @@ rules schema, and the JSON report schema.  Gate behavior can evolve without
 silently re-labelling historical reports or forcing a breaking rules migration.
 """
 
-GATE_SPEC_VERSION = "0.12.0"
+GATE_SPEC_VERSION = "0.13.0"

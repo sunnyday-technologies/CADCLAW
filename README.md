@@ -71,7 +71,7 @@ CADCLAW validates STEP assemblies + BOM JSON through a chain of automated gates:
 
 The CLI harness runs the checks declared in `cadclaw.yaml`; geometry checks share the STEP export when possible, while parity, semantic PMI presence, AP242 round-trip preservation, render, disassembly, tolerance, and audits are also available as focused commands/APIs. Every report includes a **confidence budget** that lists what was checked, what was not, and what assumptions were made. Reports also carry a separate [gate-method version](docs/gate-spec.md), so method changes do not silently relabel historical results or force a rules-schema migration.
 
-CADCLAW also includes a local **MCP Server** with 23 declared tools. The six `assemble_*` tools build and inspect assemblies; the remainder expose checks, analysis, audits, and rendering. It does not provide native-CAD application control, but it is **not a security sandbox**: path-taking tools can read specified files, assembly tools can write configured outputs, and the server inherits the local process account's filesystem permissions. Use a least-privilege working copy and review tool inputs and outputs.
+CADCLAW also includes a local **MCP Server** with 24 declared tools. The stateless `run_harness` tool uses the same versioned gate registry and report contract as the library and CLI; the six `assemble_*` tools build and inspect assemblies; the remainder expose focused checks, analysis, audits, and rendering. It does not provide native-CAD application control, but it is **not a security sandbox**: path-taking tools can read specified files, assembly tools can write configured outputs, and the server inherits the local process account's filesystem permissions. Use a least-privilege working copy and review tool inputs and outputs.
 
 The render-producing assembly tools return their PNGs as **inline images**, so the assistant can look at what it just built instead of trusting a path string. Every render is also written to disk, giving the human a per-step traceability artifact of what changed and when.
 
@@ -377,7 +377,7 @@ Offscreen VTK rendering of STEP files to PNG, plus GIF stitching. `make_disassem
 The runner. Chains gates, loads parts once, reports pass/fail with timing.
 
 ### `cadclaw_mcp/`
-Local MCP Server exposing 23 CADCLAW assembly, check, analysis, audit, and render tools to compatible hosts. The six `assemble_*` tools cover spec validation, compilation, the check round, component inspection, review rendering, and sequence export; the remainder run checks and audits. Render-producing tools return PNGs inline and can write configured output files. The server runs with the local process account's permissions and is not a security sandbox.
+Local MCP Server exposing 24 CADCLAW assembly, check, analysis, audit, and render tools to compatible hosts. `run_harness` is a stateless wrapper over the same configured-harness library entry point used by the CLI. The six `assemble_*` tools cover spec validation, compilation, the check round, component inspection, review rendering, and sequence export; the remainder run focused checks and audits. Render-producing tools return PNGs inline and can write configured output files. The server runs with the local process account's permissions and is not a security sandbox.
 
 ## CI/CD Integration
 

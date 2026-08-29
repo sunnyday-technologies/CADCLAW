@@ -137,7 +137,7 @@ bom_audit:
 
 pmi_present:
   expected_classes: [dimensions, geometric_tolerances, datums]</pre>
-    <p class="muted">Every section is optional. A section you leave out skips its gate and is reported under <code>confidence_budget.not_checked</code> rather than silently passing. Scaffold the <code>labels</code> block from an existing STEP file with <code>examples/init_rules.py</code>. Full how-it-works write-up: <a href="/ci-for-cad/">CI for mechanical design →</a></p>
+    <p class="muted">Most sections are opt-in; an unconfigured selected gate is reported as not checked or not applicable rather than silently passing. For backward compatibility, <code>claim_audit.scan_paths</code> defaults to <code>README.md</code>, so override that list explicitly when the public claims live elsewhere. Scaffold the <code>labels</code> block from an existing STEP file with <code>examples/init_rules.py</code>. Full how-it-works write-up: <a href="/ci-for-cad/">CI for mechanical design →</a></p>
   </section>
 
   <section id="checks" class="section dark">
@@ -158,7 +158,7 @@ pmi_present:
     </div>
 
     <div class="callout">
-      <strong>Honesty toolchain:</strong> <code>cadclaw doctor</code> inspects the configured environment · <code>cadclaw publish-audit</code> checks configured publication boundaries · <code>cadclaw claim-audit</code> flags selected overclaim patterns. The local <strong>MCP server</strong> declares 23 assembly, check, analysis, audit, and render tools. It is not a security sandbox: path-taking tools read specified files, six assembly tools can write configured outputs, and the server runs with the local process account's permissions. Use a least-privilege working copy and review tool inputs and outputs.
+      <strong>Honesty toolchain:</strong> <code>cadclaw doctor</code> inspects the configured environment · <code>cadclaw publish-audit</code> checks configured publication boundaries · <code>cadclaw claim-audit</code> flags selected overclaim patterns. The local <strong>MCP server</strong> declares 24 assembly, check, analysis, audit, and render tools, including the stateless versioned <code>run_harness</code> union runner. It is not a security sandbox: path-taking tools read specified files, six assembly tools can write configured outputs, and the server runs with the local process account's permissions. Use a least-privilege working copy and review tool inputs and outputs.
     </div>
   </section>
 
