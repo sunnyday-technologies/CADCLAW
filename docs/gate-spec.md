@@ -1,6 +1,6 @@
 # CADCLAW gate-method specification
 
-Current gate-method version: **0.12.0**.
+Current gate-method version: **0.13.0**.
 
 This version is independent of:
 
@@ -13,8 +13,46 @@ top-level report schema and positional `Report` constructor remain unchanged.
 Historical reports are not silently re-scored. A report without this metadata
 key is a legacy, pre-0.11 gate-method report; consumers must use its stored
 package/report-schema context and must not infer a newer method tag. Reports
-tagged `0.11.0` retain the semantic-PMI method below and must not be relabeled
-as `0.12.0`.
+tagged `0.11.0` retain the semantic-PMI method below, and reports or immutable
+qualification cohorts tagged `0.12.0` must not be relabeled as `0.13.0`.
+
+## 0.13.0 — configured-harness execution integrity
+
+The YAML-backed union harness now has one versioned registry,
+`harness-gates.v1`, shared by the public `run_configured_harness` library
+entry point, the `cadclaw harness` CLI wrapper, and the stateless MCP
+`run_harness` tool. Registry v1 freezes these ordered gate IDs:
+
+`inventory`, `interference`, `bom_audit`, `claim_audit`, `publish_audit`,
+`pmi_present`, `roundtrip_step`, `orientation`, `floating`, and `color`.
+
+Unknown, duplicate, overlapping, blank, and effective-empty selectors are
+typed selection errors. Every valid run carries exactly one terminal ledger
+row for every registered gate, using `pass`, `warn`, `fail`, `error`,
+`not_applicable`, `not_checked`, or `skipped`. The selected-gate status
+partitions are disjoint, registry-ordered, and exhaustive. A successfully
+evaluated gate alone enters `confidence_budget.checked`; nested descriptive
+prose cannot masquerade as a checked gate identity.
+
+`meta.gate_registry.aggregate_status` distinguishes an evaluated design
+failure from an execution error and from an all-not-applicable request. The
+CLI returns 3 for `aggregate_status: error`, 1 for an evaluated failure, 2 for
+warn-only, and 0 for pass or an explicitly reported all-not-applicable result.
+Missing prerequisites, unreadable or malformed configured evidence, invalid
+configured audit regexes, native/BRep failures, and incomplete label or
+bounding-box evaluation are errors or not-checked outcomes rather than
+evidence of a clear assembly. A configured audit lane that scans zero files
+does not pass. An explicitly requested or configured gate that remains
+not-checked fails the aggregate. The low-level `Harness` also rejects an empty
+gate list instead of relying on the vacuous truth of `all([])`.
+
+Interference is now wired into the configured union runner. Fewer than two
+eligible parts is `not_checked`; label, bounding-box, and exact-boolean errors
+are redacted execution errors; and focused MCP/inspect callers no longer
+report an incomplete evaluation as clear. These orchestration and execution
+integrity changes justify the gate-method version bump. The
+`cadclaw.yaml` rules schema remains **0.9**, and the JSON `Report` schema
+remains **0.7**.
 
 ## 0.12.0 — bounded AP242 STEP round-trip preservation
 

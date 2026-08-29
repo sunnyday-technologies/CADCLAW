@@ -110,7 +110,7 @@ class TestJsonReporter(unittest.TestCase):
         d = json.loads(s)
         self.assertEqual(d["overall"], "fail")
         self.assertEqual(d["schema_version"], "0.7")
-        self.assertEqual(d["meta"]["gate_spec_version"], "0.12.0")
+        self.assertEqual(d["meta"]["gate_spec_version"], "0.13.0")
 
     def test_locked_schema_version(self):
         s = render_json(_sample_report())
@@ -121,7 +121,7 @@ class TestJsonReporter(unittest.TestCase):
         d = json.loads(render_json(_sample_report()))
         self.assertEqual(d["schema_version"], "0.7")
         self.assertNotIn("gate_spec_version", d)
-        self.assertEqual(d["meta"]["gate_spec_version"], "0.12.0")
+        self.assertEqual(d["meta"]["gate_spec_version"], "0.13.0")
 
     def test_findings_are_round_trippable(self):
         s = render_json(_sample_report())

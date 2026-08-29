@@ -41,8 +41,10 @@ status/disposition are retained in the manifest and raw reports.
 The frozen semantic counts are FTC 11 dimensions/geometric tolerances/datums
 `6/4/4` and STC 06 `17/25/51`. FTC 11's NIST archive member is AP242 e2 while
 its embedded Part 21 `FILE_NAME` reports AP242 e1; the archive-member e2
-identity is retained without normalization. The runner also freezes report
-schema 0.7, rules schema 0.9, and gate-spec 0.12.0.
+identity is retained without normalization. The current runner freezes report
+schema 0.7, rules schema 0.9, and gate-spec 0.13.0. The immutable tracked
+`nist-ap242-20260828t101004z-cadclaw-4579c5e925df` cohort predates that bump and correctly remains
+tagged gate-spec 0.12.0; it is historical evidence and is not relabeled.
 
 Output ancestors may not be symlinks or reparse points. Final publication uses
 a same-volume atomic directory move that fails if the cohort destination

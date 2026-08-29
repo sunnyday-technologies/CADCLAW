@@ -59,7 +59,7 @@
     {
       "name": "cadclaw_mcp",
       "kind": "local-mcp-server",
-      "description": "Local Model Context Protocol server exposing 23 CADCLAW assembly, check, analysis, audit, and render tools, including six assemble_* tools that can write configured outputs. Render-producing tools can return PNGs inline and write files. It runs with the local process account's filesystem permissions; it is not a security sandbox and is not hosted at cadclaw.io. Review tool inputs/outputs and use a least-privilege working copy.",
+      "description": "Local Model Context Protocol server exposing 24 CADCLAW assembly, check, analysis, audit, and render tools, including a stateless versioned run_harness tool and six assemble_* tools that can write configured outputs. Render-producing tools can return PNGs inline and write files. It runs with the local process account's filesystem permissions; it is not a security sandbox and is not hosted at cadclaw.io. Review tool inputs/outputs and use a least-privilege working copy.",
       "entry_point": "python -m cadclaw_mcp",
       "source": "https://github.com/sunnyday-technologies/CADCLAW/tree/main/cadclaw_mcp",
       "transport": "stdio"

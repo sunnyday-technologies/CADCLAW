@@ -35,6 +35,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional, Set, Tuple
 
+from .bbox import bbox_center as _validated_bbox_center
+from .bbox import bbox_tuple as _validated_bbox_tuple
+from .bbox import validate_bbox
+
 
 BBox6 = Tuple[float, float, float, float, float, float]
 Point3 = Tuple[float, float, float]
@@ -59,14 +63,11 @@ class FloatingResult:
 
 
 def _bbox_tuple(solid) -> BBox6:
-    bb = solid.BoundingBox()
-    return (bb.xmin, bb.ymin, bb.zmin, bb.xmax, bb.ymax, bb.zmax)
+    return _validated_bbox_tuple(solid)
 
 
 def _bbox_center(bbox: BBox6) -> Point3:
-    return ((bbox[0] + bbox[3]) / 2.0,
-            (bbox[1] + bbox[4]) / 2.0,
-            (bbox[2] + bbox[5]) / 2.0)
+    return _validated_bbox_center(bbox)
 
 
 def bbox_distance(a: BBox6, b: BBox6) -> float:
@@ -79,6 +80,8 @@ def bbox_distance(a: BBox6, b: BBox6) -> float:
     Math: per axis, the gap is `max(0, max(a.min - b.max, b.min - a.max))`.
     The 3D distance is the L2-norm of those three axis gaps.
     """
+    a = validate_bbox(a)
+    b = validate_bbox(b)
     dx = max(0.0, max(a[0] - b[3], b[0] - a[3]))
     dy = max(0.0, max(a[1] - b[4], b[1] - a[4]))
     dz = max(0.0, max(a[2] - b[5], b[2] - a[5]))
@@ -116,10 +119,10 @@ class FloatingCheck:
         # Pre-compute bboxes + labels once.
         records = []
         for part in self.parts:
-            try:
-                lbl = self.label_fn(part)
-            except Exception:
-                continue
+            # Do not silently omit an unlabelable part.  A caller can redact
+            # and classify the raised exception, while omission would make a
+            # partial adjacency evaluation indistinguishable from a pass.
+            lbl = self.label_fn(part)
             records.append((lbl, _bbox_tuple(part)))
 
         structural = [(lbl, bb) for lbl, bb in records

@@ -141,7 +141,7 @@ class ColorCheck:
 
         from .render import _extract_step_colors
         from .inventory import sig as _sig
-        step_colors = _extract_step_colors(self.step_path)
+        step_colors = _extract_step_colors(self.step_path, strict=True)
         # step_colors is keyed by the same sorted-tuple as inventory.sig;
         # build a parallel label->sig map for our active labels.
         label_to_sig = {

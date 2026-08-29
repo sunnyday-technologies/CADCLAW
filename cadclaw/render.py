@@ -192,7 +192,38 @@ DEFAULT_COLOR_MAP = {
 }
 
 
-def _extract_step_colors(step_path: str) -> dict:
+class StepColorReadError(RuntimeError):
+    """STEP color metadata could not be read through the XCAF boundary."""
+
+    def __init__(self, code: str):
+        self.code = code
+        super().__init__("STEP color metadata could not be evaluated")
+
+
+def _step_color_dim_sig(shape, *, strict: bool = False):
+    """Return a validated color-map signature for one native shape."""
+    try:
+        from OCP.BRepBndLib import BRepBndLib
+        from OCP.Bnd import Bnd_Box
+        from .bbox import validate_bbox
+
+        bbox = Bnd_Box()
+        BRepBndLib.Add_s(shape, bbox)
+        if bbox.IsVoid():
+            raise ValueError("void bounding box")
+        xmin, ymin, zmin, xmax, ymax, zmax = validate_bbox(bbox.Get())
+    except Exception:
+        if strict:
+            raise StepColorReadError("color.bbox_failed") from None
+        return None
+    return tuple(sorted((
+        round(xmax - xmin, 1),
+        round(ymax - ymin, 1),
+        round(zmax - zmin, 1),
+    )))
+
+
+def _extract_step_colors(step_path: str, *, strict: bool = False) -> dict:
     """Extract per-shape RGB colors from a STEP file's STEPCAF metadata.
 
     Returns a dict {dim_signature: (r, g, b)} where dim_signature is
@@ -215,32 +246,57 @@ def _extract_step_colors(step_path: str) -> dict:
     un-colored shapes are omitted so callers can fall through to
     label-based coloring.
 
-    Silently returns {} if the STEP has no color metadata or if the
-    AP242/XCAF reader fails to open the file.
+    Returns {} after a successful read when the STEP has no color metadata.
+    Rendering callers keep the legacy best-effort behavior. Validation callers
+    pass ``strict=True`` so reader/import/input failures are typed errors rather
+    than indistinguishable missing-color warnings.
     """
     try:
         from OCP.STEPCAFControl import STEPCAFControl_Reader
+        from OCP.IFSelect import IFSelect_ReturnStatus
         from OCP.TDocStd import TDocStd_Document
         from OCP.TCollection import TCollection_ExtendedString
         from OCP.XCAFDoc import XCAFDoc_DocumentTool, XCAFDoc_ColorType
         from OCP.TDF import TDF_LabelSequence
         from OCP.Quantity import Quantity_Color
-        from OCP.BRepBndLib import BRepBndLib
-        from OCP.Bnd import Bnd_Box
     except ImportError:
+        if strict:
+            raise StepColorReadError("color.reader_unavailable") from None
         return {}
 
-    doc = TDocStd_Document(TCollection_ExtendedString("XmlXCAF"))
-    reader = STEPCAFControl_Reader()
-    reader.SetColorMode(True)
-    reader.SetLayerMode(False)
-    reader.SetNameMode(False)
-    if not reader.ReadFile(step_path):
+    try:
+        doc = TDocStd_Document(TCollection_ExtendedString("XmlXCAF"))
+        reader = STEPCAFControl_Reader()
+        reader.SetColorMode(True)
+        reader.SetLayerMode(False)
+        reader.SetNameMode(False)
+        read_ok = reader.ReadFile(step_path)
+    except Exception:
+        if strict:
+            raise StepColorReadError("color.read_failed") from None
         return {}
-    reader.Transfer(doc)
+    if read_ok != IFSelect_ReturnStatus.IFSelect_RetDone:
+        if strict:
+            raise StepColorReadError("color.read_failed") from None
+        return {}
+    try:
+        transferred = reader.Transfer(doc)
+    except Exception:
+        if strict:
+            raise StepColorReadError("color.transfer_failed") from None
+        return {}
+    if transferred is False:
+        if strict:
+            raise StepColorReadError("color.transfer_failed") from None
+        return {}
 
-    shape_tool = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
-    color_tool = XCAFDoc_DocumentTool.ColorTool_s(doc.Main())
+    try:
+        shape_tool = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
+        color_tool = XCAFDoc_DocumentTool.ColorTool_s(doc.Main())
+    except Exception:
+        if strict:
+            raise StepColorReadError("color.traversal_failed") from None
+        return {}
 
     colors = {}
 
@@ -253,37 +309,48 @@ def _extract_step_colors(step_path: str) -> dict:
                 return (c.Red(), c.Green(), c.Blue())
         return None
 
-    def _dim_sig(shape):
-        """Sorted 3-tuple of rounded extents — transform-invariant key
-        matching `cadclaw.inventory.sig`."""
-        bb = Bnd_Box()
-        try:
-            BRepBndLib.Add_s(shape, bb)
-        except Exception:
-            return None
-        if bb.IsVoid():
-            return None
-        xmin, ymin, zmin, xmax, ymax, zmax = bb.Get()
-        return tuple(sorted([
-            round(xmax - xmin, 1),
-            round(ymax - ymin, 1),
-            round(zmax - zmin, 1),
-        ]))
-
     def _walk(label, inherited_color):
         """Recurse through assembly structure, recording color per leaf."""
         try:
             shape = shape_tool.GetShape_s(label)
         except Exception:
+            if strict:
+                raise StepColorReadError("color.traversal_failed") from None
             return
-        own = _try_color(shape) if shape is not None else None
+        try:
+            own = _try_color(shape) if shape is not None else None
+            is_assembly = shape_tool.IsAssembly_s(label)
+        except Exception:
+            if strict:
+                raise StepColorReadError("color.traversal_failed") from None
+            return
         eff = own if own is not None else inherited_color
 
-        if shape_tool.IsAssembly_s(label):
-            children = TDF_LabelSequence()
-            shape_tool.GetComponents_s(label, children)
-            for j in range(1, children.Length() + 1):
-                child = children.Value(j)
+        if is_assembly:
+            try:
+                children = TDF_LabelSequence()
+                shape_tool.GetComponents_s(label, children)
+            except Exception:
+                if strict:
+                    raise StepColorReadError("color.traversal_failed") from None
+                return
+            try:
+                child_count = children.Length()
+            except Exception:
+                if strict:
+                    raise StepColorReadError(
+                        "color.traversal_failed"
+                    ) from None
+                return
+            for j in range(1, child_count + 1):
+                try:
+                    child = children.Value(j)
+                except Exception:
+                    if strict:
+                        raise StepColorReadError(
+                            "color.traversal_failed"
+                        ) from None
+                    continue
                 try:
                     from OCP.TDF import TDF_Label
                     ref_out = TDF_Label()
@@ -291,18 +358,39 @@ def _extract_step_colors(step_path: str) -> dict:
                         _walk(ref_out, eff)
                         continue
                 except Exception:
-                    pass
+                    if strict:
+                        raise StepColorReadError(
+                            "color.traversal_failed"
+                        ) from None
                 _walk(child, eff)
         else:
             if eff is not None and shape is not None:
-                sig = _dim_sig(shape)
+                sig = _step_color_dim_sig(shape, strict=strict)
                 if sig is not None:
                     colors[sig] = eff
 
-    top_labels = TDF_LabelSequence()
-    shape_tool.GetFreeShapes(top_labels)
-    for i in range(1, top_labels.Length() + 1):
-        _walk(top_labels.Value(i), None)
+    try:
+        top_labels = TDF_LabelSequence()
+        shape_tool.GetFreeShapes(top_labels)
+        top_count = top_labels.Length()
+        for i in range(1, top_count + 1):
+            try:
+                top_label = top_labels.Value(i)
+            except Exception:
+                if strict:
+                    raise StepColorReadError(
+                        "color.traversal_failed"
+                    ) from None
+                continue
+            _walk(top_label, None)
+    except StepColorReadError:
+        raise
+    except Exception:
+        if strict:
+            raise StepColorReadError("color.traversal_failed") from None
+        # Preserve the renderer's historical best-effort behavior and any
+        # colors established before an unexpected native traversal failure.
+        return colors
 
     return colors
 

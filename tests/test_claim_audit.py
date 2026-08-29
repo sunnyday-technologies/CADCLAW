@@ -45,7 +45,7 @@ class TestForbiddenAbsolutes(unittest.TestCase):
         report = run_claim_audit(_rules_for_overclaim(), repo_root=".")
         self.assertTrue(any(
             f.id == "claim.forbidden_absolute"
-                and f.evidence.get("word", "").lower() == "production-ready"
+                and f.evidence.get("rule_ordinal") == 1
             for f in report.findings
         ))
 
@@ -53,7 +53,8 @@ class TestForbiddenAbsolutes(unittest.TestCase):
         report = run_claim_audit(_rules_for_overclaim(), repo_root=".")
         self.assertTrue(any(
             f.id == "claim.forbidden_absolute"
-                and f.evidence.get("word", "").lower() == "validated"
+                and f.evidence.get("rule_ordinal")
+                    == len(DEFAULT_FORBIDDEN_ABSOLUTES) + 1
             for f in report.findings
         ))
 
@@ -85,7 +86,7 @@ class TestStaleTerms(unittest.TestCase):
         report = run_claim_audit(_rules_for_overclaim(), repo_root=".")
         self.assertTrue(any(
             f.id == "claim.stale_term"
-                and f.evidence.get("term") == "JB Weld"
+                and f.evidence.get("rule_ordinal") == 1
             for f in report.findings
         ))
 
@@ -111,7 +112,7 @@ class TestMED3LicenseAndNegationAware(unittest.TestCase):
             f for f in report.findings
             if f.id == "claim.stale_term"
                 and f.evidence.get("line") == 8
-                and f.evidence.get("term") == "OpenBuilds"
+                and f.evidence.get("rule_ordinal") == 1
         ]
         self.assertEqual(line8_findings, [])
 
@@ -127,7 +128,7 @@ class TestMED3LicenseAndNegationAware(unittest.TestCase):
         flagged_lines = {
             f.evidence.get("line") for f in report.findings
             if f.id == "claim.stale_term"
-                and f.evidence.get("term") == "OpenBuilds"
+                and f.evidence.get("rule_ordinal") == 1
         }
         self.assertIn(19, flagged_lines,
                       f"OpenBuilds outside license context should flag; "
@@ -146,7 +147,8 @@ class TestMED3LicenseAndNegationAware(unittest.TestCase):
         suppressed_lines = {5, 7, 9}
         flagged_lines = {
             f.evidence.get("line") for f in report.findings
-            if f.id == "claim.stale_term" and f.evidence.get("term") == "Supabase"
+            if f.id == "claim.stale_term"
+                and f.evidence.get("rule_ordinal") == 1
         }
         self.assertEqual(suppressed_lines & flagged_lines, set(),
                          f"Lines {suppressed_lines & flagged_lines} should "
@@ -163,7 +165,7 @@ class TestMED3LicenseAndNegationAware(unittest.TestCase):
         # The "We do use Supabase here" line should fire
         self.assertTrue(any(
             f.id == "claim.stale_term"
-                and f.evidence.get("term") == "Supabase"
+                and f.evidence.get("rule_ordinal") == 1
             for f in report.findings
         ),
             "stale_term gate should still flag a non-negated Supabase mention")
@@ -185,7 +187,8 @@ class TestMED4ValidatedNotInDefaults(unittest.TestCase):
         validated_findings = [
             f for f in report.findings
             if f.id == "claim.forbidden_absolute"
-                and f.evidence.get("word", "").lower() == "validated"
+                and f.evidence.get("rule_ordinal")
+                    == len(DEFAULT_FORBIDDEN_ABSOLUTES) + 1
         ]
         self.assertEqual(validated_findings, [],
                          "'validated' should NOT be flagged under default rules")
@@ -198,7 +201,8 @@ class TestMED4ValidatedNotInDefaults(unittest.TestCase):
         report = run_claim_audit(rules, repo_root=".")
         self.assertTrue(any(
             f.id == "claim.forbidden_absolute"
-                and f.evidence.get("word", "").lower() == "validated"
+                and f.evidence.get("rule_ordinal")
+                    == len(DEFAULT_FORBIDDEN_ABSOLUTES) + 1
             for f in report.findings
         ),
             "'validated' should be flagged when added via forbidden_absolutes_extra")

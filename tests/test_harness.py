@@ -1193,6 +1193,7 @@ class TestMCPServer(unittest.TestCase):
         with _MCPSession() as s:
             names = {t["name"] for t in s.list_tools()}
         expected = {
+            "run_harness",
             # v0.5 tools (kept for backwards compat)
             "load_assembly", "check_inventory", "check_interference",
             "check_adjacency", "check_dimensions", "compute_deflection",
@@ -1537,10 +1538,15 @@ class TestHarnessReport(unittest.TestCase):
         self.assertIn("CAD HARNESS REPORT", report_str)
         self.assertIn("Parts:", report_str)
 
-    def test_empty_harness_passes(self):
+    def test_empty_harness_fails_closed(self):
         h = Harness(os.path.join(FIXTURES, "L1_good.step"))
         report = h.run()
-        self.assertTrue(report.passed)  # no gates = vacuous pass
+        self.assertFalse(report.passed)
+        self.assertEqual(report.report.overall.value, "fail")
+        self.assertEqual(
+            report.report.findings[0].id,
+            "harness.no_gates_configured",
+        )
 
 
 if __name__ == '__main__':

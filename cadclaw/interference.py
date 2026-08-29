@@ -26,8 +26,23 @@ Usage:
 from dataclasses import dataclass, field
 from typing import List, Set, Callable, Optional, Tuple
 
+from .bbox import (
+    GeometryBoundingBoxError,
+    bbox_center as _validated_bbox_center,
+    bbox_tuple as _validated_bbox_tuple,
+)
+
 
 BBox = Tuple[float, float, float, float, float, float]  # (xmin,ymin,zmin,xmax,ymax,zmax)
+
+
+class InterferenceExecutionError(RuntimeError):
+    """Exact interference evidence could not be established."""
+
+    def __init__(self, code: str, message: str, *, error_count: int = 0):
+        super().__init__(message)
+        self.code = code
+        self.error_count = error_count
 
 
 @dataclass
@@ -56,23 +71,27 @@ class InterferenceResult:
     passed: bool
     checked_pairs: int
     clips: List[Clip]
+    error_count: int = 0
+    eligible_parts: int = 0
+    not_checked_reason: Optional[str] = None
 
 
 def _bb_overlap(a, b, tol=-0.5):
-    b1, b2 = a.BoundingBox(), b.BoundingBox()
-    return (b1.xmin < b2.xmax + tol and b2.xmin < b1.xmax + tol and
-            b1.ymin < b2.ymax + tol and b2.ymin < b1.ymax + tol and
-            b1.zmin < b2.zmax + tol and b2.zmin < b1.zmax + tol)
+    return _bb_overlap_bounds(_bbox_tuple(a), _bbox_tuple(b), tol=tol)
+
+
+def _bb_overlap_bounds(a: BBox, b: BBox, tol=-0.5):
+    return (a[0] < b[3] + tol and b[0] < a[3] + tol and
+            a[1] < b[4] + tol and b[1] < a[4] + tol and
+            a[2] < b[5] + tol and b[2] < a[5] + tol)
 
 
 def _center(s):
-    bb = s.BoundingBox()
-    return ((bb.xmin + bb.xmax) / 2, (bb.ymin + bb.ymax) / 2, (bb.zmin + bb.zmax) / 2)
+    return _validated_bbox_center(_bbox_tuple(s))
 
 
 def _bbox_tuple(s) -> BBox:
-    bb = s.BoundingBox()
-    return (bb.xmin, bb.ymin, bb.zmin, bb.xmax, bb.ymax, bb.zmax)
+    return _validated_bbox_tuple(s)
 
 
 def _suggest_clear_shift(bb_a: BBox, bb_b: BBox,
@@ -145,22 +164,40 @@ class InterferenceCheck:
         from OCP.GProp import GProp_GProps
         from OCP.BRepGProp import BRepGProp
 
-        check_parts = [(i, s) for i, s in enumerate(self.parts)
-                       if self.label_fn(s) not in self.skip_labels]
-
         clips = []
         checked = 0
+        error_count = 0
+        check_parts = []
+
+        # Resolve each label once.  A model-supplied or project label function
+        # can fail just like an OCCT call; that is an execution error, never
+        # evidence that the omitted part is clear.
+        for i, solid in enumerate(self.parts):
+            try:
+                label = self.label_fn(solid)
+            except GeometryBoundingBoxError:
+                raise
+            except Exception:
+                error_count += 1
+                continue
+            if label not in self.skip_labels:
+                # Validate every eligible part before pair filtering.  A
+                # malformed box must not become "fewer than two parts" or a
+                # false non-overlap result.
+                check_parts.append((i, solid, label, _bbox_tuple(solid)))
+
+        not_checked_reason = None
+        if len(check_parts) < 2:
+            not_checked_reason = "fewer than two eligible parts"
 
         for idx_a in range(len(check_parts)):
-            i, a = check_parts[idx_a]
-            la = self.label_fn(a)
+            i, a, la, bba = check_parts[idx_a]
             for idx_b in range(idx_a + 1, len(check_parts)):
-                j, b = check_parts[idx_b]
-                lb = self.label_fn(b)
-                if not _bb_overlap(a, b):
-                    continue
-                checked += 1
+                j, b, lb, bbb = check_parts[idx_b]
                 try:
+                    if not _bb_overlap_bounds(bba, bbb):
+                        continue
+                    checked += 1
                     common = BRepAlgoAPI_Common(a.wrapped, b.wrapped)
                     common.Build()
                     if common.IsDone():
@@ -168,13 +205,12 @@ class InterferenceCheck:
                         BRepGProp.VolumeProperties_s(common.Shape(), gp)
                         v = gp.Mass()
                         if v > self.min_volume:
-                            bba = _bbox_tuple(a)
-                            bbb = _bbox_tuple(b)
                             axis, shift, overlap = _suggest_clear_shift(
                                 bba, bbb, self.min_clearance_mm)
                             clips.append(Clip(
                                 label_a=la, label_b=lb,
-                                center_a=_center(a), center_b=_center(b),
+                                center_a=_validated_bbox_center(bba),
+                                center_b=_validated_bbox_center(bbb),
                                 volume=v,
                                 bbox_a=bba, bbox_b=bbb,
                                 overlap_dims=overlap,
@@ -182,11 +218,23 @@ class InterferenceCheck:
                                 suggest_shift_mm=shift,
                                 clearance_mm=self.min_clearance_mm,
                             ))
+                    else:
+                        error_count += 1
                 except Exception:
-                    pass
+                    # Native boolean failures are not evidence that the pair
+                    # is clear.  Keep exception text out of the public result,
+                    # but fail the gate so callers cannot publish a false PASS.
+                    error_count += 1
 
         return InterferenceResult(
-            passed=len(clips) == 0,
+            passed=(
+                len(clips) == 0
+                and error_count == 0
+                and not_checked_reason is None
+            ),
             checked_pairs=checked,
             clips=clips,
+            error_count=error_count,
+            eligible_parts=len(check_parts),
+            not_checked_reason=not_checked_reason,
         )
