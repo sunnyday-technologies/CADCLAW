@@ -24,6 +24,10 @@ REPORT_SCHEMA_VERSION = "0.7"
 RULES_SCHEMA_VERSION = "0.9"
 CURRENT_GATE_SPEC_VERSION = "0.13.0"
 HISTORICAL_GATE_SPEC_VERSION = "0.12.0"
+SUPPORTED_COHORT_GATE_SPEC_VERSIONS = {
+    HISTORICAL_GATE_SPEC_VERSION,
+    CURRENT_GATE_SPEC_VERSION,
+}
 EXPECTED_CLASSES = ("dimensions", "geometric_tolerances", "datums")
 EXPECTED_FIXTURES = {
     "nist-ftc-11-ap242-e2": {
@@ -570,6 +574,25 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
         }
         with self.assertRaises(AssertionError):
             self._assert_target_commit_material(manifest)
+
+    def test_target_runner_gate_spec_rejects_coherent_supported_relabel(self):
+        historical_manifest = None
+        for cohort_dir in self.cohort_dirs:
+            candidate = json.loads(
+                (cohort_dir / "manifest.json").read_text(encoding="utf-8")
+            )
+            if (
+                candidate["contracts"]["gate_spec_version"]
+                == HISTORICAL_GATE_SPEC_VERSION
+            ):
+                historical_manifest = candidate
+                break
+        self.assertIsNotNone(historical_manifest)
+
+        relabeled = copy.deepcopy(historical_manifest)
+        relabeled["contracts"]["gate_spec_version"] = CURRENT_GATE_SPEC_VERSION
+        with self.assertRaises(AssertionError):
+            self._assert_target_commit_material(relabeled)
         with tempfile.TemporaryDirectory() as temporary:
             cohort = Path(temporary)
             for name in ("manifest.json", "README.md", "SHA256SUMS"):
@@ -626,13 +649,18 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
         )
         self.assertTrue(manifest["qualification_passed"])
 
+        cohort_gate_spec_version = manifest["contracts"]["gate_spec_version"]
+        self.assertIn(
+            cohort_gate_spec_version,
+            SUPPORTED_COHORT_GATE_SPEC_VERSIONS,
+        )
         self.assertEqual(
             manifest["contracts"],
             {
                 "manifest_schema_version": MANIFEST_VERSION,
                 "report_schema_version": REPORT_SCHEMA_VERSION,
                 "rules_schema_version": RULES_SCHEMA_VERSION,
-                "gate_spec_version": HISTORICAL_GATE_SPEC_VERSION,
+                "gate_spec_version": cohort_gate_spec_version,
             },
         )
 
@@ -726,11 +754,11 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
             )
             self.assertEqual(
                 pmi_gate["gate_spec_version"],
-                HISTORICAL_GATE_SPEC_VERSION,
+                cohort_gate_spec_version,
             )
             self.assertEqual(
                 roundtrip_gate["gate_spec_version"],
-                HISTORICAL_GATE_SPEC_VERSION,
+                cohort_gate_spec_version,
             )
             self.assertEqual(pmi_gate["semantic_class_counts"], expected["counts"])
             self.assertEqual(
@@ -762,6 +790,7 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
             self._assert_pmi_report(
                 json.loads(pmi_report_path.read_text(encoding="utf-8")),
                 expected,
+                cohort_gate_spec_version,
             )
             roundtrip_report = json.loads(
                 roundtrip_report_path.read_text(encoding="utf-8")
@@ -770,6 +799,7 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
                 roundtrip_report,
                 expected,
                 roundtrip_gate,
+                cohort_gate_spec_version,
             )
             if roundtrip_gate["write_status"] == "IFSelect_RetError":
                 saw_ret_error = True
@@ -851,6 +881,16 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
 
         runner_blob = blob("scripts/run-nist-ap242-qualification.ps1")
         self.assertEqual(sha256_bytes(runner_blob), repository["runner_sha256"])
+        runner_gate_spec_versions = re.findall(
+            rb'^\$qualificationGateSpecVersion = "([^"]+)"\s*$',
+            runner_blob,
+            flags=re.MULTILINE,
+        )
+        self.assertEqual(len(runner_gate_spec_versions), 1)
+        self.assertEqual(
+            runner_gate_spec_versions[0].decode("ascii"),
+            manifest["contracts"]["gate_spec_version"],
+        )
         rules_blob = blob(manifest["rules"]["path"])
         self.assertEqual(sha256_bytes(rules_blob), manifest["rules"]["sha256"])
         self.assertEqual(len(rules_blob), manifest["rules"]["size_bytes"])
@@ -964,7 +1004,12 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
         self.assertLessEqual(gate_started, gate_completed)
         self.assertLessEqual(gate_completed, cohort_completed)
 
-    def _assert_pmi_report(self, report: dict, expected: dict) -> None:
+    def _assert_pmi_report(
+        self,
+        report: dict,
+        expected: dict,
+        gate_spec_version: str = HISTORICAL_GATE_SPEC_VERSION,
+    ) -> None:
         self.assertEqual(report["schema_version"], REPORT_SCHEMA_VERSION)
         self.assertEqual(report["overall"], "pass")
         meta = report["meta"]
@@ -973,7 +1018,7 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
         self.assertEqual(meta["scope"], "semantic_only")
         self.assertEqual(
             meta["gate_spec_version"],
-            HISTORICAL_GATE_SPEC_VERSION,
+            gate_spec_version,
         )
         self.assertEqual(normalized_relative(meta["step"]), expected["path"])
         self.assertEqual(
@@ -990,7 +1035,11 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
         assert_sanitized(self, report, "PMI report")
 
     def _assert_roundtrip_report(
-        self, report: dict, expected: dict, gate: dict
+        self,
+        report: dict,
+        expected: dict,
+        gate: dict,
+        gate_spec_version: str = HISTORICAL_GATE_SPEC_VERSION,
     ) -> None:
         self.assertEqual(report["schema_version"], REPORT_SCHEMA_VERSION)
         self.assertEqual(report["overall"], "pass")
@@ -999,7 +1048,7 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
         self.assertEqual(meta["applicability"], "applicable")
         self.assertEqual(
             meta["gate_spec_version"],
-            HISTORICAL_GATE_SPEC_VERSION,
+            gate_spec_version,
         )
         derivative = meta["derivative"]
         self.assertTrue(derivative["persisted"])
