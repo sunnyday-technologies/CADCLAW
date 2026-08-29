@@ -1,0 +1,106 @@
+{
+  "schema_version": "0.7",
+  "overall": "pass",
+  "duration_ms": 856.417179107666,
+  "meta": {
+    "gate": "PMI_PRESENT_SEMANTIC",
+    "scope": "semantic_only",
+    "expected_classes": [
+      "dimensions",
+      "geometric_tolerances",
+      "datums"
+    ],
+    "gate_spec_version": "0.13.0",
+    "applicability": "applicable",
+    "step": "tests\\fixtures\\pmi_semantic\\nist_ftc_11_asme1_ap242-e2.stp",
+    "step_schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF { 1 0 10303 442 1 1 4 }",
+    "reader": "OCCT STEPCAFControl_Reader",
+    "reader_version": "7.8.1.1",
+    "diagnostics": {
+      "raw_dimension_labels": 8,
+      "presentation_only_dimension_labels_ignored": 2
+    },
+    "class_results": [
+      {
+        "class": "dimensions",
+        "status": "present",
+        "count": 6
+      },
+      {
+        "class": "geometric_tolerances",
+        "status": "present",
+        "count": 4
+      },
+      {
+        "class": "datums",
+        "status": "present",
+        "count": 4
+      }
+    ],
+    "rules": "tests/fixtures/pmi_semantic/cadclaw.yaml"
+  },
+  "findings": [
+    {
+      "id": "pmi.dimensions.present",
+      "category": "pmi_present",
+      "severity": "pass",
+      "message": "semantic PMI class dimensions: present (6)",
+      "suggested_fix": null,
+      "evidence": {
+        "class": "dimensions",
+        "status": "present",
+        "count": 6,
+        "semantic_only": true,
+        "step_schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF { 1 0 10303 442 1 1 4 }",
+        "reader": "OCCT STEPCAFControl_Reader",
+        "reader_version": "7.8.1.1"
+      }
+    },
+    {
+      "id": "pmi.geometric_tolerances.present",
+      "category": "pmi_present",
+      "severity": "pass",
+      "message": "semantic PMI class geometric_tolerances: present (4)",
+      "suggested_fix": null,
+      "evidence": {
+        "class": "geometric_tolerances",
+        "status": "present",
+        "count": 4,
+        "semantic_only": true,
+        "step_schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF { 1 0 10303 442 1 1 4 }",
+        "reader": "OCCT STEPCAFControl_Reader",
+        "reader_version": "7.8.1.1"
+      }
+    },
+    {
+      "id": "pmi.datums.present",
+      "category": "pmi_present",
+      "severity": "pass",
+      "message": "semantic PMI class datums: present (4)",
+      "suggested_fix": null,
+      "evidence": {
+        "class": "datums",
+        "status": "present",
+        "count": 4,
+        "semantic_only": true,
+        "step_schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF { 1 0 10303 442 1 1 4 }",
+        "reader": "OCCT STEPCAFControl_Reader",
+        "reader_version": "7.8.1.1"
+      }
+    }
+  ],
+  "confidence_budget": {
+    "checked": [
+      "PMI_PRESENT_SEMANTIC: declared AP242 semantic PMI class presence"
+    ],
+    "not_checked": [
+      "native CAD source model was not supplied",
+      "PMI_PRESENT_SEMANTIC: graphical PMI presentation",
+      "PMI_PRESENT_SEMANTIC: material assignments",
+      "PMI_PRESENT_SEMANTIC: process and general notes",
+      "PMI_PRESENT_SEMANTIC: GD&T construction correctness or standards conformance",
+      "PMI_PRESENT_SEMANTIC: native-model-to-STEP authoring fidelity"
+    ],
+    "assumptions": []
+  }
+}
