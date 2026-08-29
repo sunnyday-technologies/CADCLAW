@@ -77,22 +77,35 @@ segments, so totals are reconstructed by summing the maximum of each monotonic
 counter segment. Cached input is a subset of input. These figures measure model
 context processing, including repeated cached-context replay after long turns
 and compaction; they are not unique authored words, human labor hours, or an
-API invoice. Active time is reconstructed from task start/complete intervals,
-includes tool/test wait time, and excludes pauses between task turns.
+API invoice. Active time sums this task's top-level `task_started` to
+`task_complete` intervals, matched by turn ID; an unfinished interval is cut at
+the next turn start or the snapshot cutoff. Subagent intervals are not added
+separately. It includes tool/test wait time and excludes pauses between turns.
 Snapshot cutoffs are parsed from each raw ISO-8601 event timestamp before JSON
 object conversion so the UTC marker cannot be lost to local-time coercion.
 
 | Snapshot | Reconstructed tokens | Input (cached / non-cached) | Output | Compactions | Wall span | Active task span |
 |---|---:|---:|---:|---:|---:|---:|
-| Original merged-delivery closeout, 2026-08-28 13:42:38 UTC | 252,920,161 | 252,431,305 (249,292,928 / 3,138,377) | 488,856 | 10 | 14h 13m 23s | 13h 40m 03s |
+| Original merged-implementation snapshot, 2026-08-28 13:42:38 UTC | 252,920,161 | 252,431,305 (249,292,928 / 3,138,377) | 488,856 | 10 | 14h 13m 23s | 13h 40m 03s |
 | Follow-on session snapshot, 2026-08-29 18:26:16 UTC | 565,060,522 | 563,886,489 (556,214,400 / 7,672,089) | 1,174,033 | 16 | 1d 18h 57m 01s | 18h 11m 05s |
 
-The difference after the original merged-delivery closeout is 312,140,361
+The difference after the original merged-implementation snapshot is 312,140,361
 model tokens and approximately 4h 31m 02s of additional active task span. That
 later interval includes coordination, pauses/resumes, GateRegistry and STEP
 capture hardening, Nightwatch/autoresearch design, and the unmerged local-model
 profile work; it must not be represented as effort required solely to implement
 the two original CADCLAW gates.
+
+### Recommended follow-on task boundaries
+
+The cached-input dominance in this long, multi-repository task shows that future
+work should use narrower sessions. Use one repository and one release gate per
+session: CADCLAW changes, MARB changes, one boxed smoke, autoresearch design,
+local-model selection/loading, and repeated benchmark campaigns should each be
+separate. End each session at a merged PR or explicit blocked gate, update this
+ledger with exact commits and evidence, and start the next session from that
+durable record rather than replaying the full conversation. Keep any metered
+external-provider authorization in the specific benchmark session that uses it.
 
 ## Acceptance evidence
 
