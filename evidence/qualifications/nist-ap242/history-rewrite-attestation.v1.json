@@ -1,0 +1,25 @@
+{
+  "schema_version": "nist-ap242-history-rewrite-attestation.v1",
+  "scope": "Source-identity continuity for immutable qualification cohorts after a metadata-only repository history rewrite.",
+  "mappings": [
+    {
+      "recorded_commit": "4579c5e925dfcc13236973aca295f42128704823",
+      "replacement_commit": "93022d729ee9bb4eb7cd2d8aa09b8fa12fddfa20",
+      "invariant_tree": "581b78c92e049adfb00ad181e59a94d29ca3ef2a"
+    },
+    {
+      "recorded_commit": "34ba0ffdb3b7b21b46182b85a08e6759527fe1d9",
+      "replacement_commit": "98386c07e052c95edb2c8222cfeb93e2e4d1a405",
+      "invariant_tree": "3dbf743936af408eea1e236654a81bdb3be99493"
+    }
+  ],
+  "checked": [
+    "Each replacement commit is an ancestor of the rewritten main branch.",
+    "Each replacement commit resolves to the tree recorded by the immutable cohort manifest.",
+    "The runner, rules, and fixture blobs are revalidated from the replacement tree against the immutable manifest hashes."
+  ],
+  "not_checked": [
+    "Availability of commit objects that are no longer retained by a current branch or tag.",
+    "Repository objects held only by historical pull-request references or external copies."
+  ]
+}

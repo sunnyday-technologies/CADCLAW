@@ -46,6 +46,14 @@ schema 0.7, rules schema 0.9, and gate-spec 0.13.0. The immutable tracked
 `nist-ap242-20260828t101004z-cadclaw-4579c5e925df` cohort predates that bump and correctly remains
 tagged gate-spec 0.12.0; it is historical evidence and is not relabeled.
 
+Repository author-metadata cleanup can change commit IDs without changing
+their source trees. `history-rewrite-attestation.v1.json` maps an immutable
+cohort's recorded commit to its replacement commit only when the replacement
+is retained by rewritten `main` and resolves to the cohort's exact recorded
+tree. Tests then revalidate the runner, rules, and fixture blobs from that
+replacement tree. The cohort manifest remains unchanged, and an absent,
+non-ancestral, or tree-mismatched replacement fails closed.
+
 Output ancestors may not be symlinks or reparse points. Final publication uses
 a same-volume atomic directory move that fails if the cohort destination
 already exists. Cohort IDs reject Windows device-name stems and trailing dots
