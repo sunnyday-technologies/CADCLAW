@@ -18,8 +18,14 @@ import unittest
 REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / "scripts" / "run-nist-ap242-qualification.ps1"
 EVIDENCE_ROOT = REPO / "evidence" / "qualifications" / "nist-ap242"
+HISTORY_REWRITE_ATTESTATION = (
+    EVIDENCE_ROOT / "history-rewrite-attestation.v1.json"
+)
 TEST_WORKFLOW = REPO / ".github" / "workflows" / "tests.yml"
 MANIFEST_VERSION = "nist-ap242-qualification-manifest.v1"
+HISTORY_REWRITE_ATTESTATION_VERSION = (
+    "nist-ap242-history-rewrite-attestation.v1"
+)
 REPORT_SCHEMA_VERSION = "0.7"
 RULES_SCHEMA_VERSION = "0.9"
 CURRENT_GATE_SPEC_VERSION = "0.13.0"
@@ -484,6 +490,13 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
             for path in EVIDENCE_ROOT.iterdir()
             if path.is_dir() and (path / "manifest.json").is_file()
         )
+        cls.history_rewrite_attestation = json.loads(
+            HISTORY_REWRITE_ATTESTATION.read_text(encoding="utf-8")
+        )
+        cls.history_rewrite_mappings = {
+            mapping["recorded_commit"]: mapping
+            for mapping in cls.history_rewrite_attestation["mappings"]
+        }
 
     def test_index_defines_runner_first_evidence_second_sequence(self):
         index = (EVIDENCE_ROOT / "README.md").read_text(encoding="utf-8")
@@ -495,6 +508,233 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
             path for path in EVIDENCE_ROOT.iterdir() if path.is_dir()
         }
         self.assertEqual(immediate_directories, set(self.cohort_dirs))
+
+    def test_history_rewrite_attestation_is_self_consistent(self):
+        attestation = self.history_rewrite_attestation
+        self.assertEqual(
+            set(attestation),
+            {"schema_version", "scope", "mappings", "checked", "not_checked"},
+        )
+        self.assertEqual(
+            attestation["schema_version"],
+            HISTORY_REWRITE_ATTESTATION_VERSION,
+        )
+        self.assertTrue(attestation["scope"])
+        self.assertTrue(attestation["mappings"])
+        self.assertTrue(attestation["checked"])
+        self.assertTrue(attestation["not_checked"])
+        assert_sanitized(self, attestation, "history rewrite attestation")
+
+        manifests = {
+            manifest["repository"]["target_commit"]: manifest
+            for manifest in (
+                json.loads((path / "manifest.json").read_text(encoding="utf-8"))
+                for path in self.cohort_dirs
+            )
+        }
+        seen_recorded = set()
+        seen_replacement = set()
+        for mapping in attestation["mappings"]:
+            self.assertEqual(
+                set(mapping),
+                {"recorded_commit", "replacement_commit", "invariant_tree"},
+            )
+            recorded = mapping["recorded_commit"]
+            replacement = mapping["replacement_commit"]
+            invariant_tree = mapping["invariant_tree"]
+            self.assertRegex(recorded, HEX_40)
+            self.assertRegex(replacement, HEX_40)
+            self.assertRegex(invariant_tree, HEX_40)
+            self.assertNotIn(recorded, seen_recorded)
+            self.assertNotIn(replacement, seen_replacement)
+            seen_recorded.add(recorded)
+            seen_replacement.add(replacement)
+            self.assertIn(recorded, manifests)
+            self.assertEqual(
+                invariant_tree,
+                manifests[recorded]["repository"]["target_tree"],
+            )
+            self._assert_attested_replacement(
+                manifests[recorded],
+                mapping,
+            )
+
+        for target, manifest in manifests.items():
+            available = subprocess.run(
+                ["git", "cat-file", "-e", f"{target}^{{commit}}"],
+                cwd=REPO,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+            if available.returncode != 0:
+                self.assertIn(target, self.history_rewrite_mappings)
+
+    def test_history_rewrite_attestation_missing_mapping_fails_closed(self):
+        manifest = {
+            "repository": {
+                "target_commit": "f" * 40,
+                "target_tree": "1" * 40,
+            }
+        }
+        with self.assertRaises(AssertionError):
+            self._resolve_target_commit_material(manifest, mappings={})
+
+    def test_history_rewrite_attestation_wrong_replacement_fails_closed(self):
+        target = "e" * 40
+        manifest = {
+            "repository": {
+                "target_commit": target,
+                "target_tree": "1" * 40,
+            }
+        }
+        mappings = {
+            target: {
+                "recorded_commit": target,
+                "replacement_commit": "0" * 40,
+                "invariant_tree": "1" * 40,
+            }
+        }
+        with self.assertRaises(AssertionError):
+            self._resolve_target_commit_material(manifest, mappings=mappings)
+
+    def test_history_rewrite_attestation_wrong_tree_fails_closed(self):
+        target = "d" * 40
+        manifest = {
+            "repository": {
+                "target_commit": target,
+                "target_tree": "1" * 40,
+            }
+        }
+        mappings = {
+            target: {
+                "recorded_commit": target,
+                "replacement_commit": "2" * 40,
+                "invariant_tree": "3" * 40,
+            }
+        }
+        with self.assertRaises(AssertionError):
+            self._resolve_target_commit_material(manifest, mappings=mappings)
+
+    def test_history_rewrite_attestation_replacement_tree_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir)
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            env = {
+                **os.environ,
+                "GIT_AUTHOR_NAME": "Synthetic Test",
+                "GIT_AUTHOR_EMAIL": "synthetic@example.invalid",
+                "GIT_COMMITTER_NAME": "Synthetic Test",
+                "GIT_COMMITTER_EMAIL": "synthetic@example.invalid",
+            }
+            source = repo / "source.txt"
+            source.write_text("replacement\n", encoding="utf-8")
+            subprocess.run(["git", "add", "source.txt"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "commit", "-q", "-m", "replacement"],
+                cwd=repo,
+                env=env,
+                check=True,
+            )
+            replacement = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repo,
+                text=True,
+                capture_output=True,
+                check=True,
+            ).stdout.strip()
+            source.write_text("main\n", encoding="utf-8")
+            subprocess.run(["git", "add", "source.txt"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "commit", "-q", "-m", "main"],
+                cwd=repo,
+                env=env,
+                check=True,
+            )
+            different_tree = subprocess.run(
+                ["git", "rev-parse", "HEAD^{tree}"],
+                cwd=repo,
+                text=True,
+                capture_output=True,
+                check=True,
+            ).stdout.strip()
+            target = "b" * 40
+            manifest = {
+                "repository": {
+                    "target_commit": target,
+                    "target_tree": different_tree,
+                }
+            }
+            mappings = {
+                target: {
+                    "recorded_commit": target,
+                    "replacement_commit": replacement,
+                    "invariant_tree": different_tree,
+                }
+            }
+            with self.assertRaises(AssertionError):
+                self._resolve_target_commit_material(
+                    manifest,
+                    mappings=mappings,
+                    repo=repo,
+                    main_ref="HEAD",
+                )
+
+    def test_history_rewrite_attestation_non_ancestor_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir)
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            (repo / "source.txt").write_text("source\n", encoding="utf-8")
+            subprocess.run(["git", "add", "source.txt"], cwd=repo, check=True)
+            env = {
+                **os.environ,
+                "GIT_AUTHOR_NAME": "Synthetic Test",
+                "GIT_AUTHOR_EMAIL": "synthetic@example.invalid",
+                "GIT_COMMITTER_NAME": "Synthetic Test",
+                "GIT_COMMITTER_EMAIL": "synthetic@example.invalid",
+            }
+            subprocess.run(
+                ["git", "commit", "-q", "-m", "main"],
+                cwd=repo,
+                env=env,
+                check=True,
+            )
+            tree = subprocess.run(
+                ["git", "rev-parse", "HEAD^{tree}"],
+                cwd=repo,
+                text=True,
+                capture_output=True,
+                check=True,
+            ).stdout.strip()
+            detached = subprocess.run(
+                ["git", "commit-tree", tree, "-m", "detached"],
+                cwd=repo,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            ).stdout.strip()
+            target = "c" * 40
+            manifest = {
+                "repository": {
+                    "target_commit": target,
+                    "target_tree": tree,
+                }
+            }
+            mappings = {
+                target: {
+                    "recorded_commit": target,
+                    "replacement_commit": detached,
+                    "invariant_tree": tree,
+                }
+            }
+            with self.assertRaises(AssertionError):
+                self._resolve_target_commit_material(
+                    manifest,
+                    mappings=mappings,
+                    repo=repo,
+                    main_ref="HEAD",
+                )
 
     def test_every_cohort_is_self_consistent(self):
         for cohort_dir in self.cohort_dirs:
@@ -846,12 +1086,58 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
         for name, digest in checksum_records.items():
             self.assertEqual(sha256(cohort_dir / name), digest)
 
-    def _assert_target_commit_material(self, manifest: dict) -> None:
+    def _resolve_target_commit_material(
+        self,
+        manifest: dict,
+        *,
+        mappings: dict | None = None,
+        repo: Path = REPO,
+        main_ref: str = "origin/main",
+    ) -> str:
         repository = manifest["repository"]
         target = repository["target_commit"]
         available = subprocess.run(
             ["git", "cat-file", "-e", f"{target}^{{commit}}"],
-            cwd=REPO,
+            cwd=repo,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if available.returncode == 0:
+            return target
+
+        active_mappings = (
+            self.history_rewrite_mappings if mappings is None else mappings
+        )
+        mapping = active_mappings.get(target)
+        self.assertIsNotNone(
+            mapping,
+            "recorded target commit is unavailable and has no attested replacement",
+        )
+        return self._assert_attested_replacement(
+            manifest,
+            mapping,
+            repo=repo,
+            main_ref=main_ref,
+        )
+
+    def _assert_attested_replacement(
+        self,
+        manifest: dict,
+        mapping: dict,
+        *,
+        repo: Path = REPO,
+        main_ref: str = "origin/main",
+    ) -> str:
+        repository = manifest["repository"]
+        target = repository["target_commit"]
+        self.assertEqual(mapping["recorded_commit"], target)
+        self.assertEqual(mapping["invariant_tree"], repository["target_tree"])
+        replacement = mapping["replacement_commit"]
+        self.assertRegex(replacement, HEX_40)
+        available = subprocess.run(
+            ["git", "cat-file", "-e", f"{replacement}^{{commit}}"],
+            cwd=repo,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False,
@@ -859,11 +1145,36 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
         self.assertEqual(
             available.returncode,
             0,
-            "recorded target commit is unavailable; cohort provenance cannot be verified",
+            "attested replacement commit is unavailable",
         )
+        retained = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", replacement, main_ref],
+            cwd=repo,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        self.assertEqual(
+            retained.returncode,
+            0,
+            "attested replacement is not retained by rewritten main",
+        )
+        replacement_tree = subprocess.run(
+            ["git", "rev-parse", f"{replacement}^{{tree}}"],
+            cwd=repo,
+            text=True,
+            capture_output=True,
+            check=True,
+        ).stdout.strip()
+        self.assertEqual(replacement_tree, mapping["invariant_tree"])
+        return replacement
+
+    def _assert_target_commit_material(self, manifest: dict) -> None:
+        repository = manifest["repository"]
+        material_commit = self._resolve_target_commit_material(manifest)
 
         target_tree = subprocess.run(
-            ["git", "rev-parse", f"{target}^{{tree}}"],
+            ["git", "rev-parse", f"{material_commit}^{{tree}}"],
             cwd=REPO,
             text=True,
             capture_output=True,
@@ -873,7 +1184,7 @@ class TestTrackedNistQualificationCohorts(unittest.TestCase):
 
         def blob(path: str) -> bytes:
             return subprocess.run(
-                ["git", "show", f"{target}:{path}"],
+                ["git", "show", f"{material_commit}:{path}"],
                 cwd=REPO,
                 capture_output=True,
                 check=True,
