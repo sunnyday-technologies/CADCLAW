@@ -380,10 +380,9 @@ Evidence:
 
 Current blockers:
 
-- No suitable local LLM endpoint/model was visible on the current Windows host
-  at the 2026-08-29 inventory snapshot, and the two-GX10 runtime was not
-  reachable from this task.
-- The exact immutable model-server and CadQuery sandbox images still require
+- A conforming local-model runtime had not yet been qualified for the retained
+  smoke attempt at the inventory snapshot; no model call was made.
+- The exact immutable model-server and CAD sandbox images still require
   qualification and no-provider/no-network readback before a real call.
 - The HF/autoresearch branch is follow-on and must not be merged merely to
   manufacture an S1 pass; use it only after its profile/runtime-attestation
