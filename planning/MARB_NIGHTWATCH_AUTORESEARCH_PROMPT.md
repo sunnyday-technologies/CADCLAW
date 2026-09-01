@@ -145,13 +145,11 @@ LocalAI through explicit adapters. It must:
    model alias identifies exact weights; and
 10. keep credentials out of plans, logs, prompts, and retained artifacts.
 
-Current host note (read-only probe, 2026-08-28): no compatible local LLM
-service was visible on the standard Ollama, LM Studio, vLLM, or llama.cpp
-process/port locations, and no obvious CAD-capable chat weights were found in
-the standard local model cache. An unusually configured or remote local server
-was not probed. Nightwatch therefore needs the loader/discovery layer, but the
-first real campaign also requires an already-installed model runtime and exact
-model fingerprint.
+Determine local availability through an authorized, metadata-only probe at
+campaign time. Keep host inventory, endpoint, process/port, model-cache,
+hardware, and network-topology details outside public repositories and retained
+public artifacts. A real campaign requires an already-installed model runtime
+and an exact model fingerprint.
 
 ### Tool-protocol lanes
 

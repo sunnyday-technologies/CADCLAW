@@ -27,10 +27,10 @@ ready to commit, say so explicitly in your handoff.
 
 ### 3. Never force-push, and never push local `main` blind
 
-Both remotes were rewritten to scrub `nick@sunn3d.com` to `dev@sunn3d.com`. Any
-clone taken before that rewrite has an unrelated history whose trees are identical
-but whose SHAs all differ. Pushing it would replace the remote and delete commits
-that exist nowhere else.
+Both remotes were rewritten to remove an obsolete author address and standardize
+role-based commit metadata. Any clone taken before that rewrite has an unrelated
+history whose trees are identical but whose SHAs all differ. Pushing it would
+replace the remote and delete commits that exist nowhere else.
 
 If `git merge-base HEAD origin/main` exits non-zero, you are on an orphaned
 history. Do not push. Reset to `origin/main` and replay your work on top:
@@ -42,10 +42,12 @@ git reset --hard origin/main
 git stash pop
 ```
 
-### 4. Commit as `Sunnyday Technologies <dev@sunn3d.com>`
+### 4. Use the approved Sunnyday Technologies role identity
 
-`nick@sunn3d.com` was deliberately scrubbed from both histories. Committing under
-it reintroduces what the rewrite removed.
+Before committing, confirm that `git config user.name` and `git config
+user.email` match the approved role identity configured for this clone. Do not
+document or reintroduce superseded personal author addresses in tracked files or
+commit metadata.
 
 ### 5. The site source must be committed, not just built
 
