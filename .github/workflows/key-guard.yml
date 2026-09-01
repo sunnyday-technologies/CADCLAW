@@ -1,40 +1,67 @@
 name: key-guard
 
-# Server-side backstop for the answer-key guard (scripts/check_no_answer_keys.sh).
-#
-# The local pre-push hook can be bypassed with --no-verify or simply not
-# installed on a fresh clone, so CI re-runs the same script as the real gate.
-# The script is the single source of truth for what counts as key material.
+# Post-publication backstop only. GitHub has already received ref names,
+# commits, blobs, and PR metadata before this workflow starts. Local prevention
+# is provided by scripts/hooks/pre-push and scripts/create_public_pr.py.
 
 on:
   push:
     branches: ["**"]
+    tags: ["**"]
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   no-answer-keys:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
-          # full history so a commit range can be scanned, not just the tip
           fetch-depth: 0
 
-      - name: No answer-key paths or solved poses in the tree
-        run: sh scripts/check_no_answer_keys.sh --tree
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate public policy and focused guards
+        run: |
+          python scripts/prepublication_gate.py --public-only validate
+          python -m unittest -v tests.test_prepublication_gate tests.test_key_guard
+
+      - name: Confidentiality backstop over the exact GitHub event
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: >-
+          python scripts/prepublication_gate.py --public-only ci-event
+          --event-path "$GITHUB_EVENT_PATH" --event-name "$EVENT_NAME"
+
+      - name: No answer-key paths or solved poses in the checked-out tree
+        run: python scripts/check_no_answer_keys.py --tree HEAD
 
       - name: No answer-key paths in the pushed commits
         if: github.event_name == 'push'
         env:
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.after }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          # A new branch reports an all-zero "before"; scan it against main.
+          if [ "$AFTER" = "0000000000000000000000000000000000000000" ]; then
+            exit 0
+          fi
           if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-            git fetch origin main --depth=0 || true
-            sh scripts/check_no_answer_keys.sh --range "$AFTER" --not origin/main
+            git fetch --quiet --no-tags origin \
+              "+refs/heads/$DEFAULT_BRANCH:refs/remotes/origin/$DEFAULT_BRANCH" \
+              >/dev/null 2>&1 || {
+                echo "answer-key-guard: status=error surface=repository pattern=SYSTEM-GIT-READ ordinal=1" >&2
+                exit 64
+              }
+            python scripts/check_no_answer_keys.py --range \
+              "$AFTER" --not "refs/remotes/origin/$DEFAULT_BRANCH"
           else
-            sh scripts/check_no_answer_keys.sh --range "$BEFORE..$AFTER"
+            python scripts/check_no_answer_keys.py --range "$BEFORE..$AFTER"
           fi
 
       - name: No answer-key paths in the PR commits
@@ -42,4 +69,4 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-        run: sh scripts/check_no_answer_keys.sh --range "$BASE..$HEAD"
+        run: python scripts/check_no_answer_keys.py --range "$BASE..$HEAD"
