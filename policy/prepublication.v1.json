@@ -1,0 +1,59 @@
+{
+  "schema": "cadclaw-prepublication-policy.v1",
+  "policy_version": 1,
+  "max_blob_bytes": 16777216,
+  "deny": [
+    {
+      "id": "PUBLIC-REF-001",
+      "surfaces": ["ref"],
+      "kind": "regex",
+      "pattern": "(?i)(?:^|/)(?:private|confidential|internal)(?:[-_/]|$)"
+    },
+    {
+      "id": "PUBLIC-PATH-001",
+      "surfaces": ["filename", "workflow_filename"],
+      "kind": "regex",
+      "pattern": "(?i)(?:^|/)(?:_private|private|confidential|internal)(?:/|$)"
+    },
+    {
+      "id": "PUBLIC-PATH-002",
+      "surfaces": ["filename", "workflow_filename"],
+      "kind": "regex",
+      "pattern": "(?i)(?:^|/)\\.env(?:\\.[^/]*)?$"
+    },
+    {
+      "id": "PUBLIC-CONTENT-001",
+      "surfaces": ["blob", "workflow_content", "commit_message", "tag_message", "pr_title", "pr_body"],
+      "kind": "regex",
+      "pattern": "(?i)\\b(?:DO[_-]NOT[_-]PUBLISH|INTERNAL[_-]ONLY|CONFIDENTIAL[_-]DATA)(?:[_-][A-Z0-9]+)*\\b"
+    },
+    {
+      "id": "PUBLIC-CONTENT-002",
+      "surfaces": ["blob", "workflow_content", "commit_message", "tag_message", "pr_title", "pr_body"],
+      "kind": "regex",
+      "pattern": "[-]{5}BEGIN[ ](?:RSA[ ]|EC[ ]|OPENSSH[ ])?PRIVATE[ ]KEY[-]{5}"
+    },
+    {
+      "id": "PUBLIC-CONTENT-003",
+      "surfaces": ["blob", "workflow_content", "commit_message", "tag_message", "pr_title", "pr_body"],
+      "kind": "regex",
+      "pattern": "(?i)\\b(?:api[_-]?key|access[_-]?token|client[_-]?secret|password)\\s*[:=]\\s*[A-Za-z0-9_./+=-]{20,}"
+    }
+  ],
+  "allow": [
+    {
+      "id": "PUBLIC-ALLOW-001",
+      "surfaces": ["filename", "workflow_filename"],
+      "suppresses": ["PUBLIC-PATH-002"],
+      "kind": "literal",
+      "pattern": ".env.example"
+    },
+    {
+      "id": "PUBLIC-ALLOW-002",
+      "surfaces": ["blob", "workflow_content", "commit_message", "tag_message", "pr_title", "pr_body"],
+      "suppresses": ["PUBLIC-CONTENT-001"],
+      "kind": "literal",
+      "pattern": "CONFIDENTIAL_DATA_PUBLIC_EXAMPLE"
+    }
+  ]
+}

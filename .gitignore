@@ -45,6 +45,11 @@ docs/media/*.png
 id_rsa
 id_ed25519
 
+# Required by the local pre-publication hook and PR wrapper. This overlay holds
+# organization-specific exact deny/allow terms and must never enter Git.
+/.prepublication-policy.local.json
+/.prepublication-policy.local.tmp-*
+
 # Benchmark content lives in the separate MARB repo (firewalled out, ebd8ff0)
 benchmarks/
 

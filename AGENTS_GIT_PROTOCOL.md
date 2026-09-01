@@ -5,7 +5,7 @@ More than one AI agent edits this repository from more than one working copy
 local clone tells you nothing about what the other agent did. Every defect found
 in the 2026-08-21 publishing audit traced back to this one habit gap.
 
-Six rules. They take about a minute.
+Seven rules. They take about a minute.
 
 ### 1. Fetch before you work
 
@@ -68,6 +68,19 @@ This one check caught three separate release-blocking defects on 2026-08-21: a
 missing `_headers`, an unpinned line-ending policy that broke the build on every
 Windows clone, and a rights assertion that required a file which must never be in
 git.
+
+### 7. Verify the local publication gate before pushing
+
+The tracked hook is preventive only when it is installed and its required
+ignored local policy overlay is present. Run:
+
+```text
+python scripts/manage_prepublication_hooks.py verify
+```
+
+Create pull requests through `scripts/create_public_pr.py` so title and body are
+checked before GitHub receives them. The GitHub workflow is a post-publication
+backstop; it cannot prevent first exposure.
 
 ---
 

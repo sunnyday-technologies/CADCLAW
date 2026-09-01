@@ -1,0 +1,13 @@
+{
+  "schema": "cadclaw-prepublication-overlay.v1",
+  "policy_version": 1,
+  "deny": [
+    {
+      "id": "LOCAL-EXAMPLE-001",
+      "surfaces": ["ref", "filename", "workflow_filename", "blob", "workflow_content", "commit_message", "tag_message", "pr_title", "pr_body"],
+      "kind": "literal",
+      "pattern": "REPLACE_WITH_A_PRIVATE_LOCAL_TERM"
+    }
+  ],
+  "allow": []
+}

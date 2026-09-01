@@ -45,3 +45,10 @@ public issue for anything in the first three categories below.
 We aim to acknowledge within five working days. Where a fix changes gate
 behaviour, the changelog states what previously passed and no longer does, so
 anyone relying on an earlier audit can re-run it.
+
+## Maintainer publication boundary
+
+Maintainers should install and use the local Git-object and pull-request
+metadata checks described in [docs/prepublication-gate.md](docs/prepublication-gate.md).
+The GitHub workflow is explicitly a post-publication backstop, not proof that
+first exposure was prevented.

@@ -2,25 +2,18 @@
 from __future__ import annotations
 
 from pathlib import Path
-import shutil
 import subprocess
+import sys
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-GUARD = ROOT / "scripts" / "check_no_answer_keys.sh"
 
 
 class TestAnswerKeyGuard(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.sh = shutil.which("sh")
-
     def _scan_path(self, path: str) -> subprocess.CompletedProcess[str]:
-        if self.sh is None:
-            self.skipTest("POSIX shell is unavailable")
         return subprocess.run(
-            [self.sh, str(GUARD), "--stdin"],
+            [sys.executable, str(ROOT / "scripts" / "check_no_answer_keys.py"), "--stdin"],
             cwd=ROOT,
             input=f"{path}\n",
             text=True,
@@ -29,9 +22,11 @@ class TestAnswerKeyGuard(unittest.TestCase):
         )
 
     def test_reference_stp_is_blocked(self):
-        result = self._scan_path("private/reference_model.stp")
+        candidate = "private/reference_model.stp"
+        result = self._scan_path(candidate)
         self.assertEqual(result.returncode, 1)
-        self.assertIn("BLOCKED", result.stderr)
+        self.assertIn("status=blocked", result.stderr)
+        self.assertNotIn(candidate, result.stderr)
 
     def test_marb_round1_stp_is_blocked(self):
         result = self._scan_path("bench/m3_reference_round1.stp")

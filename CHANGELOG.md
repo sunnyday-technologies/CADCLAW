@@ -9,6 +9,14 @@ changes bump MINOR and are called out explicitly under **Changed**.
 
 ### Added
 
+- **Local pre-publication confidentiality gate.** A versioned generic policy,
+  required ignored private overlay, Git-object pre-push scanner, verified hook
+  bootstrap, and PR wrapper now cover outgoing refs, full commit messages,
+  changed filenames and blobs across merge/transient history, tracked workflow
+  files and metadata, and PR title/body. Diagnostics are value-free and
+  fail-closed. CI repeats the public policy only after publication and is
+  documented as a backstop rather than prevention.
+
 - **Versioned configured-harness registry and shared runner.**
   `harness-gates.v1` freezes the ordered YAML union-gate IDs and is used by
   the public `run_configured_harness` library entry point, the CLI wrapper,
