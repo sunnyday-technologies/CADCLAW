@@ -1,18 +1,20 @@
 # PMI -> Round-trip -> MARB -> Benchmark Completion Ledger
 
-Last updated: 2026-08-29
+Last updated: 2026-09-06
 
 Owner: Sunnyday Technologies
 
-Overall status: **IN PROGRESS — original implementation merged; S1/R1 pending**
+Overall status: **COMPLETE — original implementation merged; boxed S1 executed
+and graded; repeated benchmark cohorts remain follow-on work**
 
 Status values: `NOT STARTED`, `IN PROGRESS`, `READY FOR REVIEW`, `MERGED`,
 `COMPLETE`, `BLOCKED`, and `DEFERRED`.
 
 This file is the durable source of truth for the work requested in the CADCLAW
 PMI/round-trip prompt and the companion MARB prompt. Update it in the same
-session as every validated commit, pull request, merge, benchmark run, and Marc
-closeout. An open pull request or a started validation is not completion.
+session as every validated commit, pull request, merge, benchmark run, and
+external closeout. An open pull request or a started validation is not
+completion.
 
 ## Decision lock
 
@@ -38,33 +40,53 @@ closeout. An open pull request or a started validation is not completion.
 
 ## Delivery status
 
-| ID | Deliverable | Status | Dependency | Branch/task | PR | Merge commit |
+| ID | Deliverable | Status | Dependency | Branch/task | PR | Current verified commit |
 |---|---|---|---|---|---|---|
-| C1 | CADCLAW semantic AP242 PMI gate | COMPLETE | None | `feat/pmi-present-gate` (deleted after merge) | [#9](https://github.com/sunnyday-technologies/CADCLAW/pull/9) | `db41bea9495be8200490fa38bbd145c91bad716c` |
-| C2 | CADCLAW AP242 STEP round-trip gate | COMPLETE | C1 merged | `codex/roundtrip-step-gate` (deleted after merge) | [#11](https://github.com/sunnyday-technologies/CADCLAW/pull/11) | `14c7864abea2568cb0c0a462619fe6e1f1183700` |
+| C1 | CADCLAW semantic AP242 PMI gate | COMPLETE | None | `feat/pmi-present-gate` (deleted after merge) | [#9](https://github.com/sunnyday-technologies/CADCLAW/pull/9) | `3de26c15857299d3aef8a73b05574e7a7299b591` |
+| C2 | CADCLAW AP242 STEP round-trip gate | COMPLETE | C1 merged | `codex/roundtrip-step-gate` (deleted after merge) | [#11](https://github.com/sunnyday-technologies/CADCLAW/pull/11) | `64150bfcf719574dd5f98f59f613a5737d145b2e` |
 | M1 | MARB repeat-run reporting and acceptable-solution policy | COMPLETE | Independent | `codex/marb-repeat-run-policy` | [MARB #5](https://github.com/sunnyday-technologies/MARB/pull/5) | `5bb4ae6fd2c449c1fb107025129e18845fd8c96c` |
 | M2 | MARB `L2-RESOLVE` task contract | COMPLETE | M1 method/version decisions | `codex/marb-l2-resolve-v0.11` | [MARB #6](https://github.com/sunnyday-technologies/MARB/pull/6) | `24da2a6641a5681313d4b112b3e98fdeca5262c2` |
 | M3 | MARB `L4-ECO` task and authenticated evidence gates | COMPLETE | M1 and C2 | `codex/marb-l4-eco-v0.12` | [MARB #7](https://github.com/sunnyday-technologies/MARB/pull/7) | `072dfab66999c968facb8a640d39739a80353c7b` |
-| Q1 | Reproducible NIST AP242 qualification runner and evidence-integrity guards | COMPLETE | C1 and C2 | Runner/fix branches deleted after merge | [#13](https://github.com/sunnyday-technologies/CADCLAW/pull/13), [#14](https://github.com/sunnyday-technologies/CADCLAW/pull/14), [#15](https://github.com/sunnyday-technologies/CADCLAW/pull/15) | `2305d841c2ecf73d8ceb8e3a398766d2000e0912`; `94b0fd0072a9e6bf0a1ac54df5f3c9f0266b59c2`; `4579c5e925dfcc13236973aca295f42128704823` |
-| Q2 | Fresh NIST FTC11/STC06 software-qualification cohort and evidence closeout | COMPLETE | Q1 merged | Qualification/evidence branches deleted after merge | [#16](https://github.com/sunnyday-technologies/CADCLAW/pull/16), [#17](https://github.com/sunnyday-technologies/CADCLAW/pull/17) | `cdbb45882fcd19092d4082cf490c27db12878d81`; `251bfb96a50b3a79378c9171d9a485e4884eb58c` |
+| Q1 | Reproducible NIST AP242 qualification runner and evidence-integrity guards | COMPLETE | C1 and C2 | Runner/fix branches deleted after merge | [#13](https://github.com/sunnyday-technologies/CADCLAW/pull/13), [#14](https://github.com/sunnyday-technologies/CADCLAW/pull/14), [#15](https://github.com/sunnyday-technologies/CADCLAW/pull/15) | `735b173182883dc90e7449701c1302fd21b876f4`; `b1ede598a83ec952aa57add0732ef93809b98be9`; `93022d729ee9bb4eb7cd2d8aa09b8fa12fddfa20` |
+| Q2 | Fresh NIST FTC11/STC06 software-qualification cohort and evidence closeout | COMPLETE | Q1 merged | Qualification/evidence branches deleted after merge | [#16](https://github.com/sunnyday-technologies/CADCLAW/pull/16), [#17](https://github.com/sunnyday-technologies/CADCLAW/pull/17) | `9424a2629094b5a7e579180e1ed6b1c21d349d87`; `2cc7ed03c1739c457386bbb4e17286d3daf6daf3` |
 | H2a | Deterministic, non-writing MARB cohort planner | COMPLETE | M1, M2, and M3 merged | `codex/marb-cohort-runner-plan` | [MARB #8](https://github.com/sunnyday-technologies/MARB/pull/8) | `d4f1dd836b94159bc72ed0b72be0e7c324239329` |
 | H2b | Non-destructive, provenance-complete, isolated MARB cohort executor | COMPLETE | H2a merged | `codex/marb-cohort-runner-executor` (deleted after merge); task `01a046b7-1430-7792-b891-709e5b60c7ff` | [MARB #9](https://github.com/sunnyday-technologies/MARB/pull/9) | `56177ae5815c99dce6a90ad509902cd196d840fd` |
-| S1 | One boxed local-no-charge `L1-ASSEMBLE` smoke run | BLOCKED | H2b complete; exact local model runtime and immutable OCI image qualified | N/A | N/A | N/A |
-| B1 | Fresh MARB model benchmark cohort | BLOCKED | H2b complete; immutable gated-key revisions and trusted grading; approved immutable OCI runtime plus Windows Docker Desktop smoke; local-no-charge provider/model/data-sharing/run-limit authorization; aggregate campaign ledger | N/A | N/A | N/A |
-| R1 | Evidence-backed original-scope update to Marc | BLOCKED | S1 complete | N/A | N/A | N/A |
+| S1 | One boxed local-no-charge `L1-ASSEMBLE` smoke run | COMPLETE | H2b complete; exact OCI image/provider-free runtime qualified; one authorized retained attempt executed and graded | Private retained evidence | N/A | N/A |
+| B1 | Fresh MARB model benchmark cohort | BLOCKED | H2b complete; immutable gated-key revisions and trusted grading; provider/model/data-sharing/run-limit authorization; aggregate campaign ledger | N/A | N/A | N/A |
+| R1 | Evidence-backed original-scope public closeout | COMPLETE | S1 complete | `docs/cadclaw-marb-original-scope-closeout-2026-09-06.md`; prior recommendation update user-attested; final S1 supplement prepared here | N/A | N/A |
 | D1 | Material/process semantic-PMI expansion | DEFERRED | Positive fixture and verified extraction method | TBD | TBD | TBD |
 | H1 | Remove stale Open3DCP re-pushed branches | COMPLETE | None | Deleted `precedent-crosswalk` and `whitepaper-v1-1` | Already merged as Open3DCP #10/#11 | N/A |
 
+The CADCLAW repository subsequently received a metadata-only history rewrite.
+GitHub's PR records retain the original merge identities, while current
+`origin/main` contains tree-identical replacements. The verified mapping is:
+`db41bea9495be8200490fa38bbd145c91bad716c` ->
+`3de26c15857299d3aef8a73b05574e7a7299b591`;
+`14c7864abea2568cb0c0a462619fe6e1f1183700` ->
+`64150bfcf719574dd5f98f59f613a5737d145b2e`;
+`2305d841c2ecf73d8ceb8e3a398766d2000e0912` ->
+`735b173182883dc90e7449701c1302fd21b876f4`;
+`94b0fd0072a9e6bf0a1ac54df5f3c9f0266b59c2` ->
+`b1ede598a83ec952aa57add0732ef93809b98be9`;
+`4579c5e925dfcc13236973aca295f42128704823` ->
+`93022d729ee9bb4eb7cd2d8aa09b8fa12fddfa20`;
+`cdbb45882fcd19092d4082cf490c27db12878d81` ->
+`9424a2629094b5a7e579180e1ed6b1c21d349d87`; and
+`251bfb96a50b3a79378c9171d9a485e4884eb58c` ->
+`2cc7ed03c1739c457386bbb4e17286d3daf6daf3`. Each pair has the
+same Git tree; every replacement is an ancestor of current `origin/main`.
+
 ## Scope boundary and effort telemetry
 
-The original PMI/round-trip delivery tranche is merged: C1, C2, M1, M2, M3,
-Q1, Q2, H2a, and H2b are complete. Nightwatch/autoresearch, Hugging Face model
-selection and loading, repeated variability campaigns, and new dataset intake
-are follow-on work. They are not prerequisites for reporting the merged gate
-and task-contract updates. Before that report is sent, S1 requires one real,
-boxed, local-no-charge `L1-ASSEMBLE` smoke run. S1 is an execution smoke, not a
-publishable benchmark cell; MARB's repeat-run policy still requires its stated
-sample count before a board result or distribution claim is published.
+The original PMI/round-trip delivery tranche is complete: C1, C2, M1, M2, M3,
+Q1, Q2, H2a, H2b, S1, and R1 are complete. Nightwatch/autoresearch, Hugging
+Face model selection and loading, repeated variability campaigns, and new
+dataset intake are follow-on work. They are not prerequisites for reporting
+the merged gate and task-contract updates. S1 used one real, boxed,
+local-no-charge `L1-ASSEMBLE` sample to demonstrate execution and trusted
+grading; it is not a publishable benchmark cell. MARB's repeat-run policy still
+requires its stated sample count before a board result or distribution claim is
+published.
 
 The follow-on HF/autoresearch implementation is isolated on MARB branch
 `codex/hf-local-model-profile` and is not merged or part of the original-scope
@@ -123,14 +145,17 @@ external-provider authorization in the specific benchmark session that uses it.
 - [x] GitHub unit tests pass in the Linux headless runner.
 - [x] Fresh-clone fixture generation, full suite, and site build pass.
 - [x] PR disclosure and approved deferral receive final readback.
-- [x] PR #9 is merged and the merge commit is verified on `main`.
+- [x] PR #9 is merged and its tree-identical rewritten commit is verified on
+  current `main`.
 
 Evidence:
 
 - Semantic-PMI implementation head before tracking/CI follow-ups:
   `ccc0f11d95802f093e46b36a0bb4b86fbe0222ca`
 - Final PR head: `dc386bc492192cf3bd1dfd3a1ad3f48344e97821`
-- Merge commit on `main`: `db41bea9495be8200490fa38bbd145c91bad716c`
+- GitHub-recorded pre-rewrite merge:
+  `db41bea9495be8200490fa38bbd145c91bad716c`; current tree-identical `main`
+  replacement: `3de26c15857299d3aef8a73b05574e7a7299b591`.
 - GitHub Linux unit run:
   [33145078839](https://github.com/sunnyday-technologies/CADCLAW/actions/runs/33145078839),
   397 tests passed under Xvfb; all CodeQL and answer-key checks also passed.
@@ -222,8 +247,9 @@ Evidence slots:
   [33150606045](https://github.com/sunnyday-technologies/CADCLAW/actions/runs/33150606045),
   432 tests passed with 6 expected skips. Both CodeQL analyses and both
   answer-key guards also passed on the exact head.
-- PR #11 merge commit, verified on `main`:
-  `14c7864abea2568cb0c0a462619fe6e1f1183700`.
+- PR #11 GitHub-recorded pre-rewrite merge:
+  `14c7864abea2568cb0c0a462619fe6e1f1183700`; current tree-identical `main`
+  replacement: `64150bfcf719574dd5f98f59f613a5737d145b2e`.
 
 ### M1/M2/M3 - MARB task contracts and evidence gates
 
@@ -283,26 +309,31 @@ Evidence slots:
 Evidence:
 
 - Runner: [#13](https://github.com/sunnyday-technologies/CADCLAW/pull/13), head
-  `92dae6e9e08e8801188e4d260cb374128be1d77a`, merge
-  `2305d841c2ecf73d8ceb8e3a398766d2000e0912`.
+  `92dae6e9e08e8801188e4d260cb374128be1d77a`, GitHub-recorded pre-rewrite
+  merge `2305d841c2ecf73d8ceb8e3a398766d2000e0912`, current tree-identical
+  replacement `735b173182883dc90e7449701c1302fd21b876f4`.
 - Runner exact-head GitHub checks: 447 tests ran with 13 environment-dependent
   skips; both CodeQL analyses and both answer-key guards passed. The exact-head
   local Windows clean clone ran the same 447 tests with 6 expected skips.
 - Cross-platform tracked-byte integrity: [#14](https://github.com/sunnyday-technologies/CADCLAW/pull/14),
-  head `b11a91f0af4fe43f0ea9abaa3cf2efa93a3a16ab`, merge
-  `94b0fd0072a9e6bf0a1ac54df5f3c9f0266b59c2`. Exact-head unit, CodeQL, and
+  head `b11a91f0af4fe43f0ea9abaa3cf2efa93a3a16ab`, GitHub-recorded pre-rewrite
+  merge `94b0fd0072a9e6bf0a1ac54df5f3c9f0266b59c2`, current tree-identical
+  replacement `b1ede598a83ec952aa57add0732ef93809b98be9`. Exact-head unit, CodeQL, and
   answer-key checks passed; the local full suite ran 449 tests with 6 expected
   skips.
 - Case-sensitive lowercase cohort-ID guard: [#15](https://github.com/sunnyday-technologies/CADCLAW/pull/15),
-  head `e56fc0c5da46e931f4f4737565fa40ce96d56118`, merge
-  `4579c5e925dfcc13236973aca295f42128704823`. Exact-head unit, CodeQL, and
+  head `e56fc0c5da46e931f4f4737565fa40ce96d56118`, GitHub-recorded pre-rewrite
+  merge `4579c5e925dfcc13236973aca295f42128704823`, current tree-identical
+  replacement `93022d729ee9bb4eb7cd2d8aa09b8fa12fddfa20`. Exact-head unit, CodeQL, and
   answer-key checks passed; the local qualification module passed 17 tests.
 - Two pre-publication local runs exposed the byte-normalization and ID-case
   gaps. Their evidence was never committed or published and remains only in
   ignored local backups.
 - Cohort ID: `nist-ap242-20260828t101004z-cadclaw-4579c5e925df`.
-- Exact target commit/tree: `4579c5e925dfcc13236973aca295f42128704823` /
-  `581b78c92e049adfb00ad181e59a94d29ca3ef2a`.
+- Historical exact target commit/tree:
+  `4579c5e925dfcc13236973aca295f42128704823` /
+  `581b78c92e049adfb00ad181e59a94d29ca3ef2a`; current tree-identical commit:
+  `93022d729ee9bb4eb7cd2d8aa09b8fa12fddfa20`.
 - Exact runner SHA-256:
   `1c031f7eb4318be9a38261b2545c765a60af1f634e2cbd01a5035d0d68ddb8c5`.
 - Manifest:
@@ -312,12 +343,15 @@ Evidence:
 - STC06 derivative SHA-256:
   `161a3ec55b152f367f4d77991fcb7f28aaf4b2e107cb736c4c1ccd24a2eb13f6`.
 - Evidence-only PR / merge: [#16](https://github.com/sunnyday-technologies/CADCLAW/pull/16),
-  head `8236a267cc5caebc032be94349224d5a4db93f6f`, merge
-  `cdbb45882fcd19092d4082cf490c27db12878d81`. Exact-head unit, CodeQL, and
+  head `8236a267cc5caebc032be94349224d5a4db93f6f`, GitHub-recorded pre-rewrite
+  merge `cdbb45882fcd19092d4082cf490c27db12878d81`, current tree-identical
+  replacement `9424a2629094b5a7e579180e1ed6b1c21d349d87`. Exact-head unit, CodeQL, and
   answer-key checks passed.
 - Documentation closeout PR / merge:
-  [#17](https://github.com/sunnyday-technologies/CADCLAW/pull/17), merge
-  `251bfb96a50b3a79378c9171d9a485e4884eb58c`.
+  [#17](https://github.com/sunnyday-technologies/CADCLAW/pull/17),
+  GitHub-recorded pre-rewrite merge
+  `251bfb96a50b3a79378c9171d9a485e4884eb58c`, current tree-identical
+  replacement `2cc7ed03c1739c457386bbb4e17286d3daf6daf3`.
 
 ### H2a/H2b - MARB cohort execution safety
 
@@ -360,39 +394,72 @@ Evidence:
   binds and hash-locks the absolute Git executable across process creation,
   suppresses replacement refs, and bounds timeout/output; independent final
   verification marked occurrence `occ_20e331fb9692f0cfa2bccc28` fixed.
-- No Docker run, provider/model call, deployment, or provider cost is authorized
-  or claimed by H2a/H2b implementation and validation.
+- The original H2a/H2b implementation validation made no container,
+  provider/model, deployment, or provider-cost claim. Later runtime
+  qualification is recorded separately below and is not a model benchmark.
+- Runtime-policy hardening merged through
+  [MARB #19](https://github.com/sunnyday-technologies/MARB/pull/19) at merge
+  commit `352dbdec14324bf5d75200064efefe1a86099a55`. It preserves exact declared
+  tmpfs-policy enforcement while allowing the container runtime's pre-start
+  omission of derived mount records; partial or foreign mappings remain
+  rejected.
+- Retained private qualification R8 passed all nine fixed provider-free runtime
+  cases against that merged source with container network mode `none`. The
+  independently read-back record binds the source, immutable image, tools, and
+  case results. It records no model/provider call, benchmark attempt, score,
+  board mutation, deployment, or public performance claim.
 
 ### S1 - one boxed local smoke
 
-- [ ] Use the merged H2b executor and the frozen public `L1-ASSEMBLE` kit.
-- [ ] Use exactly one explicitly authorized local-no-charge model identity; no
+- [x] Use the merged H2b executor and the frozen public `L1-ASSEMBLE` kit.
+- [x] Use exactly one explicitly authorized local-no-charge model identity; no
   Grok, GPT, Claude, or other metered/external call is implied or authorized.
-- [ ] Record and verify the immutable OCI image `RepoDigest`, model/runtime
+- [x] Record and verify the immutable OCI image `RepoDigest`, model/runtime
   identity, CADCLAW/MARB revisions, plan and authorization digests, timestamps,
   token usage, and retained artifact hashes.
-- [ ] Complete the documented no-provider/no-network container smoke before the
+- [x] Complete the documented no-provider/no-network container smoke before the
   model call.
-- [ ] Grade and read back the single retained attempt without mutating a public
+- [x] Grade and read back the single retained attempt without mutating a public
   board row or presenting N=1 as a benchmark distribution.
-- [ ] Preserve checked/not-checked scope and any failure; a failed real smoke is
+- [x] Preserve checked/not-checked scope and any failure; a failed real smoke is
   evidence to fix the harness, not a result to hide or rerun until lucky.
 
-Current blockers:
+Closeout:
 
-- A conforming local-model runtime had not yet been qualified for the retained
-  smoke attempt at the inventory snapshot; no model call was made.
-- The exact immutable model-server and CAD sandbox images still require
-  qualification and no-provider/no-network readback before a real call.
-- The HF/autoresearch branch is follow-on and must not be merged merely to
-  manufacture an S1 pass; use it only after its profile/runtime-attestation
-  chain is complete and independently reviewed.
+- The exact immutable CAD sandbox image and provider-free runtime policy passed
+  retained R8 qualification before the model call.
+- One local-no-charge model identity passed the two-turn compatibility probe;
+  the single authorized slot was then consumed once, with no retry.
+- The executor completed and sealed the attempt with no pipeline or executor
+  failure, retaining a 29,319,093-byte final STEP and editable source. The run log, artifact
+  inventory, final STEP, and grade reports were independently hash-read back.
+- Trusted offline v0.10 grading measured GAP median 170.0 mm, POS relative
+  median 63.6 mm, and ORIENT aligned 16.7%. Separate native grading failed the
+  inventory, interference, and floating gates with 64 total findings. The
+  failure was retained; no replacement attempt was made.
+- The result remains one private execution smoke (`N=1`), not a public board
+  cell or model-performance distribution. No board, registry, site, deployment,
+  or physical-validation claim was mutated.
+- The HF/autoresearch branch remains follow-on and was not used to manufacture
+  this S1 result.
 
 Evidence slots:
 
-- Run ID: TBD
-- Exact model/runtime authorization: TBD
-- Artifact manifest and grade: TBD
+- Run ID: private retained S1 sample; public alias `S1-20260906-01`.
+- Exact model/runtime authorization: retained privately; local-no-charge,
+  one authorized attempt, one consumed attempt, zero retries.
+- Artifact manifest and grade: run-log SHA-256
+  `0a916fca23adcd03248d54ac2d2c4ac8cff6bf91a592359c5607e4f610e44b42`;
+  artifact-inventory SHA-256
+  `a2b8494917a6742e738a9d1cc658368195eb36cf1122219a1ec7bff0b587a242`;
+  final-STEP SHA-256
+  `221a2a866593483c21336695a5aea577f9bdb845c4cad470e4e35e5a17643463`;
+  v0.10 metric-report SHA-256
+  `3ad454a60a36672c537e3ecbc4899c5749330c4081ff0d6d1eb2485811dbe63d`;
+  native-grade SHA-256
+  `dd1b5d4b10becd4fa9c39505daf1afbc1af60e20961d1d9c214e1c8b9bca7ad5`.
+- Provider-free runtime prerequisite: R8, 9/9 fixed cases passed; private
+  evidence retained and independently read back.
 
 ### B1 - Fresh benchmark cohort (follow-on)
 
@@ -403,9 +470,9 @@ Evidence slots:
   license, and provenance are verified through a dataset-intake PR.
 - [ ] A new run/cohort ID is used; no historical result is overwritten or
   silently re-scored.
-- [ ] An immutable approved OCI image `RepoDigest` and its build provenance are
-  recorded, and the exact Windows Docker Desktop host/image pair passes the
-  documented no-provider/no-network manual smoke before any model call.
+- [x] An immutable approved OCI image `RepoDigest` and its build provenance are
+  recorded, and the exact qualified host/image pair passed the documented R8
+  provider-free, network-none runtime smoke before any model call.
 - [ ] An explicitly approved aggregate campaign ledger reserves every N>=3/N>=9
   slot and enforces cohort-wide concurrency/uniqueness across checkouts and
   hosts; H2b's checkout-local `.slot-claims` are not treated as a global lock.
@@ -431,9 +498,9 @@ Current blockers:
   authorization gate below is satisfied.
 - `L2-RESOLVE` and `L4-ECO` require immutable gated-key revisions plus a trusted
   grading/readback path before their outputs can be called gradeable.
-- The executor requires an approved immutable OCI image `RepoDigest`, private
-  build provenance, and a successful no-provider/no-network manual smoke on the
-  exact Windows Docker Desktop host/image pair before any model call.
+- The runtime prerequisite is satisfied only for the exact R8 source/image/host
+  binding. Any replacement image, source revision, or execution host requires a
+  new qualification before a model call.
 - N>=3/N>=9 execution requires a separately approved aggregate campaign ledger
   with cross-checkout/cross-host slot uniqueness and concurrency control; H2b
   intentionally authorizes only one checkout-local slot at a time.
@@ -443,21 +510,28 @@ Current blockers:
   budget alone cannot authorize a metered run until a frozen provider-specific
   pre-call pricing/token policy is implemented and separately reviewed.
 
-### R1 - Marc original-scope closeout
+### R1 - original-scope public closeout
 
-- [ ] Report uses merged-code and S1 smoke evidence only; it does not present
+- [x] Report uses merged-code and S1 smoke evidence only; it does not present
   the single run as a board benchmark or performance distribution.
-- [ ] Authoring, translation, and benchmark findings are separated.
-- [ ] Limitations and deferred scope are explicit.
-- [ ] No PMI/interoperability compliance or manufacturability claim is made.
-- [ ] Report artifact, source manifest, delivery channel, and delivery date are
-  recorded.
+- [x] Authoring, translation, and benchmark findings are separated.
+- [x] Limitations and deferred scope are explicit.
+- [x] No PMI/interoperability compliance or manufacturability claim is made.
+- [x] Report artifact, source manifest, publication channel, and preparation
+  date are recorded.
 
 Evidence slots:
 
-- Report path/link: TBD
-- Source manifest: TBD
-- Delivery channel/date: TBD
+- Report path/link:
+  `docs/cadclaw-marb-original-scope-closeout-2026-09-06.md`.
+- Source manifest: report SHA-256
+  `7f56a96df4dbc14a5b2f2b0d4c2c962e6ec7668430839944ffa51eca9cf29fca`;
+  merged CADCLAW/MARB PR and commit identities are recorded in this ledger.
+- Publication channel/preparation date: final technical closeout prepared for
+  the CADCLAW GitHub repository on 2026-09-06. The user separately attested
+  that the recommendation-driven update had already been communicated; this
+  ledger does not claim independent delivery verification of the final S1
+  supplement.
 
 ## Approved deferral
 
