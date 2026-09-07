@@ -203,6 +203,46 @@ main { max-width: 1180px; margin: 0 auto; padding: 0 40px; }
   margin-top: 12px;
 }
 
+/* ---------------- recent capability update ---------------- */
+
+.update-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 500px);
+  gap: 54px;
+  align-items: center;
+}
+.update-copy .lede { max-width: 62ch; }
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.update-figure {
+  margin: 0;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: 0 4px 24px rgba(1, 58, 115, 0.08);
+}
+.update-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 3px;
+}
+.update-figure figcaption {
+  margin: 10px 4px 2px;
+  color: #33404a;
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .hero-mark {
   display: flex;
   align-items: center;
@@ -508,6 +548,11 @@ footer {
     gap: 40px;
     padding: 50px 0 40px;
   }
+  .update-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  .update-figure { max-width: 600px; }
   .hero h1 { font-size: 36px; }
   .tag { font-size: 17px; }
   .strip { grid-template-columns: repeat(2, 1fr); }
