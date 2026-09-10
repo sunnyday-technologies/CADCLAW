@@ -9,6 +9,12 @@ changes bump MINOR and are called out explicitly under **Changed**.
 
 ### Added
 
+### Changed
+
+## [0.11.0] — 2026-09-10
+
+### Added
+
 - **Local pre-publication confidentiality gate.** A versioned generic policy,
   required ignored private overlay, Git-object pre-push scanner, verified hook
   bootstrap, and PR wrapper now cover outgoing refs, full commit messages,

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cadclaw"
-version = "0.10.0"
+version = "0.11.0"
 description = "CADCLAW: automated assembly and validation for STEP CAD. Places authored parts by declared constraints, then runs geometric, structural, tolerance, and BOM-vs-CAD gates. Includes an MCP server."
 readme = "README.md"
 license = "MIT"

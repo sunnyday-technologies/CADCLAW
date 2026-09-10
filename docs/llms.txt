@@ -31,7 +31,7 @@ agent-driven retrieval. The canonical site is https://cadclaw.io.
 - License: MIT
 - PyPI: https://pypi.org/project/cadclaw/
 - DOI: 10.5281/zenodo.19647390
-- Current published version: 0.10.0 (PyPI checked 2026-08-11; canonical source: https://pypi.org/project/cadclaw/)
+- Current package version: 0.11.0 (release cut 2026-09-10; PyPI publish follows tag v0.11.0. Previous published: 0.10.0 at https://pypi.org/project/cadclaw/)
 - Site: https://cadclaw.io
 - Status: open source, actively maintained
 
@@ -93,8 +93,7 @@ Validation domains (each maps to a module under `cadclaw/`):
 - Semantic PMI presence (`cadclaw/pmi.py`) — reports presence or absence for
   each declared AP242 semantic class: dimensions, geometric tolerances,
   and datums. Graphical PMI, material assignments, and process/general notes
-  are excluded. This gate is unreleased on the development branch and is not
-  part of the published 0.10.0 package.
+  are excluded. This gate ships in package version 0.11.0.
 - AP242 STEP round trip (`cadclaw/roundtrip.py`) — an opt-in actual OCCT XCAF
   import, AP242 export, and reimport that compares CADCLAW's deduplicated
   renderable-shape count, bounded geometry measures, declared interface gaps,
@@ -103,7 +102,7 @@ Validation domains (each maps to a module under `cadclaw/`):
   identity, compare PMI values/associations, or establish standards conformance.
   Minimum-cost per-part matching has a hard 256-renderable-shape method limit;
   larger equal-count comparisons error before quadratic matrix allocation.
-  This gate is unreleased and not part of the published 0.10.0 package.
+  This gate ships in package version 0.11.0.
 - Structural (`cadclaw/kinematics.py`) — beam deflection (Euler-Bernoulli),
   motor torque budget, belt tension. Static load math; not motion-clearance
   or full-travel sweeps.
