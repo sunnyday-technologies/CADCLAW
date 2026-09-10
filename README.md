@@ -170,8 +170,8 @@ Exit codes: `0` pass, `1` fail, `2` warn-only (no fails), `3` internal error.
 
 ### Semantic AP242 PMI presence
 
-> **Unreleased:** this gate is available on the repository's development
-> branch and is not part of the published `0.10.0` package.
+> **New in 0.11.0:** this gate ships with the package release being cut;
+> PyPI publish follows tag `v0.11.0`.
 
 Declare only the semantic PMI classes the task requires:
 
@@ -198,8 +198,8 @@ It is a versioned declared check, not a PMI or interoperability certification.
 
 ### AP242 STEP round-trip preservation
 
-> **Unreleased:** this gate is available on the repository's development
-> branch and is not part of the published `0.10.0` package.
+> **New in 0.11.0:** this gate ships with the package release being cut;
+> PyPI publish follows tag `v0.11.0`.
 
 The focused command, or the harness when explicitly enabled, performs an
 actual OCCT XCAF import, AP242 export, and reimport. The source file is never
