@@ -1,4 +1,5 @@
 """Profiler contract tests with fake operations only; no native geometry imports."""
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -197,6 +198,103 @@ def test_main_completed_profile_keeps_failed_geometry_separate_from_execution(mo
         assert record["candidate_pairs"] == 1
         assert record["geometry_cache"] == {"source_imports": 1}
         assert record["workload_sha256"]
+        assert record["workload_sha256_after"] == record["workload_sha256"]
+        assert record["workload_changed_during_measurement"] is False
     assert receipt["records"][1]["workload_sha256"] != receipt["records"][2]["workload_sha256"]
+    assert cq.importers.importStep is import_step
+    assert brep.BRepAlgoAPI_Common is native_common
+
+
+@pytest.mark.parametrize("existing", ["receipt", "work", "both"])
+def test_main_rejects_reused_label_before_setup_and_preserves_bytes(monkeypatch, tmp_path, existing):
+    output, _, _, _, _ = _fake_main_environment(monkeypatch, tmp_path, fail_import=False)
+    output.mkdir()
+    if existing in ("receipt", "both"):
+        (output / "failure.json").write_bytes(b"prior receipt bytes\r\n")
+    if existing in ("work", "both"):
+        (output / "failure").mkdir()
+        (output / "failure" / "workload.yaml").write_bytes(b"prior authored workload bytes\r\n")
+    def snapshot():
+        return {path.relative_to(output).as_posix(): path.read_bytes() if path.is_file() else None
+                for path in output.rglob("*")}
+    before = snapshot()
+    def setup_must_not_run(*args, **kwargs):
+        pytest.fail("reused labels must be rejected before setup or measured actions")
+    monkeypatch.setattr(profiler, "_code_snapshot", setup_must_not_run)
+    monkeypatch.setattr(profiler, "_measure_action", setup_must_not_run)
+    with pytest.raises(RuntimeError, match="label already exists"):
+        profiler.main()
+    assert snapshot() == before
+
+
+@pytest.mark.parametrize("mutation", ["edit", "unlink"])
+@pytest.mark.parametrize("action_fails", [False, True])
+def test_main_preserves_consumed_record_and_invalidates_workload_drift(monkeypatch, tmp_path, mutation, action_fails):
+    output, cq, import_step, brep, native_common = _fake_main_environment(monkeypatch, tmp_path, fail_import=False)
+    coverage = {"checked": False, "checked_pairs": 1, "exact_failed_pairs": 1, "coverage_complete": False}
+    observed = {}
+    def mutate_workload(spec_path, **kwargs):
+        observed["before"] = hashlib.sha256(spec_path.read_bytes()).hexdigest()
+        cq.importers.importStep("inert fake operation")
+        if mutation == "edit":
+            spec_path.write_bytes(b"changed workload; not the measured settings")
+            observed["after"] = hashlib.sha256(spec_path.read_bytes()).hexdigest()
+        else:
+            spec_path.unlink()
+            observed["after"] = None
+        if action_fails:
+            raise ValueError("DO_NOT_LOG_TEST_EXCEPTION_CONTENT")
+        return SimpleNamespace(to_dict=lambda: {"meta": {"validation": {"interference": coverage}}})
+    monkeypatch.setattr(sys.modules["cadclaw"].assembly_compiler, "run_assembly_check_round", mutate_workload)
+    with pytest.raises(RuntimeError, match="safe local error receipt"):
+        profiler.main()
+    raw = (output / "failure.json").read_text()
+    receipt = json.loads(raw)
+    assert receipt["complete"] is False
+    assert receipt["measurement_valid"] is False
+    assert len(receipt["records"]) == 2
+    record = receipt["records"][-1]
+    assert record["scenario"] == "unchanged_round"
+    assert record["status"] == ("error" if action_fails else "completed")
+    assert record["call_outcomes"]["step_imports"] == {"attempted": 1, "returned": 1, "failed": 0}
+    assert record["wall_seconds"] >= 0
+    assert record["workload_sha256"] == observed["before"]
+    assert record["workload_sha256_after"] == observed["after"]
+    assert record["workload_changed_during_measurement"] is True
+    assert record["evidence_status"] == "error"
+    assert record["evidence_error"] == {"phase": "workload_identity", "reason": "changed" if mutation == "edit" else "unavailable"}
+    if mutation == "unlink":
+        assert record["workload_read_error"] == {"exception_type": "FileNotFoundError"}
+    if action_fails:
+        assert record["error"] == {"phase": "measured_action", "exception_type": "ValueError"}
+    else:
+        assert record["interference_completion"] == coverage
+    assert "DO_NOT_LOG_TEST_EXCEPTION_CONTENT" not in raw
+    assert cq.importers.importStep is import_step
+    assert brep.BRepAlgoAPI_Common is native_common
+
+
+def test_failure_receipt_cannot_overwrite_late_existing_evidence(tmp_path):
+    receipt = tmp_path / "receipt.json"
+    receipt.write_bytes(b"prior evidence\r\n")
+    with pytest.raises(FileExistsError):
+        profiler._write_failure_receipt(receipt, {}, [], ValueError("redacted"))
+    assert receipt.read_bytes() == b"prior evidence\r\n"
+
+
+def test_main_source_drift_writes_one_invalid_receipt(monkeypatch, tmp_path):
+    output, cq, import_step, brep, native_common = _fake_main_environment(monkeypatch, tmp_path, fail_import=False)
+    def change_source(*args, **kwargs):
+        (tmp_path / "fixture.step").write_bytes(b"source changed during fake operation")
+        return SimpleNamespace(to_dict=lambda: {})
+    monkeypatch.setattr(sys.modules["cadclaw"].assembly_compiler, "run_assembly_check_round", change_source)
+    with pytest.raises(RuntimeError, match="inspect the safe local error receipt"):
+        profiler.main()
+    receipt = json.loads((output / "failure.json").read_text())
+    assert receipt["status"] == "error"
+    assert receipt["measurement_valid"] is False
+    assert receipt["complete"] is False
+    assert receipt["source"]["changed_during_measurement"] is True
+    assert len(receipt["records"]) == 3
     assert cq.importers.importStep is import_step
     assert brep.BRepAlgoAPI_Common is native_common

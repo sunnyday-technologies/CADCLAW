@@ -305,3 +305,110 @@ def test_authored_plate_positive_native_intersection(monkeypatch):
     assert meta["pair_results"][0]["status"] == "successful_overlap"
     assert meta["pair_results"][0]["volume_mm3"] == pytest.approx(shape.Volume(), rel=1e-6)
     assert any(finding.id == "interference.clip" for finding in findings)
+
+
+
+def _bound_pair_visits(monkeypatch, maximum):
+    original = compiler.combinations
+    visits = []
+
+    def bounded(*args):
+        for pair in original(*args):
+            visits.append(None)
+            assert len(visits) <= maximum, "pair traversal exceeded the reporting bound"
+            yield pair
+
+    monkeypatch.setattr(compiler, "combinations", bounded)
+    return visits
+
+
+def test_large_fully_excluded_scope_is_bulk_counted(monkeypatch):
+    visits = _bound_pair_visits(monkeypatch, 0)
+    findings, meta, calls = _run(monkeypatch, _spec(10_000, {"skip_roles": ["authored"]}))
+    assert not findings and not calls and not visits
+    assert meta["total_pairs"] == meta["policy_skipped_pairs"] == 49_995_000
+    assert meta["pair_reason_counts"] == {"configured_role": 49_995_000}
+    assert meta["pair_status_counts"] == {"skipped": 49_995_000}
+    assert meta["coverage_complete"] and not meta["checked"]
+    assert meta["eligible_pairs"] == 0
+    assert meta["pair_results"] == [] and not meta["pair_results_complete"]
+    assert meta["pair_results_omitted"] == meta["total_pairs"]
+
+
+def test_large_dense_cap_bulk_counts_tail_and_preserves_policy_exclusions(monkeypatch):
+    spec = _spec(10_000, {"max_findings": 1, "skip_instances": ["part_9998"],
+                         "skip_roles": ["excluded"],
+                         "skip_pairs": [["part_0", "part_1"], ["part_1", "part_2"],
+                                        ["part_0", "part_9999"]]})
+    spec.instances[-1].role = "excluded"
+    visits = _bound_pair_visits(monkeypatch, 3)
+    bbox_calls = []
+    original = compiler._bbox_overlaps
+
+    def counted_bbox(*args):
+        bbox_calls.append(None)
+        return original(*args)
+
+    monkeypatch.setattr(compiler, "_bbox_overlaps", counted_bbox)
+    findings, meta, calls = _run(monkeypatch, spec, outcomes={("part_0", "part_2"): 2.0})
+    assert calls == [("part_0", "part_2")] and len(bbox_calls) == 1 and len(visits) == 3
+    assert meta["total_pairs"] == 49_995_000
+    assert meta["policy_skipped_pairs"] == 9_999 + 9_998 + 2
+    assert meta["not_attempted_pairs"] == meta["bulk_not_attempted_pairs"] == 49_975_000
+    assert meta["pair_reason_counts"] == {"configured_instance": 9_999, "configured_role": 9_998,
+                                          "configured_pair": 2, "max_findings_reached": 49_975_000}
+    assert sum(meta["pair_status_counts"].values()) == meta["total_pairs"]
+    assert len(meta["pair_results"]) == 2 <= meta["pair_results_limit"] == 10_000
+    assert meta["pair_results_omitted"] == meta["total_pairs"] - 2
+    assert not meta["coverage_complete"] and not meta["checked"] and not meta["pair_results_complete"]
+    assert {finding.id for finding in findings} == {"interference.clip", "interference.incomplete"}
+
+
+def test_detail_truncation_preserves_complete_exact_aggregate(monkeypatch):
+    monkeypatch.setattr(compiler, "_INTERFERENCE_PAIR_DETAIL_LIMIT", 3)
+    spec = _spec(4)
+    outcomes = {(a.id, b.id): 0.25 for a, b in compiler.combinations(spec.instances, 2)}
+    findings, meta, calls = _run(monkeypatch, spec, outcomes=outcomes)
+    assert not findings and len(calls) == 6
+    assert meta["exact_successful_pairs"] == meta["below_threshold_overlap_pairs"] == 6
+    assert meta["checked"] and meta["coverage_complete"] and meta["exact_coverage_complete"]
+    assert len(meta["pair_results"]) == 3 and meta["pair_results_omitted"] == 3
+    assert not meta["pair_results_complete"]
+
+
+def test_large_systemic_failure_stops_at_error_reporting_limit(monkeypatch):
+    monkeypatch.setattr(compiler, "_INTERFERENCE_PAIR_DETAIL_LIMIT", 3)
+    spec = _spec(4)
+    outcomes = {(a.id, b.id): "not_done" for a, b in compiler.combinations(spec.instances, 2)}
+    visits = _bound_pair_visits(monkeypatch, 4)
+    findings, meta, calls = _run(monkeypatch, spec, outcomes=outcomes)
+    assert len(calls) == meta["exact_failed_pairs"] == 3 and len(visits) == 4
+    assert meta["execution_error_limit_reached"] and meta["execution_error_details_omitted"] == 0
+    assert meta["not_attempted_pairs"] == meta["bulk_not_attempted_pairs"] == 3
+    assert meta["pair_reason_counts"]["execution_error_limit_reached"] == 3
+    assert len(meta["pair_results"]) == 3 and meta["pair_results_omitted"] == 3
+    assert sum(finding.id == "interference.execution_error" for finding in findings) == 3
+    assert not meta["checked"] and not meta["coverage_complete"]
+
+
+def test_small_scope_has_complete_detail_metadata(monkeypatch):
+    _, meta, _ = _run(monkeypatch, _spec())
+    assert meta["pair_results_complete"] and meta["pair_results_omitted"] == 0
+    assert meta["pair_results_limit"] == 10_000
+    assert meta["bulk_not_attempted_pairs"] == 0
+
+
+
+def test_delimiter_id_fallback_bounds_error_details_without_losing_failures(monkeypatch):
+    monkeypatch.setattr(compiler, "_INTERFERENCE_PAIR_DETAIL_LIMIT", 3)
+    spec = _spec(4)
+    spec.instances[-1].id = "part||3"
+    outcomes = {(a.id, b.id): "not_done" for a, b in compiler.combinations(spec.instances, 2)}
+    findings, meta, calls = _run(monkeypatch, spec, outcomes=outcomes)
+    assert len(calls) == meta["exact_failed_pairs"] == meta["total_pairs"] == 6
+    assert meta["not_attempted_pairs"] == 0 and not meta["execution_error_limit_reached"]
+    assert meta["execution_error_details_omitted"] == 3
+    assert len(meta["pair_results"]) == meta["pair_results_omitted"] == 3
+    assert sum(finding.id == "interference.execution_error" for finding in findings) == 3
+    assert meta["pair_status_counts"] == {"failed": 6}
+    assert not meta["coverage_complete"] and not meta["checked"]

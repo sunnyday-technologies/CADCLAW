@@ -12,6 +12,7 @@ from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 import csv
 import hashlib
+from itertools import combinations
 import math
 import os
 from pathlib import Path
@@ -28,6 +29,7 @@ from .findings import ConfidenceBudget, Finding, Report, Severity
 
 DESIGN_INVENTORY_VERSION = "design_inventory.v0.1"
 GENERATED_SOURCE_PREFIXES = ("generated:", "parametric:", "placeholder:")
+_INTERFERENCE_PAIR_DETAIL_LIMIT = 10_000
 
 
 @dataclass(frozen=True)
@@ -2716,60 +2718,117 @@ def _run_spec_interference(
             invalid_bbox_ids.append(record.id)
     preferred = {str(value) for value in preferred_movable_ids or []}
     pair_results = []
+    counts = Counter()
+    reason_counts = Counter()
+    below_threshold_overlap_pairs = 0
     checked_pairs = 0
     clip_count = 0
     max_findings_reached = False
+    execution_error_limit_reached = False
+    bulk_not_attempted_pairs = 0
+    detail_limit = _INTERFERENCE_PAIR_DETAIL_LIMIT
+    total_pairs = len(scoped_instances) * (len(scoped_instances) - 1) // 2
 
-    for index, instance_a in enumerate(scoped_instances):
-        for instance_b in scoped_instances[index + 1:]:
-            pair = {"instance_a": instance_a.id, "instance_b": instance_b.id}
+    def record_pair(pair: dict, **result) -> None:
+        nonlocal below_threshold_overlap_pairs
+        pair.update(result)
+        counts[pair["status"]] += 1
+        if "reason" in pair:
+            reason_counts[pair["reason"]] += 1
+        if pair["status"] == "successful_overlap" and not pair["above_threshold"]:
+            below_threshold_overlap_pairs += 1
+        if len(pair_results) < detail_limit:
             pair_results.append(pair)
-            if instance_a.id in skip_instances or instance_b.id in skip_instances:
-                pair.update(status="skipped", reason="configured_instance")
-                continue
-            if instance_a.role in skip_roles or instance_b.role in skip_roles:
-                pair.update(status="skipped", reason="configured_role")
-                continue
-            if _pair_key(instance_a.id, instance_b.id) in skip_pairs:
-                pair.update(status="skipped", reason="configured_pair")
-                continue
-            if instance_a.id not in by_id or instance_b.id not in by_id:
-                pair.update(status="not_attempted", reason="missing_shape")
-                continue
-            if instance_a.id not in bboxes or instance_b.id not in bboxes:
-                pair.update(status="not_attempted", reason="invalid_bbox")
-                continue
-            a, b = by_id[instance_a.id], by_id[instance_b.id]
-            bb_a, bb_b = bboxes[a.id], bboxes[b.id]
-            if not _bbox_overlaps(bb_a, bb_b):
-                pair.update(status="skipped", reason="bbox_screened")
-                continue
-            if max_findings_reached:
-                pair.update(status="not_attempted", reason="max_findings_reached")
-                continue
 
-            # checked_pairs retains its historical attempted-call meaning.
-            # Successful completion is separately counted below.
-            checked_pairs += 1
-            stage = "constructor"
-            try:
-                common = BRepAlgoAPI_Common(a.shape.wrapped, b.shape.wrapped)
-                stage = "build"
-                common.Build()
-                stage = "is_done"
-                if not common.IsDone():
-                    stage = "boolean_not_done"
-                    raise ValueError("boolean did not complete")
-                stage = "volume"
-                props = GProp_GProps()
-                BRepGProp.VolumeProperties_s(common.Shape(), props)
-                volume = float(props.Mass())
-                if not math.isfinite(volume) or volume < 0:
-                    stage = "invalid_volume"
-                    raise ValueError("invalid intersection volume")
-            except Exception:
-                reason = stage if stage in {"boolean_not_done", "invalid_volume"} else f"{stage}_failed"
-                pair.update(status="failed", reason=reason)
+    # Small scopes retain the complete ordered ledger. For large scopes, count
+    # whole excluded sets without visiting every excluded pair. Guard unusual
+    # duplicate/delimiter IDs to preserve the existing _pair_key semantics.
+    scoped_ids = {item.id for item in scoped_instances}
+    bulk_scope = (total_pairs > detail_limit and len(scoped_ids) == len(scoped_instances)
+                  and all("||" not in instance_id for instance_id in scoped_ids))
+    candidate_instances = scoped_instances
+    remaining_configured_pairs = set()
+    if bulk_scope:
+        instance_allowed = [item for item in scoped_instances if item.id not in skip_instances]
+        candidate_instances = [item for item in instance_allowed if item.role not in skip_roles]
+        instance_allowed_pairs = len(instance_allowed) * (len(instance_allowed) - 1) // 2
+        candidate_pairs = len(candidate_instances) * (len(candidate_instances) - 1) // 2
+        reason_counts["configured_instance"] = total_pairs - instance_allowed_pairs
+        reason_counts["configured_role"] = instance_allowed_pairs - candidate_pairs
+        counts["skipped"] = total_pairs - candidate_pairs
+        candidate_ids = {item.id for item in candidate_instances}
+        remaining_configured_pairs = {
+            _pair_key(str(pair[0]), str(pair[1]))
+            for pair in config.get("skip_pairs", [])
+            if isinstance(pair, list) and len(pair) == 2
+            and str(pair[0]) != str(pair[1])
+            and str(pair[0]) in candidate_ids and str(pair[1]) in candidate_ids
+        }
+
+    for instance_a, instance_b in combinations(candidate_instances, 2):
+        # After a reporting cap, unvisited pairs have no bbox or exact-query
+        # result. Preserve policy exclusions; conservatively count the rest as
+        # not attempted instead of traversing the potentially quadratic tail.
+        if bulk_scope and (max_findings_reached or counts["failed"] >= detail_limit):
+            stop_reason = "max_findings_reached" if max_findings_reached else "execution_error_limit_reached"
+            execution_error_limit_reached = stop_reason == "execution_error_limit_reached"
+            skipped_remaining = len(remaining_configured_pairs)
+            bulk_not_attempted_pairs = total_pairs - sum(counts.values()) - skipped_remaining
+            counts["skipped"] += skipped_remaining
+            reason_counts["configured_pair"] += skipped_remaining
+            counts["not_attempted"] += bulk_not_attempted_pairs
+            reason_counts[stop_reason] += bulk_not_attempted_pairs
+            break
+        pair = {"instance_a": instance_a.id, "instance_b": instance_b.id}
+        if instance_a.id in skip_instances or instance_b.id in skip_instances:
+            record_pair(pair, status="skipped", reason="configured_instance")
+            continue
+        if instance_a.role in skip_roles or instance_b.role in skip_roles:
+            record_pair(pair, status="skipped", reason="configured_role")
+            continue
+        pair_key = _pair_key(instance_a.id, instance_b.id)
+        if pair_key in skip_pairs:
+            record_pair(pair, status="skipped", reason="configured_pair")
+            remaining_configured_pairs.discard(pair_key)
+            continue
+        if instance_a.id not in by_id or instance_b.id not in by_id:
+            record_pair(pair, status="not_attempted", reason="missing_shape")
+            continue
+        if instance_a.id not in bboxes or instance_b.id not in bboxes:
+            record_pair(pair, status="not_attempted", reason="invalid_bbox")
+            continue
+        a, b = by_id[instance_a.id], by_id[instance_b.id]
+        bb_a, bb_b = bboxes[a.id], bboxes[b.id]
+        if not _bbox_overlaps(bb_a, bb_b):
+            record_pair(pair, status="skipped", reason="bbox_screened")
+            continue
+        if max_findings_reached:
+            record_pair(pair, status="not_attempted", reason="max_findings_reached")
+            continue
+
+        # checked_pairs retains its historical attempted-call meaning.
+        # Successful completion is separately counted below.
+        checked_pairs += 1
+        stage = "constructor"
+        try:
+            common = BRepAlgoAPI_Common(a.shape.wrapped, b.shape.wrapped)
+            stage = "build"
+            common.Build()
+            stage = "is_done"
+            if not common.IsDone():
+                stage = "boolean_not_done"
+                raise ValueError("boolean did not complete")
+            stage = "volume"
+            props = GProp_GProps()
+            BRepGProp.VolumeProperties_s(common.Shape(), props)
+            volume = float(props.Mass())
+            if not math.isfinite(volume) or volume < 0:
+                stage = "invalid_volume"
+                raise ValueError("invalid intersection volume")
+        except Exception:
+            reason = stage if stage in {"boolean_not_done", "invalid_volume"} else f"{stage}_failed"
+            record_pair(pair, status="failed", reason=reason)
+            if counts["failed"] <= detail_limit:
                 findings.append(Finding(
                     id="interference.execution_error",
                     category="interference",
@@ -2777,67 +2836,66 @@ def _run_spec_interference(
                     message=f"Exact intersection query failed for {a.id} and {b.id}",
                     evidence={**pair, "backend": "OCP", "stage": stage},
                 ))
-                continue
-            pair.update(
-                status="successful_overlap" if volume > 0 else "successful_empty",
-                volume_mm3=volume,
-                above_threshold=volume > min_volume,
-            )
-            if volume <= min_volume:
-                continue
-            repair = _choose_interference_repair(
-                a,
-                bb_a,
-                b,
-                bb_b,
-                clearance,
-                preferred_movable_ids=preferred,
-            )
-            sign = "+" if repair.shift_mm >= 0 else "-"
-            suggestion = (
-                f"shift {repair.target_id} {sign}{repair.axis.upper()} "
-                f"by {abs(repair.shift_mm):.2f}mm to clear the paired part "
-                f"with {clearance:g}mm clearance"
-            )
-            findings.append(Finding(
-                id="interference.clip",
-                category="interference",
-                severity=Severity.FAIL,
-                message=(
-                    f"{a.id} ({a.role}) clips {b.id} ({b.role}) "
-                    f"by {volume:.0f} mm3"
-                ),
-                suggested_fix=suggestion,
-                evidence={
-                    "instance_a": a.id,
-                    "role_a": a.role,
-                    "source_ref_a": a.source_ref,
-                    "instance_b": b.id,
-                    "role_b": b.role,
-                    "source_ref_b": b.source_ref,
-                    "volume_mm3": round(volume, 1),
-                    "center_a": [round(value, 3) for value in _bbox_center_from_tuple(bb_a)],
-                    "center_b": [round(value, 3) for value in _bbox_center_from_tuple(bb_b)],
-                    "bbox_a": [round(value, 3) for value in bb_a],
-                    "bbox_b": [round(value, 3) for value in bb_b],
-                    "overlap_dims_mm": [round(value, 3) for value in repair.overlap_dims],
-                    "suggest_shift": {
-                        "target_instance": repair.target_id,
-                        "axis": repair.axis,
-                        "mm": round(repair.shift_mm, 3),
-                        "clearance_mm": clearance,
-                        "basis": repair.basis,
-                    },
+            continue
+        record_pair(pair,
+            status="successful_overlap" if volume > 0 else "successful_empty",
+            volume_mm3=volume,
+            above_threshold=volume > min_volume,
+        )
+        if volume <= min_volume:
+            continue
+        repair = _choose_interference_repair(
+            a,
+            bb_a,
+            b,
+            bb_b,
+            clearance,
+            preferred_movable_ids=preferred,
+        )
+        sign = "+" if repair.shift_mm >= 0 else "-"
+        suggestion = (
+            f"shift {repair.target_id} {sign}{repair.axis.upper()} "
+            f"by {abs(repair.shift_mm):.2f}mm to clear the paired part "
+            f"with {clearance:g}mm clearance"
+        )
+        findings.append(Finding(
+            id="interference.clip",
+            category="interference",
+            severity=Severity.FAIL,
+            message=(
+                f"{a.id} ({a.role}) clips {b.id} ({b.role}) "
+                f"by {volume:.0f} mm3"
+            ),
+            suggested_fix=suggestion,
+            evidence={
+                "instance_a": a.id,
+                "role_a": a.role,
+                "source_ref_a": a.source_ref,
+                "instance_b": b.id,
+                "role_b": b.role,
+                "source_ref_b": b.source_ref,
+                "volume_mm3": round(volume, 1),
+                "center_a": [round(value, 3) for value in _bbox_center_from_tuple(bb_a)],
+                "center_b": [round(value, 3) for value in _bbox_center_from_tuple(bb_b)],
+                "bbox_a": [round(value, 3) for value in bb_a],
+                "bbox_b": [round(value, 3) for value in bb_b],
+                "overlap_dims_mm": [round(value, 3) for value in repair.overlap_dims],
+                "suggest_shift": {
+                    "target_instance": repair.target_id,
+                    "axis": repair.axis,
+                    "mm": round(repair.shift_mm, 3),
+                    "clearance_mm": clearance,
+                    "basis": repair.basis,
                 },
-            ))
-            clip_count += 1
-            if clip_count >= max_findings:
-                max_findings_reached = True
+            },
+        ))
+        clip_count += 1
+        if clip_count >= max_findings:
+            max_findings_reached = True
 
-    counts = Counter(pair["status"] for pair in pair_results)
-    screened_pairs = sum(pair.get("reason") == "bbox_screened" for pair in pair_results)
+    screened_pairs = reason_counts["bbox_screened"]
     policy_skipped_pairs = counts["skipped"] - screened_pairs
-    eligible_pairs = len(pair_results) - policy_skipped_pairs
+    eligible_pairs = total_pairs - policy_skipped_pairs
     successful_pairs = counts["successful_empty"] + counts["successful_overlap"]
     incomplete = bool(counts["failed"] or counts["not_attempted"] or missing_ids or invalid_bbox_ids
                       or any(finding.severity == Severity.FAIL for finding in findings
@@ -2864,18 +2922,27 @@ def _run_spec_interference(
         "exact_failed_pairs": counts["failed"],
         "successful_empty_pairs": counts["successful_empty"],
         "successful_overlap_pairs": counts["successful_overlap"],
-        "below_threshold_overlap_pairs": sum(pair["status"] == "successful_overlap"
-                                             and not pair["above_threshold"] for pair in pair_results),
+        "below_threshold_overlap_pairs": below_threshold_overlap_pairs,
         "screened_pairs": screened_pairs,
         "policy_skipped_pairs": policy_skipped_pairs,
         "not_attempted_pairs": counts["not_attempted"],
-        "total_pairs": len(pair_results),
+        "total_pairs": total_pairs,
         "eligible_pairs": eligible_pairs,
         "coverage_complete": not incomplete,
         "exact_coverage_complete": eligible_pairs > 0 and successful_pairs == eligible_pairs and not incomplete,
         "reason": reason,
         "successful_empty_semantics": "zero_intersection_volume_not_clearance_proof",
         "pair_results": pair_results,
+        "pair_results_limit": detail_limit,
+        "pair_results_omitted": total_pairs - len(pair_results),
+        "pair_results_complete": len(pair_results) == total_pairs,
+        "pair_status_counts": dict(counts),
+        "pair_reason_counts": {reason: count for reason, count in reason_counts.items() if count},
+        "bulk_not_attempted_pairs": bulk_not_attempted_pairs,
+        "bulk_not_attempted_semantics": "unvisited_pairs_not_bbox_screened",
+        "execution_error_limit_reached": execution_error_limit_reached,
+        "execution_error_detail_limit": detail_limit,
+        "execution_error_details_omitted": max(0, counts["failed"] - detail_limit),
         "placed_instances": len(records),
         "missing_instance_ids": missing_ids,
         "invalid_bbox_instance_ids": sorted(invalid_bbox_ids),

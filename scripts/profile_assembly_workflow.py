@@ -162,7 +162,9 @@ def _write_failure_receipt(path, context, records, exc):
     receipt = {**context, "complete": False, "measurement_valid": False,
                "status": "error", "error": {"exception_type": type(exc).__name__},
                "records": records}
-    path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    content = json.dumps(receipt, indent=2) + "\n"
+    with path.open("x", encoding="utf-8") as stream:
+        stream.write(content)
 
 
 def main():
@@ -176,6 +178,10 @@ def main():
     parser.add_argument("--skip-cameras", action="store_true", help="Measure source reuse before camera optimization")
     parser.add_argument("--overlap", action="store_true", help="Include a positive exact-intersection control using authored shapes")
     args = parser.parse_args()
+    work = args.output / args.label
+    receipt_path = args.output / f"{args.label}.json"
+    if any(path.exists() or path.is_symlink() for path in (work, receipt_path)):
+        raise RuntimeError("profiling label already exists; choose a new label to preserve prior evidence")
     code_root = args.code_root.resolve(strict=True)
     source = args.source.resolve(strict=True)
     source_sha256_before = hashlib.sha256(source.read_bytes()).hexdigest()
@@ -196,8 +202,7 @@ def main():
         raise RuntimeError("profiler imported a different code root")
 
     args.output.mkdir(parents=True, exist_ok=True)
-    work = args.output / args.label
-    work.mkdir(exist_ok=True)
+    work.mkdir()  # Reserve the label; never reuse another attempt's work directory.
     spec_path = work / "workload.yaml"
     output_step = work / "assembly.step"
     # Widely separated occurrences keep the interference control deterministic.
@@ -235,8 +240,6 @@ def main():
                         "cpu_contention": "not_measured", "os_file_cache": "unknown"},
         "call_outcome_note": "counts are attempts; returned means callable returned; failed means raised, not geometric failure",
     }
-    receipt_path = args.output / f"{args.label}.json"
-
     try:
         original_import = instrument(cq.importers, "importStep", "step_imports")
         instrument(cq.Shape, "toVtkPolyData", "tessellations")
@@ -256,14 +259,29 @@ def main():
         instrument(render, "_extract_step_colors", "step_color_reads")
 
         def measure(scenario, iteration, action):
+            workload_sha256_before = hashlib.sha256(spec_path.read_bytes()).hexdigest()
             report, record = _measure_action(action, instrumentation)
             record.update({"scenario": scenario, "iteration": iteration,
-                           "workload_sha256": hashlib.sha256(spec_path.read_bytes()).hexdigest()})
-            records.append(record)
-            if record["status"] == "error":
-                raise RuntimeError("measured action failed; safe error metadata is preserved")
+                           "workload_sha256": workload_sha256_before})
+            records.append(record)  # Preserve consumed work before any further evidence reads.
+            try:
+                workload_sha256_after = hashlib.sha256(spec_path.read_bytes()).hexdigest()
+            except OSError as exc:
+                workload_sha256_after = None
+                record["workload_read_error"] = {"exception_type": type(exc).__name__}
+            workload_changed = workload_sha256_before != workload_sha256_after
+            record.update({"workload_sha256_after": workload_sha256_after,
+                           "workload_changed_during_measurement": workload_changed})
+            if workload_changed:
+                record["evidence_status"] = "error"
+                record["evidence_error"] = {"phase": "workload_identity",
+                                            "reason": "unavailable" if workload_sha256_after is None else "changed"}
             payload = report.to_dict() if hasattr(report, "to_dict") else {}
             record.update(_returned_metadata(payload))
+            if workload_changed:
+                raise RuntimeError("workload changed during measurement; timing evidence is invalid")
+            if record["status"] == "error":
+                raise RuntimeError("measured action failed; safe error metadata is preserved")
             # Independent exported geometry measurement is outside the timed action.
             compound = original_import(str(output_step)).val() if output_step.exists() else None
             geometry = sorted([
@@ -330,14 +348,19 @@ def main():
                   "stage_note": "stage timings are inclusive and can overlap; exported parity reads excluded",
                   "fixture_note": "Existing shipped authored NIST STEP; no geometry authored by this script",
                   "records": records}
-        receipt_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         if code_changed or source_changed or runner_changed:
             raise RuntimeError("measured code, runner or source changed; timing evidence is invalid")
+        content = json.dumps(result, indent=2) + "\n"
+        with receipt_path.open("x", encoding="utf-8") as stream:
+            stream.write(content)
     except BaseException as exc:
         if records and records[-1]["status"] != "error":
             records[-1]["evidence_status"] = "error"
             records[-1]["error"] = {"phase": "evidence_or_finalization", "exception_type": type(exc).__name__}
-        _write_failure_receipt(receipt_path, locals().get("result", context), records, exc)
+        try:
+            _write_failure_receipt(receipt_path, locals().get("result", context), records, exc)
+        except Exception:
+            raise RuntimeError("profiling failed; safe local error receipt could not be written") from None
         raise RuntimeError("profiling failed; inspect the safe local error receipt") from None
     finally:
         instrumentation.restore()
