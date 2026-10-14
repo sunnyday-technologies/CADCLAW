@@ -11,6 +11,11 @@ changes bump MINOR and are called out explicitly under **Changed**.
 
 ### Changed
 
+- **M3-CRETE example drops the M3-4 variant.** M3-CRETE discontinued M3-4
+  (2000 x 2000 x 1000mm) on 2026-10-13 because its Y-gantry rails carry the Y
+  belt inside the C-channel and cannot take the centered 2040 splice insert.
+  `examples/m3_crete/m3_reference_assembly.yaml` now lists M3-1 and M3-2 only.
+
 ## [0.11.0] — 2026-09-10
 
 ### Added

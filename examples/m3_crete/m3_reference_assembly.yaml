@@ -17,10 +17,9 @@ variants:
     label: M3-2
     envelope_mm: [2000.0, 1000.0, 1000.0]
     notes: Current default proving build; X axis is spliced from 1000mm stock.
-  - id: M3-4
-    label: M3-4
-    envelope_mm: [2000.0, 2000.0, 1000.0]
-    notes: X and Y long axes are spliced; BOM quantities come from variant overrides.
+  # M3-4 (2000 x 2000 x 1000mm) was discontinued on 2026-10-13: its Y-gantry
+  # rails carry the Y belt inside the C-channel, so they cannot take the
+  # centered 2040 splice insert. See M3-CRETE BOM v2.18.0.
 
 reference_assets:
   - path: ../M3-CRETE/docs/M3-CRETE_render.jpg
@@ -62,14 +61,14 @@ bom:
     M3-CRETE interactive/procurement BOM remains owned by the M3 project. Use
     CADCLAW output and parity findings to propose deltas against
     ../M3-CRETE/bom/data.json; do not overwrite that public BOM from this
-    harness. M3-2 is the current base quantity set, while M3-1 and M3-4 apply
+    harness. M3-2 is the current base quantity set, while M3-1 applies
     variant overrides from config.js. Private procurement fields must stay out
     of public CADCLAW reports.
 
 assumptions:
   - Reference image gives topology and approximate proportions only.
   - M3-2 means a 2000 x 1000 x 1000mm target build envelope, not a claim of physical validation.
-  - M3-1 and M3-4 should be generated from the same spec family by variant quantities and axis spans.
+  - M3-1 should be generated from the same spec family by variant quantities and axis spans.
   - Round 1 prioritizes frame and visible gantry layout over exact belt/drive routing.
   - Component transforms are initial guesses pending connector metadata and review renders.
   - Complex parts are placed from authored STEP files; contextual plates/brackets are not generated.
@@ -107,7 +106,7 @@ constraints:
     severity: fail
     rule: X-direction 2040 reinforcement must bridge the middle splice of each 2m 4080 run; X-gantry reinforcement must stay internal or below the wheel path, while external plates/gussets on the 40mm faces block the two-sided X-carriage.
     source: ../M3-CRETE/AGENTS.md
-    applies_to_variants: [M3-2, M3-4]
+    applies_to_variants: [M3-2]
   - id: cbeam_primary_stock
     severity: warn
     rule: Gantry extrusions, Z posts, and top X frame rails use 4080 C-Beam in 1000mm stock lengths; lower Y frame rails use 2080, and the top center spreader plus centered 2m-run splice inserts use 2040 per field-build guidance.
@@ -146,7 +145,7 @@ constraints:
     severity: warn
     rule: "PyNiteFEA checks are decision-support only and must track the field-build member families: 4080 gantries/posts/top X rails, 2080 lower Y rails, and 2040 top center spreader plus centered 2m-run splice inserts."
     source: user guidance, 2026-05-16
-    applies_to_variants: [M3-2, M3-4]
+    applies_to_variants: [M3-2]
   - id: no_motion_endstops
     severity: fail
     rule: Do not add mechanical motion endstops or limit switches; the design uses StallGuard sensorless homing.
