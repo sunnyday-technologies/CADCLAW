@@ -19,9 +19,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install CADCLAW
-        run: python -m pip install .
+      - name: Install CADCLAW and test runner
+        run: python -m pip install . pytest==9.0.3
       - name: Generate repository geometry fixtures
         run: python tests/generate_fixtures.py
       - name: Run repository tests
         run: xvfb-run -a -s "-screen 0 1280x1024x24" python -m unittest discover -s tests -p "test_*.py"
+      - name: Run focused geometry and workflow regressions
+        run: >-
+          xvfb-run -a -s "-screen 0 1280x1024x24" python -m pytest -q
+          tests/test_geometry_queries.py
+          tests/test_spec_interference_accounting.py
+          tests/test_performance_geometry.py
+          tests/test_performance_render.py
+          tests/test_profile_assembly_workflow.py

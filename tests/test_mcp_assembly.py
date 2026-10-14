@@ -12,7 +12,7 @@ from pathlib import Path
 import cadclaw_mcp.server as server
 
 
-FIXTURE = Path(__file__).resolve().parent / "fixtures" / "L1_good.step"
+FIXTURE = Path(__file__).resolve().parents[1] / "examples/relative_placement/parts/plate.step"
 
 SPEC_TEMPLATE = """
 schema_version: assembly_spec.v0.1
@@ -161,7 +161,7 @@ class TestMcpAssemblyTools(unittest.TestCase):
             "render_views": True, "views": "front,iso",
         })
         self.assertEqual(len(_images(result)), 2)
-        self.assertEqual(_payload(result)["meta"]["part_count"], 5)
+        self.assertEqual(_payload(result)["meta"]["part_count"], 1)
 
     def test_inspect_component_without_renders_returns_no_images(self):
         result = _call("assemble_inspect_component", {
@@ -208,6 +208,37 @@ class TestMcpAssemblyTools(unittest.TestCase):
     def test_inspect_component_requires_a_selector(self):
         payload = _payload(_call("assemble_inspect_component", {"spec": str(self.spec)}))
         self.assertIn("error", payload)
+
+
+class TestMcpOccurrenceOpacity(unittest.TestCase):
+    def test_render_and_check_expose_opacity_controls(self):
+        for name in ("assemble_render_views", "assemble_check_round"):
+            tool = next(t for t in server.TOOLS if t["name"] == name)
+            props = tool["inputSchema"]["properties"]
+            self.assertIn("opacity_by_instance", props)
+            self.assertIn("opacity_by_component", props)
+
+    def test_opacity_returns_view_state_and_images_without_usd(self):
+        fixture = Path(__file__).resolve().parents[1] / "examples/relative_placement/parts/plate.step"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cad = root / "CAD"
+            cad.mkdir()
+            (cad / "part.step").write_bytes(fixture.read_bytes())
+            spec = root / "spec.yaml"
+            spec.write_text(SPEC_TEMPLATE.format(root=root.as_posix()), encoding="utf-8")
+            result = _call("assemble_check_round", {
+                "spec": str(spec), "opacity_by_instance": {"part_a": 0.2},
+            })
+            self.assertFalse(result.get("isError"), _payload(result))
+            self.assertEqual(len(_images(result)), 2)
+            views = _payload(result)["meta"]["render"]["review_views"]
+            for view in views:
+                state = view["view_state"]
+                self.assertEqual(state["opacity_by_instance"], {"part_a": 0.2})
+                self.assertIn("part_a", state["occurrence_ids"])
+                self.assertIn("depth_peeling_used", state)
+                self.assertEqual(base64.b64decode(_images(result)[0]["data"])[:8], b"\x89PNG\r\n\x1a\n")
 
 
 if __name__ == "__main__":

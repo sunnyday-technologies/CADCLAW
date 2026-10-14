@@ -19,6 +19,8 @@ Runtime dependency: vtk (bundled with cadquery-ocp) + Pillow.
 Rendering is offscreen so it works in headless environments.
 """
 import glob
+from dataclasses import dataclass
+import math
 import os
 import shutil
 import sys
@@ -458,7 +460,7 @@ def _scene_bounds(shapes):
 
 
 def _aim_camera(renderer, shapes, view: str = "iso", azimuth: float = 0.0,
-                 elevation: float = 0.0, zoom: float = 1.1):
+                 elevation: float = 0.0, zoom: float = 1.1, bounds=None):
     """Point the camera using a CAD-standard Z-up convention.
 
     Sets the *direction* from the preset and then calls ResetCamera so
@@ -480,7 +482,7 @@ def _aim_camera(renderer, shapes, view: str = "iso", azimuth: float = 0.0,
       - "top":         looking down +Z
       - "bottom":      looking up +Z (camera below)
     """
-    xmin, xmax, ymin, ymax, zmin, zmax = _scene_bounds(shapes)
+    xmin, xmax, ymin, ymax, zmin, zmax = bounds if bounds is not None else _scene_bounds(shapes)
     cx = (xmin + xmax) / 2
     cy = (ymin + ymax) / 2
     cz = (zmin + zmax) / 2
@@ -520,6 +522,246 @@ def _aim_camera(renderer, shapes, view: str = "iso", azimuth: float = 0.0,
     renderer.ResetCameraClippingRange()
 
 
+class PreparedStepScene:
+    """One invocation's meshes, actors, palette and bounds across cameras.
+
+    A scene owns its native render window and must be closed. Translucent views
+    fail explicitly when the backend did not use depth peeling; ordinary alpha
+    blending alone does not establish correct overlapping-part occlusion.
+    """
+
+    def __init__(self, renderer, window, bounds, state, actors):
+        self.renderer = renderer
+        self.window = window
+        self.bounds = bounds
+        self.view_state = state
+        self.closed = False
+        self.actors = actors
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()
+
+    def close(self):
+        if not self.closed:
+            self.window.Finalize()
+            self.renderer.RemoveAllViewProps()
+            self.window.RemoveRenderer(self.renderer)
+            self.actors.clear()
+            self.closed = True
+
+    def set_opacity_by_instance(self, values):
+        """Change visibility only; preserve the invocation's prepared meshes."""
+        values = dict(values)
+        unknown = set(values) - set(self.view_state["occurrence_ids"])
+        if unknown:
+            raise ValueError(f"unknown occurrence opacity selectors: {', '.join(sorted(unknown))}")
+        if any(not math.isfinite(value) or not 0 <= value <= 1 for value in values.values()):
+            raise ValueError("opacity must be finite and between zero and one")
+        for instance_id, actor in self.actors:
+            opacity = values.get(instance_id, 1.0)
+            actor.GetProperty().SetOpacity(opacity)
+            actor.SetVisibility(opacity != 0)
+        translucent = any(0 < value < 1 for value in values.values())
+        self.window.SetMultiSamples(0 if translucent else 8)
+        self.window.SetAlphaBitPlanes(1 if translucent else 0)
+        self.renderer.SetUseDepthPeeling(translucent)
+        if translucent:
+            self.renderer.SetMaximumNumberOfPeels(100)
+            self.renderer.SetOcclusionRatio(0.0)
+        self.view_state.update({"opacity_by_instance": values, "translucency_requested": translucent})
+
+    def render_to_png(self, output_path, width=960, height=720, view="iso", azimuth=0.0, elevation=0.0,
+                      opacity_by_instance=None):
+        import vtk
+
+        if self.closed:
+            raise RuntimeError("prepared scene is closed")
+        try:
+            if opacity_by_instance is not None:
+                self.set_opacity_by_instance(opacity_by_instance)
+            # Match the historical camera's fresh state and pre-window framing.
+            # Zoom changes ViewAngle, so reusing a camera would accumulate zoom.
+            self.window.RemoveRenderer(self.renderer)
+            self.renderer.SetRenderWindow(None)
+            self.renderer.SetAspect(1.0, 1.0)
+            self.renderer.SetActiveCamera(vtk.vtkCamera())
+            _aim_camera(self.renderer, [], view=view, azimuth=azimuth, elevation=elevation, bounds=self.bounds)
+            self.window.SetSize(width, height)
+            self.window.AddRenderer(self.renderer)
+            self.window.Render()
+            used = bool(self.renderer.GetLastRenderingUsedDepthPeeling())
+            self.view_state.update({"view": view, "azimuth": azimuth, "elevation": elevation,
+                                    "width": width, "height": height, "depth_peeling_used": used})
+            if self.view_state["translucency_requested"] and not used:
+                self.view_state["translucency_backend"] = "unavailable"
+                raise RuntimeError("depth peeling unavailable; overlapping translucent review cannot be qualified")
+            self.view_state["translucency_backend"] = "depth_peeling" if used else "opaque"
+            to_image = vtk.vtkWindowToImageFilter()
+            to_image.SetInput(self.window)
+            to_image.ReadFrontBufferOff()
+            to_image.Update()
+            writer = vtk.vtkPNGWriter()
+            writer.SetFileName(str(output_path))
+            writer.SetInputConnection(to_image.GetOutputPort())
+            writer.Write()
+            return str(output_path)
+        except Exception:
+            self.close()
+            raise
+
+
+def _prepare_polydata_scene(parts, bounds, *, opacity_by_instance=None,
+                            background_top=(0.62, 0.66, 0.70), background_bottom=(0.38, 0.42, 0.47),
+                            edges=True, edge_color=(0.05, 0.06, 0.06), representation="STEP display mesh"):
+    import vtk
+
+    opacities = dict(opacity_by_instance or {})
+    ids = {instance_id for instance_id, _, _ in parts if instance_id is not None}
+    unknown = set(opacities) - ids
+    if unknown:
+        raise ValueError(f"unknown occurrence opacity selectors: {', '.join(sorted(unknown))}")
+    if any(not math.isfinite(value) or not 0 <= value <= 1 for value in opacities.values()):
+        raise ValueError("opacity must be finite and between zero and one")
+    renderer = vtk.vtkRenderer()
+    renderer.SetBackground(*background_bottom)
+    renderer.SetBackground2(*background_top)
+    renderer.GradientBackgroundOn()
+    window = vtk.vtkRenderWindow()
+    try:
+        actors = []
+        for instance_id, poly, color in parts:
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInputData(poly)
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+            prop = actor.GetProperty()
+            prop.SetColor(*color)
+            opacity = opacities.get(instance_id, 1.0)
+            prop.SetOpacity(opacity)
+            if opacity == 0:
+                actor.SetVisibility(False)
+            prop.SetAmbient(1.0)
+            prop.SetDiffuse(0.0)
+            prop.SetSpecular(0.0)
+            if edges:
+                prop.EdgeVisibilityOn()
+                prop.SetEdgeColor(*edge_color)
+                prop.SetLineWidth(0.6)
+            renderer.AddActor(actor)
+            actors.append((instance_id, actor))
+        head = vtk.vtkLight()
+        head.SetLightTypeToHeadlight()
+        head.SetIntensity(1.0)
+        renderer.AddLight(head)
+        translucent = any(0 < value < 1 for value in opacities.values())
+        window.SetOffScreenRendering(1)
+        window.SetMultiSamples(0 if translucent else 8)
+        if translucent:
+            # VTK's documented depth-peeling requirements; verify after Render.
+            window.SetAlphaBitPlanes(1)
+            renderer.SetUseDepthPeeling(1)
+            renderer.SetMaximumNumberOfPeels(100)
+            renderer.SetOcclusionRatio(0.0)
+        state = {"representation": representation, "occurrence_ids": sorted(ids),
+                 "opacity_by_instance": opacities, "translucency_requested": translucent,
+                 "depth_peeling_used": False, "translucency_backend": "not_rendered",
+                 "geometry_visibility_scope": "all supplied occurrences; zero-opacity actors hidden; full-scene framing",
+                 "actor_count": len(parts)}
+        return PreparedStepScene(renderer, window, bounds, state, actors)
+    except Exception:
+        window.Finalize()
+        renderer.RemoveAllViewProps()
+        raise
+
+
+def prepare_step_scene(step_path, *, instance_shapes=None, opacity_by_instance=None,
+                       background_top=(0.62, 0.66, 0.70), background_bottom=(0.38, 0.42, 0.47),
+                       labels=None, color_map=None, default_color=COLOR_PRINTED, edges=True,
+                       edge_color=(0.05, 0.06, 0.06), tessellation_tol=0.5, use_step_colors=True):
+    """Prepare meshes once; named placed shapes retain explicit occurrence IDs.
+
+    The ordinary STEP path preserves historical dedup/color behavior. Named
+    occurrences never use bbox or color signatures to infer identities.
+    """
+    if instance_shapes is None:
+        shapes = _load_shapes(str(step_path))
+        named = [(None, shape) for shape in shapes]
+    else:
+        named = []
+        for instance_id, compound in instance_shapes:
+            solids = list(compound.Solids())
+            # Solids contain their shells. Do not draw a solid's shell twice.
+            solid_shells = [shell for solid in solids for shell in solid.Shells()]
+            shells = [shell for shell in compound.Shells()
+                      if not any(shell.isSame(owned) for owned in solid_shells)]
+            named.extend((instance_id, shape) for shape in [*solids, *shells])
+        shapes = [shape for _, shape in named]
+    if not shapes:
+        raise ValueError(f"No geometry found in {step_path}")
+    step_colors = _extract_step_colors(str(step_path)) if use_step_colors else None
+    parts = [(instance_id, shape.toVtkPolyData(tolerance=tessellation_tol, angularTolerance=0.3),
+              _color_for(shape, labels, color_map, default_color, step_colors=step_colors))
+             for instance_id, shape in named]
+    scene = _prepare_polydata_scene(parts, _scene_bounds(shapes), opacity_by_instance=opacity_by_instance,
+                                   background_top=background_top, background_bottom=background_bottom,
+                                   edges=edges, edge_color=edge_color)
+    if instance_shapes is None:
+        scene.view_state["geometry_visibility_scope"] = "STEP solids/shells with historical bbox deduplication"
+    return scene
+
+
+@dataclass(frozen=True)
+class MeshRenderPart:
+    """An explicitly identified display mesh; no exact-BRep claim is attached."""
+
+    instance_id: str
+    vertices: object
+    triangles: object
+    color: tuple = COLOR_PRINTED
+    opacity: float = 1.0
+
+
+def prepare_mesh_scene(parts, **style):
+    """Reuse the same camera/opacity renderer for supplied native mesh groups."""
+    import vtk
+
+    poly_parts, points_all, opacities, ids = [], [], {}, set()
+    for part in parts:
+        if not part.instance_id or part.instance_id in ids:
+            raise ValueError("mesh occurrence IDs must be unique and nonempty")
+        ids.add(part.instance_id)
+        vertices = list(part.vertices)
+        if not vertices or any(len(v) != 3 or any(not math.isfinite(float(x)) for x in v) for v in vertices):
+            raise ValueError("mesh vertices must be finite xyz triples")
+        points = vtk.vtkPoints()
+        points.SetDataTypeToDouble()
+        for vertex in vertices:
+            points.InsertNextPoint(*vertex)
+        triangles = vtk.vtkCellArray()
+        for triangle in part.triangles:
+            if len(triangle) != 3 or any(not isinstance(index, int) or not 0 <= index < len(vertices) for index in triangle):
+                raise ValueError("mesh triangles require three in-range integer vertex indices")
+            triangles.InsertNextCell(3)
+            for index in triangle:
+                triangles.InsertCellPoint(index)
+        if not triangles.GetNumberOfCells():
+            raise ValueError("mesh must contain triangles")
+        poly = vtk.vtkPolyData()
+        poly.SetPoints(points)
+        poly.SetPolys(triangles)
+        poly_parts.append((part.instance_id, poly, part.color))
+        points_all.extend(vertices)
+        opacities[part.instance_id] = part.opacity
+    if not points_all:
+        raise ValueError("mesh scene has no geometry")
+    bounds = tuple(value for axis in range(3) for value in (min(v[axis] for v in points_all), max(v[axis] for v in points_all)))
+    return _prepare_polydata_scene(poly_parts, bounds, opacity_by_instance=opacities,
+                                   representation="mesh visualization_only", **style)
+
+
 def render_step_to_png(step_path: str, output_path: str,
                         width: int = 960, height: int = 720,
                         view: str = "iso",
@@ -557,77 +799,13 @@ def render_step_to_png(step_path: str, output_path: str,
         edge_color: RGB 0-1 for the edges.
         tessellation_tol: Mesh tolerance in mm. Coarser = faster, less detail.
     """
-    import vtk
-
-    shapes = _load_shapes(step_path)
-    if not shapes:
-        raise ValueError(f"No geometry found in {step_path}")
-    step_colors = _extract_step_colors(step_path) if use_step_colors else None
-
-    renderer = vtk.vtkRenderer()
-    renderer.SetBackground(*background_bottom)
-    renderer.SetBackground2(*background_top)
-    renderer.GradientBackgroundOn()
-
-    # One actor per shape so colors can differ per part (extrusion vs printed).
-    for shape in shapes:
-        poly = shape.toVtkPolyData(tolerance=tessellation_tol,
-                                     angularTolerance=0.3)
-        mapper = vtk.vtkPolyDataMapper()
-        mapper.SetInputData(poly)
-
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
-        prop = actor.GetProperty()
-        color = _color_for(shape, labels, color_map, default_color,
-                           step_colors=step_colors)
-        prop.SetColor(*color)
-        # Fully flat shading — colors render at their raw RGB value with no
-        # lighting darkening. Depth cue comes from part-edge outlines and
-        # the assembly silhouette, not from shading. Matches the CAD-
-        # illustration aesthetic and preserves brand-color fidelity.
-        prop.SetAmbient(1.0)
-        prop.SetDiffuse(0.0)
-        prop.SetSpecular(0.0)
-        if edges:
-            prop.EdgeVisibilityOn()
-            prop.SetEdgeColor(*edge_color)
-            prop.SetLineWidth(0.6)
-        renderer.AddActor(actor)
-
-    # Single headlight at full intensity. Combined with the per-actor
-    # property (ambient = 1 - face_shading, diffuse = face_shading), the
-    # brightest face of any part renders at exactly its assigned color
-    # (1.0 contribution = ambient + diffuse * cos(0) * 1.0). Faces
-    # turned away dim by `face_shading` in absolute terms — visible
-    # surface cues without darkening the brand color on lit faces.
-    head = vtk.vtkLight()
-    head.SetLightTypeToHeadlight()
-    head.SetIntensity(1.0)
-    renderer.AddLight(head)
-
-    _aim_camera(renderer, shapes, view=view,
-                 azimuth=azimuth, elevation=elevation)
-
-    window = vtk.vtkRenderWindow()
-    window.SetOffScreenRendering(1)
-    window.SetMultiSamples(8)
-    window.SetSize(width, height)
-    window.AddRenderer(renderer)
-    window.Render()
-
-    to_image = vtk.vtkWindowToImageFilter()
-    to_image.SetInput(window)
-    to_image.ReadFrontBufferOff()
-    to_image.Update()
-
-    writer = vtk.vtkPNGWriter()
-    writer.SetFileName(output_path)
-    writer.SetInputConnection(to_image.GetOutputPort())
-    writer.Write()
-
-    window.Finalize()
-    return output_path
+    with prepare_step_scene(step_path, background_top=background_top,
+                            background_bottom=background_bottom, labels=labels,
+                            color_map=color_map, default_color=default_color, edges=edges,
+                            edge_color=edge_color, tessellation_tol=tessellation_tol,
+                            use_step_colors=use_step_colors) as scene:
+        return scene.render_to_png(output_path, width=width, height=height,
+                                   view=view, azimuth=azimuth, elevation=elevation)
 
 
 def render_frames_to_gif(frames_dir: str, output_gif: str,

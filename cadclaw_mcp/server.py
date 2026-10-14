@@ -685,7 +685,9 @@ def tool_assemble_check_round(spec: str, connector_metadata: str = None,
                               render_views: bool = True,
                               write_inventory: bool = True,
                               write_report: bool = False,
-                              return_images: bool = True) -> dict:
+                              return_images: bool = True,
+                              opacity_by_instance: dict = None,
+                              opacity_by_component: dict = None) -> dict:
     """Build, inventory-check, render review views, and report one round.
 
     This is the main iteration loop: edit the spec, call this, look at the
@@ -698,6 +700,8 @@ def tool_assemble_check_round(spec: str, connector_metadata: str = None,
         render_views=render_views,
         write_inventory=write_inventory,
         write_report=write_report,
+        opacity_by_instance=opacity_by_instance,
+        opacity_by_component=opacity_by_component,
     )
     return _attach_images(report.to_dict(), return_images)
 
@@ -725,13 +729,19 @@ def tool_assemble_inspect_component(spec: str, component_id: str = None,
 
 def tool_assemble_render_views(spec: str, step: str = None,
                                views_dir: str = None,
-                               return_images: bool = True) -> dict:
+                               return_images: bool = True,
+                               opacity_by_instance: dict = None,
+                               opacity_by_component: dict = None) -> dict:
     """Render the review_views declared by an assembly spec.
 
     The visual-review step: renders the assembly from the declared angles and
     hands the images back so they can be checked against the design intent.
     """
-    report = render_review_views(spec, step_path=step, views_dir=views_dir)
+    report = render_review_views(
+        spec, step_path=step, views_dir=views_dir,
+        opacity_by_instance=opacity_by_instance,
+        opacity_by_component=opacity_by_component,
+    )
     return _attach_images(report.to_dict(), return_images)
 
 
@@ -1115,6 +1125,8 @@ TOOLS = [
                 "write_inventory": {"type": "boolean", "description": "Write the design inventory during the round (default true)"},
                 "write_report": {"type": "boolean", "description": "Write the round report to spec.outputs.report when declared"},
                 "return_images": {"type": "boolean", "description": "Return rendered views as inline images (default true)"},
+                "opacity_by_instance": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}, "description": "Per-occurrence review opacity overrides; unspecified parts stay opaque. Exact checks are unchanged."},
+                "opacity_by_component": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}, "description": "Opacity for declared component IDs; per-instance opacity takes precedence."},
             },
             "required": ["spec"],
         },
@@ -1146,6 +1158,8 @@ TOOLS = [
                 "step": {"type": "string", "description": "Optional STEP path to render; defaults to spec.outputs.step"},
                 "views_dir": {"type": "string", "description": "Optional output directory; defaults to spec.outputs.views_dir"},
                 "return_images": {"type": "boolean", "description": "Return rendered views as inline images (default true)"},
+                "opacity_by_instance": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}, "description": "Per-occurrence review opacity overrides; unspecified parts stay opaque. Exact checks are unchanged."},
+                "opacity_by_component": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}, "description": "Opacity for declared component IDs; per-instance opacity takes precedence."},
             },
             "required": ["spec"],
         },
