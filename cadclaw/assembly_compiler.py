@@ -8,8 +8,10 @@ non-authoritative STEP path.
 from __future__ import annotations
 
 from collections import Counter
+from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 import csv
+import hashlib
 import math
 import os
 from pathlib import Path
@@ -68,6 +70,7 @@ class ReviewViewOutput:
     height: int
     rendered: bool
     message: Optional[str] = None
+    view_state: Dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -93,6 +96,66 @@ class PlacedInstanceShape:
 
 
 @dataclass
+class SourceGeometryContext:
+    """Invocation-scoped authored prototypes, keyed by bytes and import settings.
+
+    CadQuery transforms copy geometry; callers receive a new Workplane container
+    and never change the stored prototype. A source changed during the invocation
+    is rejected, including on transformed-shape cache hits. No state survives a
+    build/check/sequence invocation.
+    """
+
+    snapshots: Dict[str, str] = field(default_factory=dict)
+    prototypes: Dict[Tuple[str, str], Tuple[object, ...]] = field(default_factory=dict)
+    imports: int = 0
+    hits: int = 0
+
+    @staticmethod
+    def _digest(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    def capture_plan(self, plan: AssemblyBuildPlan) -> None:
+        for value in sorted({instance.resolved_path for instance in plan.instances if instance.exists}):
+            path = Path(value).resolve()
+            key = str(path)
+            digest = self._digest(path)
+            previous = self.snapshots.setdefault(key, digest)
+            if previous != digest:
+                raise RuntimeError(f"authored STEP changed during invocation: {_display_path(path)}")
+
+    def validate(self) -> None:
+        for value, expected in self.snapshots.items():
+            path = Path(value)
+            if self._digest(path) != expected:
+                raise RuntimeError(f"authored STEP changed during invocation: {_display_path(path)}")
+
+    def load(self, source_path: Path):
+        import cadquery as cq
+
+        path = source_path.resolve()
+        digest = self._digest(path)
+        expected = self.snapshots.setdefault(str(path), digest)
+        if digest != expected:
+            raise RuntimeError(f"authored STEP changed during invocation: {_display_path(path)}")
+        key = (digest, "cadquery.importers.importStep:default")
+        prototype = self.prototypes.get(key)
+        if prototype is None:
+            source = cq.importers.importStep(str(path))
+            if self._digest(path) != digest:
+                raise RuntimeError(f"authored STEP changed during import: {_display_path(path)}")
+            prototype = tuple(source.vals())
+            self.prototypes[key] = prototype
+            self.imports += 1
+        else:
+            self.hits += 1
+        return cq.Workplane("XY").newObject(list(prototype))
+
+
+@dataclass
 class GeometryShapeCache:
     """Per-run cache for transformed instance shapes used by validation gates."""
 
@@ -103,6 +166,7 @@ class GeometryShapeCache:
     hits: int = 0
     misses: int = 0
     loaded_instances: int = 0
+    source_geometry: SourceGeometryContext = field(default_factory=SourceGeometryContext)
 
     def key_for(self, instance_ids: Iterable[str] | None) -> Tuple[str, ...]:
         if instance_ids is None:
@@ -116,6 +180,8 @@ class GeometryShapeCache:
             "misses": self.misses,
             "loaded_instances": self.loaded_instances,
             "cached_instance_sets": len(self.records_by_key),
+            "source_imports": self.source_geometry.imports,
+            "source_hits": self.source_geometry.hits,
         }
 
 
@@ -759,6 +825,7 @@ def _export_step(
     plan: AssemblyBuildPlan,
     output_path: str | Path | None = None,
     instance_ids: Iterable[str] | None = None,
+    source_geometry: SourceGeometryContext | None = None,
 ) -> Path:
     import cadquery as cq
     from cadquery import Assembly
@@ -768,6 +835,11 @@ def _export_step(
     manifest_sources = _load_manifest_sources(spec.manifests, spec_dir)
     by_id = {instance.id: instance for instance in spec.instances}
     wanted = set(instance_ids) if instance_ids is not None else None
+    if wanted == set(by_id):
+        wanted = None
+    if source_geometry is not None:
+        source_geometry.capture_plan(plan)
+        source_geometry.validate()
     for resolved in plan.instances:
         if wanted is not None and resolved.id not in wanted:
             continue
@@ -778,7 +850,10 @@ def _export_step(
         if source_ref is None:
             continue
         source_path = resolve_source_path(source_ref, spec, spec_dir)
-        source = cq.importers.importStep(str(source_path))
+        source = (
+            source_geometry.load(source_path) if source_geometry is not None
+            else cq.importers.importStep(str(source_path))
+        )
         placed = _apply_transform(source, instance.transform)
         assy.add(placed, name=resolved.id)
 
@@ -787,7 +862,60 @@ def _export_step(
         output = _resolve_output_path(str(output))
     output.parent.mkdir(parents=True, exist_ok=True)
     assy.save(str(output))
+    if source_geometry is not None:
+        source_geometry.validate()
+        # Selective standalone reviews must be bound to the exported artifact,
+        # rather than silently drawing a newer spec over an older STEP file.
+        provenance = {
+            "schema": "cadclaw-step-occurrences.v0.1",
+            "step_sha256": SourceGeometryContext._digest(output),
+            "geometry_sha256": _geometry_identity(spec, plan, instance_ids=wanted),
+            "source_sha256": dict(source_geometry.snapshots),
+            "occurrence_ids": [resolved.id for resolved in plan.instances
+                               if wanted is None or resolved.id in wanted],
+            "scope": "full" if wanted is None else "subset",
+        }
+        _step_provenance_path(output).write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
     return output
+
+
+def _step_provenance_path(step: Path) -> Path:
+    return step.with_name(step.name + ".cadclaw.json")
+
+
+def _geometry_identity(spec: AssemblySpec, plan: AssemblyBuildPlan, instance_ids=None) -> str:
+    data = {"instances": [instance.model_dump() for instance in spec.instances],
+            "resolved_paths": [str(Path(instance.resolved_path).resolve()) for instance in plan.instances],
+            "export_scope": sorted(instance_ids) if instance_ids is not None else None}
+    return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
+
+
+def _verified_occurrence_records(spec, spec_file, step, shape_cache=None, instance_ids=None):
+    try:
+        known = {instance.id for instance in spec.instances}
+        if instance_ids is not None and set(instance_ids) == known:
+            instance_ids = None
+        provenance = json.loads(_step_provenance_path(step).read_text(encoding="utf-8"))
+        plan = plan_assembly_build(spec_file, dry_run=False)
+        cache = shape_cache or GeometryShapeCache()
+        cache.source_geometry.capture_plan(plan)
+        if (provenance.get("schema") != "cadclaw-step-occurrences.v0.1"
+                or provenance.get("step_sha256") != SourceGeometryContext._digest(step)
+                or provenance.get("geometry_sha256") != _geometry_identity(spec, plan, instance_ids=instance_ids)
+                or provenance.get("source_sha256") != cache.source_geometry.snapshots):
+            raise ValueError("STEP/spec/source identity mismatch")
+        ids = provenance.get("occurrence_ids")
+        expected = set(instance_ids) if instance_ids is not None else known
+        if (not isinstance(ids, list) or len(ids) != len(set(ids)) or set(ids) != expected
+                or provenance.get("scope") != ("full" if instance_ids is None else "subset")):
+            raise ValueError("invalid STEP occurrence map")
+        records, findings = _placed_instance_shapes(spec, spec_file, plan,
+                                                   instance_ids=None if set(ids) == known else ids, shape_cache=cache)
+        if findings or {record.id for record in records} != set(ids):
+            raise ValueError("mapped authored occurrences cannot be loaded")
+        return records
+    except (OSError, ValueError, RuntimeError, TypeError) as exc:
+        raise ValueError(f"selective opacity requires a current hash-bound STEP occurrence map; rebuild the assembly: {exc}") from exc
 
 
 def _placed_instance_shapes(
@@ -802,7 +930,19 @@ def _placed_instance_shapes(
     cache_key: Tuple[str, ...] | None = None
     if shape_cache is not None:
         shape_cache.requests += 1
-        cache_key = shape_cache.key_for(instance_ids)
+        # A changed transform/rule/spec can never hit the old subset-only key.
+        cache_key = (json.dumps(spec.model_dump(), sort_keys=True), *shape_cache.key_for(instance_ids))
+        try:
+            shape_cache.source_geometry.capture_plan(plan)
+            shape_cache.source_geometry.validate()
+        except (OSError, RuntimeError) as exc:
+            shape_cache.records_by_key.clear()
+            shape_cache.misses += 1
+            return [], [Finding(
+                id="assemble.source_snapshot_changed", category="assemble", severity=Severity.FAIL,
+                message=f"authored STEP snapshot is no longer valid for this invocation: {exc}",
+                evidence={"instance_ids": list(instance_ids) if instance_ids is not None else None},
+            )]
         cached = shape_cache.records_by_key.get(cache_key)
         if cached is not None:
             shape_cache.hits += 1
@@ -826,7 +966,10 @@ def _placed_instance_shapes(
             continue
         source_path = resolve_source_path(source_ref, spec, spec_dir)
         try:
-            source = cq.importers.importStep(str(source_path))
+            source = (
+                shape_cache.source_geometry.load(source_path) if shape_cache is not None
+                else cq.importers.importStep(str(source_path))
+            )
             placed = _apply_transform(source, instance.transform)
             records.append(PlacedInstanceShape(
                 id=resolved.id,
@@ -2928,6 +3071,8 @@ def _review_views_for_names(spec: AssemblySpec, view_names: List[str]) -> List[R
                 azimuth=view.azimuth,
                 elevation=view.elevation,
                 notes=view.notes,
+                opacity_by_instance=view.opacity_by_instance,
+                opacity_by_component=view.opacity_by_component,
             ))
         else:
             resolved.append(ReviewView(name=name, view=name, width=1400, height=900))
@@ -3018,9 +3163,6 @@ def run_assembly_sequence(
         validate_bbox_alignment and not dry_run and not blocking
     )
     sequence_blocked_at: Optional[str] = None
-    if renderer is None and render_views:
-        from .render import render_step_to_png as renderer
-
     for index, step in enumerate(spec.assembly_sequence, start=1):
         if sequence_blocked_at:
             break
@@ -3039,6 +3181,7 @@ def run_assembly_sequence(
                 plan,
                 output_path=step_path,
                 instance_ids=cumulative,
+                source_geometry=shape_cache.source_geometry if shape_cache is not None else None,
             )
         else:
             written_step = None
@@ -3217,19 +3360,15 @@ def run_assembly_sequence(
             validation_status = "fail" if step_failed else "pass"
 
         if render_views and written_step is not None:
-            for view in review_views:
-                output = views_dir / f"{step_prefix}_{view.name}.png"
+            for view, output, view_state, error in _render_declared_views(
+                spec, spec_file, written_step, review_views,
+                lambda view: views_dir / f"{step_prefix}_{view.name}.png",
+                renderer=renderer, shape_cache=shape_cache,
+                instance_ids=cumulative,
+            ):
                 try:
-                    output.parent.mkdir(parents=True, exist_ok=True)
-                    renderer(
-                        str(written_step),
-                        str(output),
-                        width=view.width,
-                        height=view.height,
-                        view=view.view,
-                        azimuth=view.azimuth,
-                        elevation=view.elevation,
-                    )
+                    if error is not None:
+                        raise error
                     rendered.append(ReviewViewOutput(
                         name=view.name,
                         view=view.view,
@@ -3237,6 +3376,7 @@ def run_assembly_sequence(
                         width=view.width,
                         height=view.height,
                         rendered=output.exists(),
+                        view_state=view_state,
                     ))
                     if not output.exists():
                         findings.append(Finding(
@@ -3262,6 +3402,7 @@ def run_assembly_sequence(
                         height=view.height,
                         rendered=False,
                         message=str(exc),
+                        view_state=view_state,
                     ))
         elif render_views:
             findings.append(Finding(
@@ -3334,6 +3475,7 @@ def run_assembly_sequence(
             plan,
             output_path=final_step,
             instance_ids=cumulative,
+            source_geometry=shape_cache.source_geometry if shape_cache is not None else None,
         )
 
     rotation_output = None
@@ -3589,11 +3731,75 @@ def _view_output_path(views_dir: Path, view: ReviewView) -> Path:
     return views_dir / f"{safe_name or view.view}.png"
 
 
+def _view_opacities(spec, view, instance_override, component_override, occurrence_ids):
+    known = {instance.id for instance in spec.instances}
+    components = {instance.component_id for instance in spec.instances if instance.component_id}
+    instance_values = {**view.opacity_by_instance, **(instance_override or {})}
+    component_values = {**view.opacity_by_component, **(component_override or {})}
+    if set(instance_values) - known or set(component_values) - components:
+        raise ValueError("unknown instance/component opacity selector")
+    if any(not math.isfinite(value) or not 0 <= value <= 1
+           for value in [*instance_values.values(), *component_values.values()]):
+        raise ValueError("opacity must be finite and between zero and one")
+    resolved = {instance.id: component_values[instance.component_id]
+                for instance in spec.instances if instance.component_id in component_values}
+    resolved.update(instance_values)
+    return {instance_id: value for instance_id, value in resolved.items() if instance_id in occurrence_ids}
+
+
+def _render_declared_views(spec, spec_file, step, views, output_for, *, renderer=None, shape_cache=None,
+                           opacity_by_instance=None, opacity_by_component=None, instance_ids=None):
+    """Prepare one scene even when opacity/camera state differs among views."""
+    selective = bool(opacity_by_instance or opacity_by_component or any(
+        view.opacity_by_instance or view.opacity_by_component for view in views
+    ))
+    scene = None
+    try:
+        for view in views:
+            output = output_for(view)
+            state = {}
+            try:
+                output.parent.mkdir(parents=True, exist_ok=True)
+                if renderer is not None:
+                    if selective:
+                        raise ValueError("custom renderer has no verified occurrence opacity contract")
+                    renderer(str(step), str(output), width=view.width, height=view.height,
+                             view=view.view, azimuth=view.azimuth, elevation=view.elevation)
+                else:
+                    from .render import prepare_step_scene
+                    if scene is None:
+                        named = None
+                        if selective:
+                            records = _verified_occurrence_records(spec, spec_file, step, shape_cache=shape_cache,
+                                                                   instance_ids=instance_ids)
+                            named = [(record.id, record.shape) for record in records]
+                        scene = prepare_step_scene(str(step), instance_shapes=named)
+                    opacities = _view_opacities(spec, view, opacity_by_instance, opacity_by_component,
+                                               set(scene.view_state["occurrence_ids"])) if selective else {}
+                    scene.render_to_png(str(output), width=view.width, height=view.height, view=view.view,
+                                        azimuth=view.azimuth, elevation=view.elevation, opacity_by_instance=opacities)
+                    state = deepcopy(scene.view_state)
+                    state["geometry_source"] = "hash-bound authored occurrences" if selective else "declared STEP artifact"
+                    state["opacity_by_component"] = {**view.opacity_by_component, **(opacity_by_component or {})}
+                    state["requested_opacity_by_instance"] = {**view.opacity_by_instance, **(opacity_by_instance or {})}
+                yield view, output, state, None
+            except Exception as exc:
+                if scene is not None:
+                    state = deepcopy(scene.view_state)
+                yield view, output, state, exc
+    finally:
+        if scene is not None:
+            scene.close()
+
+
 def render_review_views(
     spec_path: str | Path,
     step_path: str | Path | None = None,
     views_dir: str | Path | None = None,
     renderer: Optional[Callable[..., str]] = None,
+    opacity_by_instance: Dict[str, float] | None = None,
+    opacity_by_component: Dict[str, float] | None = None,
+    _shape_cache: GeometryShapeCache | None = None,
 ) -> Report:
     start = time.time()
     spec_file = Path(spec_path)
@@ -3624,21 +3830,15 @@ def render_review_views(
             evidence={"step": _display_path(step)},
         ))
     else:
-        if renderer is None:
-            from .render import render_step_to_png as renderer
         out_dir.mkdir(parents=True, exist_ok=True)
-        for view in spec.review_views:
-            output = _view_output_path(out_dir, view)
+        for view, output, view_state, error in _render_declared_views(
+            spec, spec_file, step, spec.review_views, lambda view: _view_output_path(out_dir, view),
+            renderer=renderer, shape_cache=_shape_cache, opacity_by_instance=opacity_by_instance,
+            opacity_by_component=opacity_by_component,
+        ):
             try:
-                renderer(
-                    str(step),
-                    str(output),
-                    width=view.width,
-                    height=view.height,
-                    view=view.view,
-                    azimuth=view.azimuth,
-                    elevation=view.elevation,
-                )
+                if error is not None:
+                    raise error
                 rendered = output.exists()
                 if not rendered:
                     findings.append(Finding(
@@ -3655,6 +3855,7 @@ def render_review_views(
                     width=view.width,
                     height=view.height,
                     rendered=rendered,
+                    view_state=view_state,
                 ))
             except Exception as exc:
                 findings.append(Finding(
@@ -3675,6 +3876,7 @@ def render_review_views(
                     height=view.height,
                     rendered=False,
                     message=str(exc),
+                    view_state=view_state,
                 ))
 
     report = Report(
@@ -3837,6 +4039,7 @@ def run_assembly_build(
     connector_metadata_path: str | Path | None = None,
     dry_run: bool = True,
     write_inventory: bool = False,
+    _source_geometry: SourceGeometryContext | None = None,
 ) -> Report:
     start = time.time()
     spec_file = Path(spec_path)
@@ -3907,7 +4110,8 @@ def run_assembly_build(
         if finding.severity == Severity.FAIL
     ]
     if not dry_run and not missing and not blocking:
-        _export_step(spec, spec_file, plan)
+        source_geometry = _source_geometry or SourceGeometryContext()
+        _export_step(spec, spec_file, plan, source_geometry=source_geometry)
 
     if write_inventory and spec.outputs.design_inventory:
         write_design_inventory(plan, spec.outputs.design_inventory)
@@ -3968,15 +4172,19 @@ def run_assembly_check_round(
     write_inventory: bool = True,
     render_views: bool = True,
     write_report: bool = False,
+    opacity_by_instance: Dict[str, float] | None = None,
+    opacity_by_component: Dict[str, float] | None = None,
 ) -> Report:
     start = time.time()
     spec_file = Path(spec_path)
     spec = _resolved_spec(spec_file)
+    source_geometry = SourceGeometryContext() if not dry_run else None
     build_report = run_assembly_build(
         spec_file,
         connector_metadata_path=connector_metadata_path,
         dry_run=dry_run,
         write_inventory=write_inventory,
+        _source_geometry=source_geometry,
     )
     findings = list(build_report.findings)
     inventory_findings, role_inventory = _validate_expected_inventory(spec)
@@ -3984,7 +4192,7 @@ def run_assembly_check_round(
     requested_checks = _requested_validation_checks(spec)
     validation_meta: Dict[str, object] = {}
     geometry_plan: Optional[AssemblyBuildPlan] = None
-    shape_cache = GeometryShapeCache() if not dry_run else None
+    shape_cache = GeometryShapeCache(source_geometry=source_geometry) if source_geometry is not None else None
 
     def _get_geometry_plan() -> AssemblyBuildPlan:
         nonlocal geometry_plan
@@ -4162,7 +4370,8 @@ def run_assembly_check_round(
                 message="review views were skipped because assembly build failed",
             ))
         else:
-            render_report = render_review_views(spec_file)
+            render_report = render_review_views(spec_file, opacity_by_instance=opacity_by_instance,
+                                                opacity_by_component=opacity_by_component, _shape_cache=shape_cache)
             findings.extend(render_report.findings)
 
     confidence = ConfidenceBudget(

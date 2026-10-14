@@ -7,6 +7,7 @@ exports, and incomplete work is represented explicitly as `not_built_yet`.
 """
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -249,7 +250,24 @@ class ReviewView(_Strict):
     height: int = 720
     azimuth: float = 0.0
     elevation: float = 0.0
+    opacity_by_instance: Dict[str, float] = Field(default_factory=dict)
+    opacity_by_component: Dict[str, float] = Field(default_factory=dict)
     notes: Optional[str] = None
+
+    @field_validator("opacity_by_instance", "opacity_by_component", mode="before")
+    @classmethod
+    def _check_opacity(cls, value: object) -> Dict[str, float]:
+        if not isinstance(value, dict):
+            raise ValueError("opacity selectors must be a mapping")
+        result = {}
+        for key, opacity in value.items():
+            if not isinstance(key, str) or not key.strip() or key != key.strip():
+                raise ValueError("opacity selectors require nonempty unpadded IDs")
+            if (isinstance(opacity, bool) or not isinstance(opacity, (int, float))
+                    or not math.isfinite(opacity) or not 0.0 <= opacity <= 1.0):
+                raise ValueError("opacity must be a finite number between 0 and 1")
+            result[key] = float(opacity)
+        return result
 
     @field_validator("view")
     @classmethod
@@ -337,6 +355,13 @@ class AssemblySpec(_Strict):
                     f"in variants"
                 )
         known_instances = {instance.id for instance in self.instances}
+        known_components = {instance.component_id for instance in self.instances
+                            if instance.component_id is not None}
+        for view in self.review_views:
+            if set(view.opacity_by_instance) - known_instances:
+                raise ValueError("review opacity references unknown instance IDs")
+            if set(view.opacity_by_component) - known_components:
+                raise ValueError("review opacity references unknown component IDs")
         for step in self.assembly_sequence:
             missing = [
                 instance_id for instance_id in step.instance_ids

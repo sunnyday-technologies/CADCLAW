@@ -212,7 +212,31 @@ review_views:
     height: 720
     azimuth: 0.0
     elevation: 0.0
+    opacity_by_component: {frame_rail: 0.15}
+    opacity_by_instance: {target_rail: 1.0}
 ```
+
+Opacity selectors use declared `component_id` or occurrence `id` values.
+Values range from 0 (invisible) to 1 (opaque); unspecified occurrences are
+opaque and per-instance values take precedence. The example assumes those
+IDs exist in the spec. Ghost surrounding parts to inspect an opaque target's
+alignment. Opacity changes visualization only; exact interference and
+alignment checks still use the full geometry.
+
+MCP `assemble_render_views` and `assemble_check_round` accept the same opacity
+maps as overrides and return images plus each view's resolved occurrence IDs,
+opacity and observed translucency backend state. Selective views use explicit
+placed occurrence records, preserving coincident parts. An explicit STEP
+override remains the rendered artifact; selective opacity requires verified
+occurrence mapping and is rejected when that mapping is unavailable. Face
+selectors and persistent face IDs are not supported.
+
+Review cameras share prepared meshes within an invocation. Transparent views
+request depth peeling with alpha planes and MSAA disabled; the report records
+whether the backend actually used depth peeling. A transparent view fails
+explicitly if depth peeling is unavailable. Review the images before relying
+on hidden-feature visibility. These controls use the
+core CadQuery/OCP and VTK runtime and require no USD package.
 
 These renders serve two audiences. For a person, they are the traceability
 artifact for a round: what the assembly looked like at that point. For an AI

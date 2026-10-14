@@ -70,6 +70,32 @@ validation:
 
 
 class TestAssemblySpec(unittest.TestCase):
+    def test_review_opacity_roundtrip_and_selector_validation(self):
+        data = yaml.safe_load(GOOD_SPEC)
+        data["instances"][0]["component_id"] = "rail"
+        view = data["review_views"][0]
+        view["opacity_by_instance"] = {"rail_1": 1.0}
+        view["opacity_by_component"] = {"rail": 0.15}
+        spec = AssemblySpec.model_validate(data)
+        recovered = AssemblySpec.model_validate(yaml.safe_load(dump_assembly_spec(spec)))
+        self.assertEqual(recovered.review_views[0].opacity_by_instance, {"rail_1": 1.0})
+        self.assertEqual(recovered.review_views[0].opacity_by_component, {"rail": 0.15})
+        for field, bad_key in [("opacity_by_instance", "missing_occurrence"),
+                               ("opacity_by_component", "missing_component")]:
+            with self.subTest(field=field):
+                bad = yaml.safe_load(dump_assembly_spec(spec))
+                bad["review_views"][0][field] = {bad_key: 0.2}
+                with self.assertRaises(ValidationError):
+                    AssemblySpec.model_validate(bad)
+
+    def test_review_opacity_rejects_invalid_values(self):
+        for opacity in [-0.1, 1.1, float("nan"), float("inf"), True, "0.2"]:
+            with self.subTest(opacity=opacity):
+                data = yaml.safe_load(GOOD_SPEC)
+                data["review_views"][0]["opacity_by_instance"] = {"rail_1": opacity}
+                with self.assertRaises(ValidationError):
+                    AssemblySpec.model_validate(data)
+
     def _write_tmp(self, text: str) -> str:
         with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
             f.write(text)
