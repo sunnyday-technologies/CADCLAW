@@ -13,6 +13,9 @@ from cadclaw.assembly_compiler import (
 )
 
 
+AUTHORED_FIXTURE = Path(__file__).resolve().parents[1] / "examples/relative_placement/parts/plate.step"
+
+
 class TestAssemblyCompiler(unittest.TestCase):
     def _touch(self, root: Path, rel: str) -> Path:
         path = root / rel
@@ -291,7 +294,7 @@ instances:
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            fixture = Path(__file__).resolve().parent / "fixtures" / "L1_good.step"
+            fixture = AUTHORED_FIXTURE
             out = root / "build" / "out.step"
             spec = self._write(root, "spec.yaml", f"""
 schema_version: assembly_spec.v0.1
@@ -319,7 +322,7 @@ instances:
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            fixture = Path(__file__).resolve().parent / "fixtures" / "L1_good.step"
+            fixture = AUTHORED_FIXTURE
             spec = self._write(root, "spec.yaml", f"""
 schema_version: assembly_spec.v0.1
 meta:
@@ -347,7 +350,7 @@ instances:
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            fixture = Path(__file__).resolve().parent / "fixtures" / "L1_good.step"
+            fixture = AUTHORED_FIXTURE
             manifest = self._write(root, "manifest.yaml", f"""
 schema_version: m3_component_manifest.v0.1
 components:
@@ -382,7 +385,7 @@ instances:
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            fixture = Path(__file__).resolve().parent / "fixtures" / "L1_good.step"
+            fixture = AUTHORED_FIXTURE
             spec = self._write(root, "spec.yaml", f"""
 schema_version: assembly_spec.v0.1
 meta:
@@ -423,7 +426,7 @@ instances:
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            fixture = Path(__file__).resolve().parent / "fixtures" / "L1_good.step"
+            fixture = AUTHORED_FIXTURE
             out_dir = root / "build" / "sequence"
             bom = root / "build" / "bom.csv"
             spec = self._write(root, "spec.yaml", f"""
