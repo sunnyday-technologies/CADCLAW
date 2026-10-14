@@ -85,6 +85,7 @@ class AssemblySequenceStepOutput:
     validation_status: str = "not_run"
     repair_suggestions: List[str] = field(default_factory=list)
     notes: Optional[str] = None
+    validation: Dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -2681,6 +2682,10 @@ def _run_spec_interference(
     from OCP.BRepGProp import BRepGProp
     from OCP.GProp import GProp_GProps
 
+    # Preserve the historical reporting threshold and bbox screen. Screening
+    # is not an exact query, and a zero intersection volume is not clearance proof.
+    from .bbox import validate_bbox
+
     config = _validation_section(spec, "interference")
     min_volume = float(config.get("min_volume_mm3", config.get("min_volume", 1.0)))
     clearance = float(config.get("min_clearance_mm", 1.0))
@@ -2692,37 +2697,92 @@ def _run_spec_interference(
         for pair in config.get("skip_pairs", [])
         if isinstance(pair, list) and len(pair) == 2
     }
-
+    selected_ids = list(instance_ids) if instance_ids is not None else None
+    selected = set(selected_ids) if selected_ids is not None else None
+    scoped_instances = [item for item in spec.instances if selected is None or item.id in selected]
     records, findings = _placed_instance_shapes(
-        spec, spec_path, plan, instance_ids=instance_ids, shape_cache=shape_cache
+        spec, spec_path, plan, instance_ids=selected_ids, shape_cache=shape_cache
     )
-    bboxes = {record.id: _bbox_tuple(record.shape) for record in records}
+    # Shape-cache findings belong to the importer, not this query invocation.
+    findings = list(findings)
+    by_id = {record.id: record for record in records}
+    missing_ids = sorted(item.id for item in scoped_instances if item.id not in by_id)
+    bboxes = {}
+    invalid_bbox_ids = []
+    for record in records:
+        try:
+            bboxes[record.id] = validate_bbox(_bbox_tuple(record.shape))
+        except Exception:
+            invalid_bbox_ids.append(record.id)
     preferred = {str(value) for value in preferred_movable_ids or []}
+    pair_results = []
     checked_pairs = 0
+    clip_count = 0
+    max_findings_reached = False
 
-    for index, a in enumerate(records):
-        if a.id in skip_instances or a.role in skip_roles:
-            continue
-        bb_a = bboxes[a.id]
-        for b in records[index + 1:]:
-            if b.id in skip_instances or b.role in skip_roles:
+    for index, instance_a in enumerate(scoped_instances):
+        for instance_b in scoped_instances[index + 1:]:
+            pair = {"instance_a": instance_a.id, "instance_b": instance_b.id}
+            pair_results.append(pair)
+            if instance_a.id in skip_instances or instance_b.id in skip_instances:
+                pair.update(status="skipped", reason="configured_instance")
                 continue
-            if _pair_key(a.id, b.id) in skip_pairs:
+            if instance_a.role in skip_roles or instance_b.role in skip_roles:
+                pair.update(status="skipped", reason="configured_role")
                 continue
-            bb_b = bboxes[b.id]
+            if _pair_key(instance_a.id, instance_b.id) in skip_pairs:
+                pair.update(status="skipped", reason="configured_pair")
+                continue
+            if instance_a.id not in by_id or instance_b.id not in by_id:
+                pair.update(status="not_attempted", reason="missing_shape")
+                continue
+            if instance_a.id not in bboxes or instance_b.id not in bboxes:
+                pair.update(status="not_attempted", reason="invalid_bbox")
+                continue
+            a, b = by_id[instance_a.id], by_id[instance_b.id]
+            bb_a, bb_b = bboxes[a.id], bboxes[b.id]
             if not _bbox_overlaps(bb_a, bb_b):
+                pair.update(status="skipped", reason="bbox_screened")
                 continue
+            if max_findings_reached:
+                pair.update(status="not_attempted", reason="max_findings_reached")
+                continue
+
+            # checked_pairs retains its historical attempted-call meaning.
+            # Successful completion is separately counted below.
             checked_pairs += 1
+            stage = "constructor"
             try:
                 common = BRepAlgoAPI_Common(a.shape.wrapped, b.shape.wrapped)
+                stage = "build"
                 common.Build()
+                stage = "is_done"
                 if not common.IsDone():
-                    continue
+                    stage = "boolean_not_done"
+                    raise ValueError("boolean did not complete")
+                stage = "volume"
                 props = GProp_GProps()
                 BRepGProp.VolumeProperties_s(common.Shape(), props)
-                volume = props.Mass()
+                volume = float(props.Mass())
+                if not math.isfinite(volume) or volume < 0:
+                    stage = "invalid_volume"
+                    raise ValueError("invalid intersection volume")
             except Exception:
+                reason = stage if stage in {"boolean_not_done", "invalid_volume"} else f"{stage}_failed"
+                pair.update(status="failed", reason=reason)
+                findings.append(Finding(
+                    id="interference.execution_error",
+                    category="interference",
+                    severity=Severity.FAIL,
+                    message=f"Exact intersection query failed for {a.id} and {b.id}",
+                    evidence={**pair, "backend": "OCP", "stage": stage},
+                ))
                 continue
+            pair.update(
+                status="successful_overlap" if volume > 0 else "successful_empty",
+                volume_mm3=volume,
+                above_threshold=volume > min_volume,
+            )
             if volume <= min_volume:
                 continue
             repair = _choose_interference_repair(
@@ -2770,22 +2830,59 @@ def _run_spec_interference(
                     },
                 },
             ))
-            if len([f for f in findings if f.id == "interference.clip"]) >= max_findings:
-                return findings, {
-                    "checked": True,
-                    "checked_pairs": checked_pairs,
-                    "placed_instances": len(records),
-                    "max_findings_reached": True,
-                    "instance_ids": list(instance_ids) if instance_ids is not None else None,
-                    "preferred_movable_ids": sorted(preferred) or None,
-                }
+            clip_count += 1
+            if clip_count >= max_findings:
+                max_findings_reached = True
 
+    counts = Counter(pair["status"] for pair in pair_results)
+    screened_pairs = sum(pair.get("reason") == "bbox_screened" for pair in pair_results)
+    policy_skipped_pairs = counts["skipped"] - screened_pairs
+    eligible_pairs = len(pair_results) - policy_skipped_pairs
+    successful_pairs = counts["successful_empty"] + counts["successful_overlap"]
+    incomplete = bool(counts["failed"] or counts["not_attempted"] or missing_ids or invalid_bbox_ids
+                      or any(finding.severity == Severity.FAIL for finding in findings
+                             if finding.id != "interference.clip"))
+    if incomplete:
+        findings.append(Finding(
+            id="interference.incomplete",
+            category="interference",
+            severity=Severity.FAIL,
+            message="Instance interference coverage is incomplete; unresolved pairs are not clear",
+            evidence={"failed_pairs": counts["failed"],
+                      "not_attempted_pairs": counts["not_attempted"],
+                      "missing_instance_ids": missing_ids,
+                      "invalid_bbox_instance_ids": sorted(invalid_bbox_ids)},
+        ))
+    reason = ("incomplete" if incomplete else "no_eligible_pairs" if not eligible_pairs
+              else "screening_only" if not checked_pairs else "completed")
     return findings, {
-        "checked": True,
+        "checked": successful_pairs > 0 and not incomplete,
         "checked_pairs": checked_pairs,
+        "checked_pairs_semantics": "attempted_exact_intersections",
+        "exact_attempted_pairs": checked_pairs,
+        "exact_successful_pairs": successful_pairs,
+        "exact_failed_pairs": counts["failed"],
+        "successful_empty_pairs": counts["successful_empty"],
+        "successful_overlap_pairs": counts["successful_overlap"],
+        "below_threshold_overlap_pairs": sum(pair["status"] == "successful_overlap"
+                                             and not pair["above_threshold"] for pair in pair_results),
+        "screened_pairs": screened_pairs,
+        "policy_skipped_pairs": policy_skipped_pairs,
+        "not_attempted_pairs": counts["not_attempted"],
+        "total_pairs": len(pair_results),
+        "eligible_pairs": eligible_pairs,
+        "coverage_complete": not incomplete,
+        "exact_coverage_complete": eligible_pairs > 0 and successful_pairs == eligible_pairs and not incomplete,
+        "reason": reason,
+        "successful_empty_semantics": "zero_intersection_volume_not_clearance_proof",
+        "pair_results": pair_results,
         "placed_instances": len(records),
-        "max_findings_reached": False,
-        "instance_ids": list(instance_ids) if instance_ids is not None else None,
+        "missing_instance_ids": missing_ids,
+        "invalid_bbox_instance_ids": sorted(invalid_bbox_ids),
+        "max_findings_reached": max_findings_reached,
+        "min_volume_mm3": min_volume,
+        "bbox_screen_tolerance_mm": -0.5,
+        "instance_ids": selected_ids,
         "preferred_movable_ids": sorted(preferred) or None,
     }
 
@@ -3173,6 +3270,11 @@ def run_assembly_sequence(
         rendered: List[ReviewViewOutput] = []
         validation_status = "not_run"
         repair_suggestions: List[str] = []
+        step_validation = {}
+        if validate_interference:
+            step_validation["interference"] = {
+                "checked": False, "reason": "dry_run" if dry_run else "build_failed",
+            }
 
         if not dry_run and not blocking:
             written_step = _export_step(
@@ -3198,6 +3300,7 @@ def run_assembly_sequence(
                 preferred_movable_ids=step.instance_ids,
                 shape_cache=shape_cache,
             )
+            step_validation["interference"] = _step_meta
             tagged_findings = [
                 _with_sequence_step(finding, step.id)
                 for finding in step_findings
@@ -3359,6 +3462,13 @@ def run_assembly_sequence(
         elif validation_ran:
             validation_status = "fail" if step_failed else "pass"
 
+        if (sequence_interference_checked and not step_failed
+                and not step_validation["interference"].get("checked")
+                and not any((sequence_vslot_stackup_checked, sequence_frame_adjacency_checked,
+                             sequence_hole_alignment_checked, sequence_wheel_alignment_checked,
+                             sequence_open_channel_checked, sequence_bbox_alignment_checked))):
+            validation_status = "not_checked"
+
         if render_views and written_step is not None:
             for view, output, view_state, error in _render_declared_views(
                 spec, spec_file, written_step, review_views,
@@ -3424,6 +3534,7 @@ def run_assembly_sequence(
             validation_status=validation_status,
             repair_suggestions=repair_suggestions,
             notes=step.notes,
+            validation=step_validation,
         ))
 
         if step_failed and stop_on_validation_fail:
@@ -3550,6 +3661,10 @@ def run_assembly_sequence(
     else:
         manifest_path = None
 
+    interference_steps = [step.validation.get("interference", {}) for step in step_outputs]
+    sequence_exact_complete = (sequence_interference_checked and bool(interference_steps)
+                               and all(item.get("coverage_complete") for item in interference_steps)
+                               and any(item.get("exact_successful_pairs", 0) for item in interference_steps))
     confidence = ConfidenceBudget(
         checked=[
             "assembly sequence declaration",
@@ -3557,7 +3672,7 @@ def run_assembly_sequence(
             "authored STEP placement policy",
             *(
                 ["sequence instance-level interference"]
-                if sequence_interference_checked else []
+                if sequence_exact_complete else []
             ),
             *(
                 ["sequence V-slot handoff stackup"]
@@ -3596,7 +3711,7 @@ def run_assembly_sequence(
             *([] if render_views else ["sequence review rendering"]),
             *([] if rotate_final else ["final rotation GIF"]),
             *(
-                [] if sequence_interference_checked
+                [] if sequence_exact_complete
                 else ["sequence instance-level interference"]
                 if validate_interference else []
             ),
@@ -3649,6 +3764,12 @@ def run_assembly_sequence(
                 "required_for_release": item.required_for_release,
             },
         ))
+
+    if any(item.get("screened_pairs", 0) for item in interference_steps):
+        confidence.checked.append("sequence interference bbox screening")
+        confidence.not_checked.append("exact interference for bbox-screened sequence pairs")
+    if any(item.get("policy_skipped_pairs", 0) for item in interference_steps):
+        confidence.not_checked.append("sequence interference pairs excluded by configuration")
 
     report = Report(
         findings=findings,
@@ -4392,6 +4513,12 @@ def run_assembly_check_round(
         label = f"interference ({reason})"
         if label not in confidence.not_checked:
             confidence.not_checked.append(label)
+    interference_meta = validation_meta.get("interference", {})
+    if interference_meta.get("screened_pairs", 0):
+        confidence.checked.append("instance-level interference bbox screening")
+        confidence.not_checked.append("exact interference for bbox-screened pairs")
+    if interference_meta.get("policy_skipped_pairs", 0):
+        confidence.not_checked.append("interference pairs excluded by configuration")
     if validation_meta.get("vslot_stackup", {}).get("checked"):
         if "V-slot handoff stackup" not in confidence.checked:
             confidence.checked.append("V-slot handoff stackup")
