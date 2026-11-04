@@ -731,3 +731,182 @@ pre.code .g { color: #4a5560; }       /* comments */
 pre.code .k { color: #013a73; }       /* keywords (was bright green) */
 pre.code .c { color: #2f6b1e; }       /* values / strings (was bright green) */
 pre.code .o { color: #9a6a00; }       /* numbers / operators (was pale tan) */
+
+/* 2026-11-04: Sunnyday dark navy theme, shared with sunn3d.com.
+   Supersedes the 2026-05-07 light refresh above. The background is the sunn3d.com
+   constellation drawn as two static SVG webs (media/sdt-constellation*-a/-b.svg) that
+   turn slowly in opposite directions with CSS transforms, so the JSON-LD-only script
+   policy is unchanged. Tokens: bg #061321, panel #0b1c30, line #1d3552,
+   headings #f0f4f7, text #c9d6e0, muted #9fb2c2, link #a8e81a, accent #97d700. */
+:root {
+  color-scheme: dark;
+  --navy-deep: #061321;
+  --navy-2: #0b1c30;
+  --navy-3: #2a4566;
+  --navy-glow: rgba(151, 215, 0, 0.06);
+  --green: #97d700;
+  --green-hi: #c9f56a;
+  --ink: #f0f4f7;
+  --ink-dim: #c9d6e0;
+  --ink-faint: #9fb2c2;
+  --rule: #1d3552;
+  --rule-soft: #1d3552;
+  --code-bg: #0d2036;
+  --panel: rgba(11, 28, 48, 0.88);
+  --link: #a8e81a;
+}
+
+html { color: #c9d6e0; }
+body { background: transparent; color: #c9d6e0; }
+::selection { background: #97d700; color: #061321; }
+
+/* Navy glow fixed to the viewport, with the two constellation webs above it. */
+html {
+  background:
+    radial-gradient(1100px 560px at 80% -8%, rgba(1, 58, 115, 0.55), rgba(1, 58, 115, 0) 70%),
+    radial-gradient(900px 620px at -10% 45%, rgba(1, 58, 115, 0.26), rgba(1, 58, 115, 0) 70%),
+    linear-gradient(180deg, #061321, #040d18) #061321;
+  background-attachment: fixed;
+}
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url("media/sdt-constellation-a.svg") center / cover no-repeat;
+  transform-origin: 64% 44%;
+  animation: sdt-web-a 70s ease-in-out infinite alternate;
+  will-change: transform;
+}
+body::after {
+  background-image: url("media/sdt-constellation-b.svg");
+  animation-name: sdt-web-b;
+  animation-duration: 53s;
+}
+@keyframes sdt-web-a {
+  from { transform: rotate(-7deg) translate3d(-1.2%, 0.8%, 0); }
+  to { transform: rotate(7deg) translate3d(1.2%, -0.8%, 0); }
+}
+@keyframes sdt-web-b {
+  from { transform: rotate(8deg) translate3d(1%, 1.2%, 0) scale(1.03); }
+  to { transform: rotate(-8deg) translate3d(-1%, -1.2%, 0) scale(0.98); }
+}
+@media (max-width: 719px) {
+  body::before { background-image: url("media/sdt-constellation-narrow-a.svg"); }
+  body::after { background-image: url("media/sdt-constellation-narrow-b.svg"); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after { animation: none; }
+}
+
+/* Header: dark glass with a lime hairline. */
+.nav {
+  background: rgba(6, 19, 33, 0.86);
+  border-bottom-color: #1d3552;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 0 rgba(151, 215, 0, 0.35), 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+.nav nav a { color: #c9d6e0; }
+.nav nav a:hover { color: #97d700; }
+.nav nav a.ghost { color: #a8e81a; border-color: #2a4566; }
+.nav nav a.ghost:hover { background: #97d700; color: #061321; border-color: #97d700; }
+
+.hero,
+.strip,
+.section,
+.sdt-portfolio-loop,
+footer { border-color: #1d3552; }
+
+/* Text */
+.hero h1,
+.section h2,
+.audience-card h3,
+main.pillar-content :is(h1, h2, h3) { color: #f0f4f7; }
+.section h3,
+.gate h3,
+.foot-grid h4 { color: #97d700; }
+.tag,
+.lede,
+.audience p,
+.audience-card p,
+.not-prove-list li,
+.muted-strip { color: #c9d6e0; }
+.gate p,
+.foot-grid p,
+.muted,
+.caption,
+.output-media .caption,
+.sub,
+.eyebrow { color: #9fb2c2; }
+.lede strong,
+.not-prove-list li strong,
+.origin li strong { color: #f0f4f7; }
+
+/* Links */
+a,
+.hero h1::before { color: #a8e81a; }
+a:hover { color: #c9f56a; }
+.foot-grid a { color: #c9d6e0; }
+.foot-grid a:hover { color: #97d700; }
+
+/* Buttons */
+.cta { color: #f0f4f7; border-color: #2a4566; }
+.cta:hover { color: #97d700; border-color: #97d700; }
+.cta.primary { background: #97d700; color: #061321; border-color: #97d700; }
+.cta.primary:hover { background: #c9f56a; border-color: #c9f56a; color: #061321; }
+.badge { color: #061321; }
+
+/* Panels */
+.gate,
+.callout,
+.audience-card,
+.output-media,
+pre.code {
+  background: rgba(11, 28, 48, 0.88);
+  border-color: #1d3552;
+}
+.gate { border-top-color: #97d700; }
+.gate.new { border-color: #97d700; }
+.callout,
+pre.code { border-left-color: #97d700; }
+.callout { color: #c9d6e0; }
+.callout strong { color: #97d700; }
+.section.dark { background: transparent; }
+.update-figure {
+  background: rgba(11, 28, 48, 0.88);
+  border-color: #1d3552;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.45);
+}
+.update-figure figcaption { color: #9fb2c2; }
+
+/* Code */
+code { background: #0d2036; color: #dce8f0; border-color: #1d3552; }
+pre.code { color: #dce8f0; }
+pre.code code { background: none; border: none; color: inherit; }
+pre.code .g { color: #8da3b5; }
+pre.code .k { color: #a8e81a; }
+pre.code .c { color: #9ed36a; }
+pre.code .o { color: #e6c46a; }
+main.pillar-content code { background: #0d2036; }
+main.pillar-content pre { background: rgba(4, 13, 24, 0.82); border: 1px solid #1d3552; }
+main.pillar-content pre code { background: transparent; }
+main.pillar-content :is(th, td) { border-color: #1d3552; }
+main.pillar-content th { background: rgba(16, 36, 59, 0.9); color: #f0f4f7; }
+main.pillar-content table { background: rgba(11, 28, 48, 0.88); }
+main.pillar-content blockquote { border-left-color: #97d700; }
+main.pillar-content hr { border-top-color: #1d3552; }
+
+/* Footer */
+footer { background: rgba(4, 13, 24, 0.78); }
+footer .sdt-netfooter { border-top-color: #1d3552; color: #9fb2c2; }
+footer .sdt-netfooter .sdt-netfooter__label { opacity: 1; color: #9fb2c2; }
+footer .sdt-netfooter a { opacity: 1; color: #c9d6e0; }
+footer .sdt-netfooter a:hover,
+footer .sdt-netfooter a[aria-current="page"] { color: #97d700; }
+
+/* Long inline code wraps instead of widening the page on phones. */
+:not(pre) > code { overflow-wrap: anywhere; }
