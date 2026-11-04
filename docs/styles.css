@@ -733,10 +733,10 @@ pre.code .c { color: #2f6b1e; }       /* values / strings (was bright green) */
 pre.code .o { color: #9a6a00; }       /* numbers / operators (was pale tan) */
 
 /* 2026-11-04: Sunnyday dark navy theme, shared with sunn3d.com.
-   Supersedes the 2026-05-07 light refresh above. The background is the sunn3d.com
-   constellation drawn as two static SVG webs (media/sdt-constellation*-a/-b.svg) that
-   turn slowly in opposite directions with CSS transforms, so the JSON-LD-only script
-   policy is unchanged. Tokens: bg #061321, panel #0b1c30, line #1d3552,
+   Supersedes the 2026-05-07 light refresh above. The background ("Seat") is a generic
+   wireframe assembly that backs out along its mating axes and re-seats on lime connector
+   frames, in build order: static SVG layers (media/sdt-seat-*.svg) moved by CSS
+   transforms, so the JSON-LD-only script policy is unchanged. Tokens: bg #061321, panel #0b1c30, line #1d3552,
    headings #f0f4f7, text #c9d6e0, muted #9fb2c2, link #a8e81a, accent #97d700. */
 :root {
   color-scheme: dark;
@@ -760,46 +760,63 @@ html { color: #c9d6e0; }
 body { background: transparent; color: #c9d6e0; }
 ::selection { background: #97d700; color: #061321; }
 
-/* Navy glow fixed to the viewport, with the two constellation webs above it. */
+/* Navy glow and a faint 40 px grid fixed to the viewport, with the seated assembly in the
+   lower right: the base plate on html, the four moving parts on the html/body pseudo-elements.
+   Under 720 px the assembly is smaller and fainter; reduced motion shows it seated and still. */
 html {
   background:
+    url("media/sdt-seat-base.svg") right 2vw bottom 3vh / auto min(80vh, 660px) no-repeat,
+    linear-gradient(rgba(169, 203, 239, 0.035) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgba(169, 203, 239, 0.035) 1px, transparent 1px) 0 0 / 40px 40px,
     radial-gradient(1100px 560px at 80% -8%, rgba(1, 58, 115, 0.55), rgba(1, 58, 115, 0) 70%),
     radial-gradient(900px 620px at -10% 45%, rgba(1, 58, 115, 0.26), rgba(1, 58, 115, 0) 70%),
     linear-gradient(180deg, #061321, #040d18) #061321;
   background-attachment: fixed;
 }
-body::before,
-body::after {
+html::before, html::after, body::before, body::after {
   content: "";
   position: fixed;
-  inset: 0;
+  inset: auto;
+  right: 2vw;
+  bottom: 3vh;
+  height: min(80vh, 660px);
+  aspect-ratio: 531.2 / 684.7;
   z-index: -1;
   pointer-events: none;
-  background: url("media/sdt-constellation-a.svg") center / cover no-repeat;
-  transform-origin: 64% 44%;
-  animation: sdt-web-a 70s ease-in-out infinite alternate;
+  background: center / 100% 100% no-repeat;
+  animation: 36s cubic-bezier(.45,0,.25,1) infinite;
   will-change: transform;
 }
-body::after {
-  background-image: url("media/sdt-constellation-b.svg");
-  animation-name: sdt-web-b;
-  animation-duration: 53s;
+html::after { background-image: url("media/sdt-seat-post-l.svg"); animation-name: sdt-seat-post-l; }
+body::before { background-image: url("media/sdt-seat-post-r.svg"); animation-name: sdt-seat-post-r; }
+body::after { background-image: url("media/sdt-seat-beam.svg"); animation-name: sdt-seat-beam; }
+html::before { background-image: url("media/sdt-seat-bolts.svg"); animation-name: sdt-seat-bolts; }
+@keyframes sdt-seat-bolts {
+  0%, 28% { transform: none; }
+  36%, 84% { transform: translate3d(0.00%, -27.75%, 0); }
+  92%, 100% { transform: none; }
 }
-@keyframes sdt-web-a {
-  from { transform: rotate(-7deg) translate3d(-1.2%, 0.8%, 0); }
-  to { transform: rotate(7deg) translate3d(1.2%, -0.8%, 0); }
+@keyframes sdt-seat-beam {
+  0%, 33% { transform: none; }
+  41%, 79% { transform: translate3d(0.00%, -16.06%, 0); }
+  87%, 100% { transform: none; }
 }
-@keyframes sdt-web-b {
-  from { transform: rotate(8deg) translate3d(1%, 1.2%, 0) scale(1.03); }
-  to { transform: rotate(-8deg) translate3d(-1%, -1.2%, 0) scale(0.98); }
+@keyframes sdt-seat-post-l {
+  0%, 38% { transform: none; }
+  46%, 74% { transform: translate3d(-14.67%, -6.57%, 0); }
+  82%, 100% { transform: none; }
+}
+@keyframes sdt-seat-post-r {
+  0%, 38% { transform: none; }
+  46%, 74% { transform: translate3d(14.67%, 6.57%, 0); }
+  82%, 100% { transform: none; }
 }
 @media (max-width: 719px) {
-  body::before { background-image: url("media/sdt-constellation-narrow-a.svg"); }
-  body::after { background-image: url("media/sdt-constellation-narrow-b.svg"); }
+  html { background-size: auto 44vh, 40px 40px, 40px 40px, auto, auto, auto; background-position: right -14vw bottom 2vh, 0 0, 0 0, 0 0, 0 0, 0 0; }
+  html::before, html::after, body::before, body::after { height: 44vh; right: -14vw; bottom: 2vh; opacity: 0.6; }
 }
 @media (prefers-reduced-motion: reduce) {
-  body::before,
-  body::after { animation: none; }
+  html::before, html::after, body::before, body::after { animation: none; }
 }
 
 /* Header: dark glass with a lime hairline. */
