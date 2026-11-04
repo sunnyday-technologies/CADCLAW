@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>CADCLAW — automated verification for STEP assemblies</title>
+  <title>CADCLAW: build and check STEP assemblies</title>
   <meta name="description" content="CADCLAW compiles a declarative spec into a STEP assembly from parts you authored, then runs automated gates over the result: interference, adjacency, floating parts, dimensions, tolerance stacking, and BOM-vs-CAD. Run it locally or in CI. MIT licensed, on PyPI." />
-  <meta property="og:title" content="CADCLAW — automated verification for STEP assemblies" />
+  <meta property="og:title" content="CADCLAW: build and check STEP assemblies" />
   <meta property="og:description" content="Build STEP assemblies from authored parts, then check them automatically. Geometric, structural, tolerance, and BOM gates for mechanical design, runnable in CI or from an MCP-compatible assistant. MIT licensed: pip install cadclaw." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://cadclaw.io" />
@@ -90,7 +90,7 @@
   <section class="hero">
     <div class="hero-copy">
       <h1>Build STEP assemblies.<br/>Check them automatically.</h1>
-      <p class="tag"><strong>CADCLAW</strong> is a Python package for mechanical assemblies. A declarative spec seats your authored STEP parts on connector frames and datum chains, then compiles the assembly. Automated gates check what it built: <strong>interference, adjacency, floating parts, dimensions, tolerance stacking, and BOM-vs-CAD</strong>. Run it at your desk, in CI, or from an MCP-compatible assistant.</p>
+      <p class="tag"><strong>CADCLAW</strong> is an open-source Python toolkit for mechanical assemblies. You declare how your authored STEP parts seat together on connector frames and datum chains. CADCLAW compiles the assembly, then runs automated gates on what it built: <strong>interference, adjacency, floating parts, dimensions, tolerance stacking and BOM-vs-CAD</strong>. Run it at your desk, in CI, or let an AI assistant drive it through the included MCP server.</p>
       <div class="cta-row">
         <a class="cta primary" href="#quick-start">Quick start</a>
         <a class="cta" href="https://github.com/sunnyday-technologies/CADCLAW">GitHub</a>
@@ -106,13 +106,12 @@
   <section id="recent-update" class="section update-section" aria-labelledby="recent-update-title">
     <div class="update-grid">
       <div class="update-copy">
-        <p class="eyebrow">Recent capability update · September 2026</p>
-        <h2 id="recent-update-title">Same measures. Stronger evidence.</h2>
-        <p class="lede">The current CADCLAW and MARB repository update strengthens the path from authored STEP inputs to retained, reviewable evidence. It adds bounded semantic-PMI and opt-in OCCT/XCAF self-roundtrip checks, version-pinned benchmark methods, boxed runtime records, and hashes that connect source, runtime, gates, and evidence.</p>
-        <p>The headline MARB <strong>GAP</strong>, <strong>POS</strong>, and <strong>ORIENT</strong> formulas are unchanged. Stricter validation and version pinning can still change whether a run is accepted.</p>
-        <p class="muted">One private post-merge smoke sample completed the execution, retention, and grading path, then failed its configured native CAD gates. That is pipeline evidence—not a public model ranking, certification, portable-runtime qualification, or physical validation.</p>
+        <p class="eyebrow">September 2026 update</p>
+        <h2 id="recent-update-title">Same scores. Stronger evidence.</h2>
+        <p class="lede">CADCLAW 0.11.0 adds two checks: semantic PMI presence and an opt-in AP242 round trip. MARB now pins each benchmark method to a version and records hashes that tie a result to the exact source, runtime and gates that produced it.</p>
+        <p>The MARB <strong>GAP</strong>, <strong>POS</strong> and <strong>ORIENT</strong> formulas are unchanged, but stricter validation can change whether a run is accepted. This update adds no new benchmark results.</p>
         <div class="cta-row">
-          <a class="cta" href="https://github.com/sunnyday-technologies/CADCLAW/blob/main/docs/cadclaw-marb-original-scope-closeout-2026-09-06.md">Read the bounded closeout record →</a>
+          <a class="cta" href="https://github.com/sunnyday-technologies/CADCLAW/blob/main/docs/cadclaw-marb-original-scope-closeout-2026-09-06.md">Read the closeout record →</a>
         </div>
       </div>
       <figure class="update-figure">
@@ -165,11 +164,11 @@ pmi_present:
 
     <div class="gates">
       <div class="gate"><h3>Inventory</h3><p>Missing or extra parts, by bounding-box signature, against expected counts.</p></div>
-      <div class="gate"><h3>Interference</h3><p>Solid-solid overlaps via BRep boolean intersection — not just bbox.</p></div>
-      <div class="gate"><h3>Adjacency</h3><p>Parts that should be near each other but aren't — the motor 600&nbsp;mm from its mount.</p></div>
+      <div class="gate"><h3>Interference</h3><p>Solid-solid overlaps by BRep boolean intersection, not just bounding boxes.</p></div>
+      <div class="gate"><h3>Adjacency</h3><p>Parts that should be near each other but aren't, like a motor 600&nbsp;mm from its mount.</p></div>
       <div class="gate"><h3>Dimensional</h3><p>Wrong thickness, swapped <code>box()</code> args, impossible dimensions.</p></div>
-      <div class="gate new"><h3>PMI_PRESENT_SEMANTIC</h3><p>Unreleased on the development branch: presence or absence of declared AP242 semantic dimensions, geometric tolerances, and datums. Graphical PMI, material assignments, and process/general notes are excluded.</p></div>
-      <div class="gate new"><h3>ROUNDTRIP_STEP</h3><p>Unreleased and opt-in: actual OCCT import, AP242 export, and reimport with bounded checks for CADCLAW's deduplicated renderable-shape count, geometry measures, declared interface gaps, and source-present semantic-PMI class counts. One-to-one matching is limited to 256 shapes; larger equal-count comparisons error rather than sample. It does not prove native-model fidelity or conformance.</p></div>
+      <div class="gate new"><h3>Semantic PMI</h3><p>Whether declared AP242 semantic dimensions, geometric tolerances and datums are present. Graphical PMI, materials and notes are out of scope. In release 0.11.0, not yet on PyPI.</p></div>
+      <div class="gate new"><h3>AP242 round trip</h3><p>Opt-in. Imports the STEP with OCCT, exports AP242 and reimports it, then compares shape counts, geometry measures, declared interface gaps and semantic-PMI class counts. Matches up to 256 shapes one to one; larger comparisons stop with an error rather than sample. It does not prove native-model fidelity or conformance. In release 0.11.0, not yet on PyPI.</p></div>
       <div class="gate new"><h3>Floating</h3><p>Non-exempt parts isolated from the structural frame beyond a max gap.</p></div>
       <div class="gate"><h3>Structural</h3><p>Beam deflection, motor torque budget, belt tension. Static load math, not motion-clearance or full-travel sweeps.</p></div>
       <div class="gate"><h3>Tolerance</h3><p>Worst-case, RSS, Monte Carlo stacking with C<sub>pk</sub> and variance decomposition.</p></div>
@@ -177,7 +176,7 @@ pmi_present:
     </div>
 
     <div class="callout">
-      <strong>Honesty toolchain:</strong> <code>cadclaw doctor</code> inspects the configured environment · <code>cadclaw publish-audit</code> checks configured publication boundaries · <code>cadclaw claim-audit</code> flags selected overclaim patterns. The local <strong>MCP server</strong> declares 24 assembly, check, analysis, audit, and render tools, including the stateless versioned <code>run_harness</code> union runner. It is not a security sandbox: path-taking tools read specified files, six assembly tools can write configured outputs, and the server runs with the local process account's permissions. Use a least-privilege working copy and review tool inputs and outputs.
+      <strong>Honesty toolchain:</strong> <code>cadclaw doctor</code> checks the environment, <code>cadclaw publish-audit</code> checks publication boundaries, and <code>cadclaw claim-audit</code> flags selected overclaim patterns. The local <strong>MCP server</strong> declares 24 tools for assembly, checks, analysis, audits and rendering, including the versioned <code>run_harness</code> runner. It is not a security sandbox: it reads the paths it is given, six assembly tools write outputs, and it runs with your account's permissions. Use a least-privilege working copy and review what the tools read and write.
     </div>
   </section>
 
@@ -186,6 +185,7 @@ pmi_present:
     <p class="lede">CADCLAW does two things, and the first one is the reason the second one is useful.</p>
     <p><strong>It assembles.</strong> An assembly spec declares the parts, where they come from, and how they seat against each other. An instance says <em>place this connector frame against that parent frame, offset along an axis</em>. The resolver walks the datum chain in topological order and solves each transform, reporting cycles, missing references, and missing frames as findings. Absolute transforms still work, so migration is incremental. Parts land by constraint, not by hand-typed coordinates, which is what makes the result reproducible enough to check.</p>
     <p><strong>It verifies.</strong> The gates above run against the compiled STEP and report what they found. Alongside them it emits a design inventory, a model-derived BOM, review-view renders, and step-by-step build sequences.</p>
+    <p><strong>It works with AI assistants.</strong> Through the MCP server, an assistant can build an assembly, see the review renders it gets back, and correct what the gates report. It follows the same rule you do: place authored parts, never generate them.</p>
     <div class="callout"><strong>CADCLAW places parts you drew. It never generates geometry.</strong> No parametric plates, no bolt-circle constants, no hole-drilling helpers. You author components in Fusion, Rhino, SolidWorks, or anything that exports STEP; CADCLAW seats them against each other and checks the result.</div>
   </section>
 
@@ -193,28 +193,29 @@ pmi_present:
     <h2>What CADCLAW does NOT prove</h2>
     <p class="lede">CADCLAW checks geometry, BOM JSON, and README text against rules <em>you</em> write. It does not prove:</p>
     <ul class="not-prove-list">
-      <li>That the <strong>native CAD model</strong> has no hidden or suppressed parts — it reads the STEP export, which can silently drop invisible parts.</li>
-      <li>That AP242 PMI is <strong>graphically correct, fully constructed, standards-conformant, or faithful to the native model</strong> — the semantic PMI gate reports declared class presence only.</li>
-      <li>That an AP242 round trip proves <strong>native-CAD correctness, translator independence, PMI value/association fidelity, or interoperability compliance</strong> — the gate compares only its recorded STEP artifacts and declared evidence.</li>
+      <li>That the <strong>native CAD model</strong> has no hidden or suppressed parts. It reads the STEP export, which can silently drop invisible parts.</li>
+      <li>That AP242 PMI is <strong>graphically correct, fully constructed, standards-conformant, or faithful to the native model</strong>. The semantic PMI gate reports declared class presence only.</li>
+      <li>That an AP242 round trip proves <strong>native-CAD correctness, translator independence, PMI value or association fidelity, or interoperability compliance</strong>. The gate compares only its recorded STEP artifacts and declared evidence.</li>
       <li>That the <strong>physical build</strong> matches the CAD.</li>
       <li>That a <strong>vendor part is in stock</strong> or the price you assumed.</li>
-      <li>That a <strong>printed part is strong enough</strong> for production — the structural gate does bare-beam math, not fatigue or creep.</li>
-      <li>That an <strong>AI-generated change is correct</strong> — passing the gates means "passed the gates we have," no more.</li>
+      <li>That a <strong>printed part is strong enough</strong> for production. The structural gate does bare-beam math, not fatigue or creep.</li>
+      <li>That an <strong>AI-generated change is correct</strong>. Passing the gates means "passed the gates we have", no more.</li>
     </ul>
     <p>Each report ships a <strong>confidence budget</strong> per gate: <code>checked</code>, <code>not_checked</code>, <code>assumptions</code>. Read it.</p>
   </section>
 
   <section id="origin" class="section">
     <h2>Origin</h2>
-    <p class="lede">CADCLAW was developed alongside the <a href="https://m3-crete.com">M3-CRETE</a> open-source concrete 3D printer, a part-dense machine that made the failure modes obvious. Historical development runs motivated the current inventory, interference, adjacency, dimensional, and publication-boundary checks. The repository's versioned tests — not this summary — are the evidence for specific software behavior. CADCLAW does not claim that a finding prevented fabrication cost, that a passing run validates a physical machine, or that historical observations generalize to every assembly.</p>
-    <p class="muted">M3-CRETE is the project CADCLAW was first deployed against and serves as a published case study. It is not the boundary of CADCLAW's scope: the tool applies to anyone driving hardware from a CAD repository, from robotics chassis to fixtures, optical mounts, and prosumer 3D printers. Developed by <a href="https://sunn3d.com">Sunnyday Technologies</a>.</p>
+    <p class="lede">CADCLAW grew up alongside the <a href="https://m3-crete.com">M3-CRETE</a> open-source concrete 3D printer. Development runs on its M3-2 assembly, about 100 authored parts, shaped the inventory, interference, adjacency, dimensional and publication-boundary checks. The repository's versioned tests, not this summary, are the evidence for what the software does. A passing run does not validate a physical machine.</p>
+    <p class="muted">M3-CRETE is CADCLAW's first project and a published case study, not the limit of its scope. The same workflow fits any hardware kept in a CAD repository: robot chassis, fixtures, optical mounts, 3D printers. Developed by <a href="https://sunn3d.com">Sunnyday Technologies</a>.</p>
   </section>
 
   <section id="marb" class="section dark">
-    <h2>MARB uses CADCLAW as its grader</h2>
-    <p class="lede">The <strong>Mechanical Assembly Readiness Benchmark</strong> is a separate project. It grades how AI workflows assemble a multi-part machine in CAD, and it imports CADCLAW's gates as its automated grader. That is what makes its scores checkable: the grader is MIT licensed and published on PyPI, so anyone can install it and re-run a result rather than take a published number on faith. The benchmark, its versioned method, and every published score live at <a href="https://marb.cadclaw.io/">marb.cadclaw.io</a>.</p>
+    <h2>AI assembly, scored in millimeters</h2>
+    <p class="lede"><strong>MARB</strong>, the Mechanical Assembly Readiness Benchmark, measures how well an AI workflow assembles a real machine. In its founding task the AI gets about 100 authored STEP parts of the M3-CRETE printer and four goal renders, with no build steps, and places every part itself. MARB scores the result against an answer key: <strong>GAP</strong> for interface gaps, <strong>POS</strong> for part positions and <strong>ORIENT</strong> for rotations.</p>
+    <p>CADCLAW works behind the scenes. Its resolver built the answer key, and MARB's graders run CADCLAW's gates, so the code behind every score is open source. The AI under test can work in Autodesk Fusion, CadQuery or its own agent, and does not need CADCLAW. MARB is a separate project with its own versioned method and published scores.</p>
     <div class="cta-row">
-      <a class="cta" href="https://marb.cadclaw.io/">MARB, the benchmark graded by CADCLAW →</a>
+      <a class="cta" href="https://marb.cadclaw.io/">Visit MARB →</a>
     </div>
   </section>
 
@@ -251,7 +252,7 @@ DOI: 10.5281/zenodo.19647390</pre>
   <div class="foot-grid">
     <div>
       <h4>CADCLAW</h4>
-      <p>Automated verification for STEP assemblies. MIT licensed.</p>
+      <p>Build and check STEP assemblies. MIT licensed.</p>
       <p class="muted">MIT License · © 2026 <a href="https://sunn3d.com">Sunnyday Technologies</a></p>
     </div>
     <div>
