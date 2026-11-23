@@ -50,18 +50,29 @@
       "name": "cadclaw",
       "kind": "pypi-package",
       "description": "The CADCLAW Python package itself. Installs the assembly compiler, the validation harness, the `cadclaw` CLI, and the local MCP server.",
-      "version": "0.11.0",
-      "install": "pip install cadclaw",
-      "url": "https://pypi.org/project/cadclaw/",
+      "version": "0.10.0",
+      "install": "pip install cadclaw==0.10.0",
+      "url": "https://pypi.org/project/cadclaw/0.10.0/",
       "repository": "https://github.com/sunnyday-technologies/CADCLAW",
-      "license": "MIT"
+      "license": "MIT",
+      "mcp_tool_count": 23
+    },
+    {
+      "name": "cadclaw",
+      "kind": "source-release",
+      "version": "0.11.0",
+      "url": "https://github.com/sunnyday-technologies/CADCLAW/releases/tag/v0.11.0",
+      "mcp_tool_count": 24,
+      "additional_mcp_tools": [
+        "run_harness"
+      ]
     },
     {
       "name": "cadclaw_mcp",
       "kind": "local-mcp-server",
-      "description": "Local Model Context Protocol server exposing 24 CADCLAW assembly, check, analysis, audit, and render tools, including a stateless versioned run_harness tool and six assemble_* tools that can write configured outputs. Render-producing tools can return PNGs inline and write files. It runs with the local process account's filesystem permissions; it is not a security sandbox and is not hosted at cadclaw.io. Review tool inputs/outputs and use a least-privilege working copy.",
+      "description": "GitHub v0.11.0 provides 24 local MCP tools, including run_harness. PyPI 0.10.0 provides 23 local MCP tools. Six assemble_* tools can write configured outputs. Render-producing tools can return PNGs inline and write files. It runs with the local process account's filesystem permissions; it is not a security sandbox and is not hosted at cadclaw.io. Review tool inputs/outputs and use a least-privilege working copy.",
       "entry_point": "python -m cadclaw_mcp",
-      "source": "https://github.com/sunnyday-technologies/CADCLAW/tree/main/cadclaw_mcp",
+      "source": "https://github.com/sunnyday-technologies/CADCLAW/tree/v0.11.0/cadclaw_mcp",
       "transport": "stdio"
     }
   ],

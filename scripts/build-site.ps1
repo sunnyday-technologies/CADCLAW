@@ -266,23 +266,20 @@ foreach ($htmlFile in $htmlFiles) {
     }
     $canonicalJsonLd = $jsonLd -replace "`r`n", "`n" -replace "`r", "`n"
     $hashToken = "sha256-$(Get-Sha256Base64 $canonicalJsonLd)"
-    if ($headersText -notmatch [regex]::Escape("'$hashToken'")) {
-      throw "CSP is missing a JSON-LD hash for $(Get-RelativePublishPath $htmlFile.FullName)"
-    }
     $jsonLdHashes += $hashToken
     $jsonLdCount += 1
   }
 }
 
 if ($jsonLdCount -lt 1) { throw "No JSON-LD found in published HTML" }
-if ($headersText -match "script-src\s+'none'" -or $headersText -match "script-src[^;]*'unsafe-inline'" -or $headersText -match "script-src[^;]*'unsafe-eval'") {
-  throw "CSP script policy must allow only reviewed JSON-LD hashes"
-}
-$cspHashMatches = @([regex]::Matches($headersText, "'sha256-[A-Za-z0-9+/=]+'") | ForEach-Object { $_.Value.Trim("'") } | Sort-Object -Unique)
-$expectedHashes = @($jsonLdHashes | Sort-Object -Unique)
-if ($cspHashMatches.Count -ne $expectedHashes.Count) { throw "CSP contains stale or missing script hashes" }
-foreach ($hash in $expectedHashes) {
-  if ($cspHashMatches -notcontains $hash) { throw "CSP hash set does not match embedded JSON-LD" }
+$policies = [regex]::Matches($headersText, '(?im)^\s*Content-Security-Policy:[ \t]*([^\r\n]+)')
+if ($policies.Count -ne 1) { throw "Expected one site-wide Content-Security-Policy" }
+$scriptDirectives = @($policies[0].Groups[1].Value.Split(';').Trim() | Where-Object { $_ -match '^script-src(?:\s|$)' })
+if ($scriptDirectives.Count -ne 1) { throw "Expected one script-src directive" }
+$tokens = @(($scriptDirectives[0] -split '\s+') | Select-Object -Skip 1)
+$expectedTokens = @($jsonLdHashes | Sort-Object -Unique -CaseSensitive | ForEach-Object { "'$_'" })
+if ($tokens.Count -ne $expectedTokens.Count -or @($expectedTokens | Where-Object { $tokens -cnotcontains $_ }).Count) {
+  throw "CSP script-src must contain exactly the reviewed JSON-LD hashes"
 }
 
 if ((Get-Content -LiteralPath (Join-Path $Target "styles.css") -Raw -Encoding UTF8) -match '(?i)fonts\.googleapis\.com|fonts\.gstatic\.com') {
@@ -293,7 +290,12 @@ if ((Get-Content -LiteralPath (Join-Path $Target "styles.css") -Raw -Encoding UT
 $projectText = Get-Content -LiteralPath (Join-Path $RepoRoot "pyproject.toml") -Raw -Encoding UTF8
 $versionMatch = [regex]::Match($projectText, '(?m)^version\s*=\s*"([^"]+)"')
 if (-not $versionMatch.Success) { throw "Could not derive package version from pyproject.toml" }
-$packageVersion = $versionMatch.Groups[1].Value
+$sourceVersion = $versionMatch.Groups[1].Value
+# Update the PyPI contract only after checking the published distribution.
+$pypiVersion = "0.10.0"
+$pypiToolCount = 23
+$pypiUrl = "https://pypi.org/project/cadclaw/$pypiVersion/"
+$repository = "https://github.com/sunnyday-technologies/CADCLAW"
 $homeText = Get-Content -LiteralPath (Join-Path $Target "index.html") -Raw -Encoding UTF8
 $articleText = Get-Content -LiteralPath (Join-Path $Target "ci-for-cad/index.html") -Raw -Encoding UTF8
 $llmsText = Get-Content -LiteralPath (Join-Path $Target "llms.txt") -Raw -Encoding UTF8
@@ -301,12 +303,26 @@ $manifestPath = Join-Path $Target ".well-known/mcp-manifest.json"
 $manifestText = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8
 $manifest = $manifestText | ConvertFrom-Json
 
-if ($homeText -notmatch [regex]::Escape('"softwareVersion": "' + $packageVersion + '"')) { throw "Homepage softwareVersion is stale" }
-if ($articleText -notmatch [regex]::Escape('"softwareVersion": "' + $packageVersion + '"')) { throw "Article softwareVersion is stale" }
-if ($articleText -notmatch [regex]::Escape('published package version is ' + $packageVersion)) { throw "Article narrative version is stale" }
-if ($llmsText -notmatch [regex]::Escape('Current published version: ' + $packageVersion)) { throw "llms.txt version is stale" }
-$packageRecord = @($manifest.related_packages | Where-Object { $_.name -eq "cadclaw" })
-if ($packageRecord.Count -ne 1 -or $packageRecord[0].version -ne $packageVersion) { throw "MCP discovery package version is stale" }
+foreach ($page in @($homeText, $articleText)) {
+  $apps = @(foreach ($block in [regex]::Matches($page, $jsonLdPattern)) {
+    $document = $block.Groups[1].Value | ConvertFrom-Json -AsHashtable
+    $document['@graph'] | Where-Object { $_ -and $_['@type'] -eq 'SoftwareApplication' }
+  })
+  if ($apps.Count -eq 0) { throw "Page is missing SoftwareApplication metadata" }
+  foreach ($app in $apps) {
+    if ($app.softwareVersion -ne $pypiVersion -or $app.downloadUrl -cne $pypiUrl -or $app.installUrl -cne $pypiUrl) {
+      throw "SoftwareApplication must describe the version available at its PyPI URLs"
+    }
+  }
+  if (-not $page.Contains("python -m pip install cadclaw==$pypiVersion")) { throw "PyPI install pin is stale" }
+}
+$pypiRecord = @($manifest.related_packages | Where-Object { $_.kind -eq "pypi-package" })
+$sourceRecord = @($manifest.related_packages | Where-Object { $_.kind -eq "source-release" })
+if ($pypiRecord.Count -ne 1 -or $pypiRecord[0].name -ne "cadclaw" -or
+    $pypiRecord[0].version -ne $pypiVersion -or $pypiRecord[0].mcp_tool_count -ne $pypiToolCount -or
+    $pypiRecord[0].url -cne $pypiUrl -or $pypiRecord[0].install -ne "pip install cadclaw==$pypiVersion") {
+  throw "MCP discovery PyPI record is stale"
+}
 
 $serverText = Get-Content -LiteralPath (Join-Path $RepoRoot "cadclaw_mcp/server.py") -Raw -Encoding UTF8
 $definitionNames = @([regex]::Matches($serverText, '(?m)^\s{8}"name":\s*"([^"]+)"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
@@ -315,8 +331,19 @@ if ($definitionNames.Count -ne 24 -or $handlerNames.Count -ne 24) { throw "Expec
 if (($definitionNames -join "`n") -ne ($handlerNames -join "`n")) { throw "MCP tool declarations and handlers differ" }
 $assembleCount = @($handlerNames | Where-Object { $_.StartsWith("assemble_") }).Count
 if ($assembleCount -ne 6) { throw "Expected six assemble_* MCP tools" }
+if ($sourceRecord.Count -ne 1 -or $sourceRecord[0].name -ne "cadclaw" -or
+    $sourceRecord[0].version -ne $sourceVersion -or $sourceRecord[0].mcp_tool_count -ne $handlerNames.Count -or
+    $sourceRecord[0].url -cne "$repository/releases/tag/v$sourceVersion" -or
+    ($sourceRecord[0].additional_mcp_tools -join ',') -cne 'run_harness' -or $handlerNames -cnotcontains 'run_harness') {
+  throw "MCP discovery source release record is stale"
+}
+$sourceLabel = "GitHub v$sourceVersion provides $($handlerNames.Count) local MCP tools, including run_harness."
+$pypiLabel = "PyPI $pypiVersion provides $pypiToolCount local MCP tools."
 foreach ($surface in @($homeText, $articleText, $llmsText, $manifestText)) {
-  if ($surface -notmatch '\b24\b') { throw "A public agent surface is missing the derived 24-tool declaration" }
+  $plain = $surface.Replace('<code>run_harness</code>', 'run_harness')
+  if (-not $plain.Contains($sourceLabel) -or -not $plain.Contains($pypiLabel)) {
+    throw "Public MCP release labels must identify the source and PyPI tool sets"
+  }
 }
 
 if ($manifest.status -ne "experimental-nonstandard-static-discovery") { throw "MCP discovery status must remain experimental and non-standard" }
@@ -381,6 +408,6 @@ Write-Output "JSON: $($jsonFiles.Count)"
 Write-Output "JSON-LD: $jsonLdCount"
 Write-Output "Links checked: $linkCount"
 Write-Output "Sitemap URLs: $($sitemapUrls.Count)"
-Write-Output "MCP tools: $($handlerNames.Count) (assemble_*: $assembleCount)"
-Write-Output "Version: $packageVersion"
+Write-Output "GitHub v$sourceVersion MCP tools: $($handlerNames.Count) (assemble_*: $assembleCount)"
+Write-Output "PyPI $pypiVersion MCP tools: $pypiToolCount"
 Write-Output "Source/output hashes: $hashCount/$($publishFiles.Count)"
