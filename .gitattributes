@@ -23,6 +23,7 @@
 *.yml   text eol=lf
 *.toml  text eol=lf
 *.cff   text eol=lf
+*.svg   text eol=lf
 
 # Extensionless Cloudflare Pages control files on the publish allowlist.
 docs/_headers   text eol=lf

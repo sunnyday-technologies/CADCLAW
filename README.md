@@ -71,7 +71,7 @@ CADCLAW validates STEP assemblies + BOM JSON through a chain of automated gates:
 
 The CLI harness runs the checks declared in `cadclaw.yaml`; geometry checks share the STEP export when possible, while parity, semantic PMI presence, AP242 round-trip preservation, render, disassembly, tolerance, and audits are also available as focused commands/APIs. Every report includes a **confidence budget** that lists what was checked, what was not, and what assumptions were made. Reports also carry a separate [gate-method version](docs/gate-spec.md), so method changes do not silently relabel historical results or force a rules-schema migration.
 
-CADCLAW also includes a local **MCP Server** with 24 declared tools. The stateless `run_harness` tool uses the same versioned gate registry and report contract as the library and CLI; the six `assemble_*` tools build and inspect assemblies; the remainder expose focused checks, analysis, audits, and rendering. It does not provide native-CAD application control, but it is **not a security sandbox**: path-taking tools can read specified files, assembly tools can write configured outputs, and the server inherits the local process account's filesystem permissions. Use a least-privilege working copy and review tool inputs and outputs.
+GitHub v0.11.0 provides 24 local MCP tools, including `run_harness`. PyPI 0.10.0 provides 23 local MCP tools. The stateless `run_harness` tool uses the same versioned gate registry and report contract as the library and CLI; the six `assemble_*` tools build and inspect assemblies; the remainder expose focused checks, analysis, audits, and rendering. It does not provide native-CAD application control, but it is **not a security sandbox**: path-taking tools can read specified files, assembly tools can write configured outputs, and the server inherits the local process account's filesystem permissions. Use a least-privilege working copy and review tool inputs and outputs.
 
 The render-producing assembly tools return their PNGs as **inline images**, so the assistant can look at what it just built instead of trusting a path string. Every render is also written to disk, giving the human a per-step traceability artifact of what changed and when.
 
@@ -109,10 +109,10 @@ For diagnostic queries (signature histogram, "what is this part", "what overlaps
 ## Quick Start
 
 ```bash
-pip install cadclaw
+pip install cadclaw==0.10.0
 # cadquery, vtk, Pillow, pyyaml, pydantic are pulled in automatically.
-# For editable dev installs:
-#   git clone https://github.com/sunnyday-technologies/CADCLAW.git
+# For the tagged source release (includes run_harness and the AP242 gates):
+#   git clone --branch v0.11.0 https://github.com/sunnyday-technologies/CADCLAW.git
 #   cd CADCLAW && pip install -e .
 
 cadclaw doctor                          # verify your environment first
@@ -152,12 +152,13 @@ print(report)
 
 Configure once in `cadclaw.yaml` — labels, expected inventory, regions, BOM
 rules, claim-audit terms, publish-audit globs — then drive everything from
-the `cadclaw` console script:
+the `cadclaw` console script. This example uses the GitHub v0.11.0 checkout,
+which includes the scaffolding script and both AP242 commands. For PyPI 0.10.0,
+use the [single-rail quick start](https://cadclaw.io/#quick-start).
 
 ```bash
 cadclaw doctor                                    # 1. verify the environment
-python examples/init_rules.py --step my.step      # 2. scaffold cadclaw.yaml
-                              --bom bom.json
+python examples/init_rules.py --step my.step --bom bom.json  # 2. scaffold cadclaw.yaml
 cadclaw harness --rules cadclaw.yaml              # 3. run configured YAML-backed checks
 cadclaw pmi-present --rules cadclaw.yaml          # semantic AP242 class presence only
 cadclaw roundtrip-step --rules cadclaw.yaml       # opt-in AP242 preservation checks
@@ -170,8 +171,7 @@ Exit codes: `0` pass, `1` fail, `2` warn-only (no fails), `3` internal error.
 
 ### Semantic AP242 PMI presence
 
-> **New in 0.11.0:** this gate ships with the package release being cut;
-> PyPI publish follows tag `v0.11.0`.
+> This gate requires the [GitHub v0.11.0 source release](https://github.com/sunnyday-technologies/CADCLAW/releases/tag/v0.11.0).
 
 Declare only the semantic PMI classes the task requires:
 
@@ -198,8 +198,7 @@ It is a versioned declared check, not a PMI or interoperability certification.
 
 ### AP242 STEP round-trip preservation
 
-> **New in 0.11.0:** this gate ships with the package release being cut;
-> PyPI publish follows tag `v0.11.0`.
+> This gate requires the [GitHub v0.11.0 source release](https://github.com/sunnyday-technologies/CADCLAW/releases/tag/v0.11.0).
 
 The focused command, or the harness when explicitly enabled, performs an
 actual OCCT XCAF import, AP242 export, and reimport. The source file is never
@@ -377,7 +376,7 @@ Offscreen VTK rendering of STEP files to PNG, plus GIF stitching. `make_disassem
 The runner. Chains gates, loads parts once, reports pass/fail with timing.
 
 ### `cadclaw_mcp/`
-Local MCP Server exposing 24 CADCLAW assembly, check, analysis, audit, and render tools to compatible hosts. `run_harness` is a stateless wrapper over the same configured-harness library entry point used by the CLI. The six `assemble_*` tools cover spec validation, compilation, the check round, component inspection, review rendering, and sequence export; the remainder run focused checks and audits. Render-producing tools return PNGs inline and can write configured output files. The server runs with the local process account's permissions and is not a security sandbox.
+GitHub v0.11.0 provides 24 local MCP tools, including `run_harness`. PyPI 0.10.0 provides 23 local MCP tools. `run_harness` is a stateless wrapper over the same configured-harness library entry point used by the CLI. The six `assemble_*` tools cover spec validation, compilation, the check round, component inspection, review rendering, and sequence export; the remainder run focused checks and audits. Render-producing tools return PNGs inline and can write configured output files. The server runs with the local process account's permissions and is not a security sandbox.
 
 ## CI/CD Integration
 

@@ -31,7 +31,8 @@ agent-driven retrieval. The canonical site is https://cadclaw.io.
 - License: MIT
 - PyPI: https://pypi.org/project/cadclaw/
 - DOI: 10.5281/zenodo.19647390
-- Current package version: 0.11.0 (release cut 2026-09-10; PyPI publish follows tag v0.11.0. Previous published: 0.10.0 at https://pypi.org/project/cadclaw/)
+- GitHub source release: https://github.com/sunnyday-technologies/CADCLAW/releases/tag/v0.11.0
+- Published PyPI package: https://pypi.org/project/cadclaw/0.10.0/
 - Site: https://cadclaw.io
 - Status: open source, actively maintained
 
@@ -93,7 +94,7 @@ Validation domains (each maps to a module under `cadclaw/`):
 - Semantic PMI presence (`cadclaw/pmi.py`) — reports presence or absence for
   each declared AP242 semantic class: dimensions, geometric tolerances,
   and datums. Graphical PMI, material assignments, and process/general notes
-  are excluded. This gate ships in package version 0.11.0.
+  are excluded. This gate requires GitHub v0.11.0.
 - AP242 STEP round trip (`cadclaw/roundtrip.py`) — an opt-in actual OCCT XCAF
   import, AP242 export, and reimport that compares CADCLAW's deduplicated
   renderable-shape count, bounded geometry measures, declared interface gaps,
@@ -102,7 +103,7 @@ Validation domains (each maps to a module under `cadclaw/`):
   identity, compare PMI values/associations, or establish standards conformance.
   Minimum-cost per-part matching has a hard 256-renderable-shape method limit;
   larger equal-count comparisons error before quadratic matrix allocation.
-  This gate ships in package version 0.11.0.
+  This gate requires GitHub v0.11.0.
 - Structural (`cadclaw/kinematics.py`) — beam deflection (Euler-Bernoulli),
   motor torque budget, belt tension. Static load math; not motion-clearance
   or full-travel sweeps.
@@ -133,7 +134,7 @@ correct. Each report includes a confidence budget per gate.
 ## Install
 
 ```
-pip install cadclaw
+pip install cadclaw==0.10.0
 cadclaw doctor   # verify environment
 ```
 
@@ -171,7 +172,8 @@ using the local process account's filesystem permissions. Run it in a
 least-privilege working copy, inspect tool arguments, and require human review
 for write-producing operations.
 
-MCP coverage is 24 tools spanning both halves.
+GitHub v0.11.0 provides 24 local MCP tools, including run_harness. PyPI 0.10.0 provides 23 local MCP tools.
+The following list describes the GitHub release.
 
 Assembly (6): assemble_validate_spec, assemble_build, assemble_check_round,
 assemble_inspect_component, assemble_render_views, assemble_render_sequence.

@@ -27,10 +27,10 @@
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "CAD validation / mechanical engineering QA",
         "operatingSystem": "Cross-platform (Windows, macOS, Linux)",
-        "softwareVersion": "0.11.0",
+        "softwareVersion": "0.10.0",
         "programmingLanguage": "Python",
-        "downloadUrl": "https://pypi.org/project/cadclaw/",
-        "installUrl": "https://pypi.org/project/cadclaw/",
+        "downloadUrl": "https://pypi.org/project/cadclaw/0.10.0/",
+        "installUrl": "https://pypi.org/project/cadclaw/0.10.0/",
         "codeRepository": "https://github.com/sunnyday-technologies/CADCLAW",
         "license": "https://opensource.org/licenses/MIT",
         "url": "https://cadclaw.io/",
@@ -257,7 +257,7 @@ def test_gantry_corner():
 <p>The fix vector is in the report. The engineer applies the shift in Fusion, re-exports, re-runs. The cycle is the same one a software engineer runs against a unit-test failure: read the assertion, fix the cause, rerun until green. The difference is that the assertion is over geometry, and the cost of skipping it is a fabricated part rather than a runtime exception.</p>
 <p>This is the workflow described under "place authored parts; do not generate them" in CADCLAW's <a href="https://github.com/sunnyday-technologies/CADCLAW/blob/main/AGENTS.md"><code>AGENTS.md</code></a>. The engineer authors geometry in their CAD package of choice (Fusion, Rhino, FreeCAD, SolidWorks); a CadQuery script places copies and emits a unified STEP; CADCLAW asserts against the unified STEP. CADCLAW does not draw parts. It checks them.</p>
 <h2 id="5-cadclaw-in-ci-github-actions">5. CADCLAW in CI (GitHub Actions)</h2>
-<p>CADCLAW is <code>pip install cadclaw</code> and a single console script. That makes the GitHub Actions configuration boring, which is the point.</p>
+<p>This workflow pins the published PyPI package. Set <code>meta.step</code> and <code>bom_audit.bom_path</code> in <code>cadclaw.yaml</code> so both audit commands use your files. The environment check lets warning-only results through, such as the base install reporting an optional FEA dependency missing.</p>
 <pre><code class="language-yaml"># .github/workflows/cad-check.yml
 name: CAD assembly validation
 
@@ -288,10 +288,13 @@ jobs:
       - name: Install CADCLAW
         run: |
           python -m pip install --upgrade pip
-          python -m pip install cadclaw
+          python -m pip install cadclaw==0.10.0
 
       - name: Verify environment
-        run: cadclaw doctor
+        run: |
+          rc=0
+          cadclaw doctor || rc=$?
+          case "$rc" in 0|2) ;; *) exit "$rc" ;; esac
 
       - name: Run validation harness
         run: cadclaw harness --rules cadclaw.yaml --report-format md -o cadclaw-report.md
@@ -333,11 +336,11 @@ jobs:
 }
 </code></pre>
 <p>The protocol is open. Any MCP-compatible host (Claude Desktop, Claude Code, Cursor, and a growing list of others) can drive the harness without code generation.</p>
-<p>The local MCP server exposes 24 declared CADCLAW assembly, check, analysis, audit, and render tools. The stateless <code>run_harness</code> tool uses the same versioned configured-harness entry point as the CLI and Python library. It does not provide native-CAD application control, but it is <strong>not a security sandbox</strong>: path-taking tools can read specified files, six <code>assemble_*</code> tools can write configured outputs, and the server inherits the local process account's filesystem permissions. Run it in a least-privilege working copy, restrict host approvals, and review tool inputs and outputs.</p>
+<p>GitHub v0.11.0 provides 24 local MCP tools, including <code>run_harness</code>. PyPI 0.10.0 provides 23 local MCP tools. The stateless <code>run_harness</code> tool uses the same versioned configured-harness entry point as the CLI and Python library. It does not provide native-CAD application control, but it is <strong>not a security sandbox</strong>: path-taking tools can read specified files, six <code>assemble_*</code> tools can write configured outputs, and the server inherits the local process account's filesystem permissions. Run it in a least-privilege working copy, restrict host approvals, and review tool inputs and outputs.</p>
 <p>One approval-gated workflow is: a human supplies the task and authored parts; an assistant proposes edits to an assembly-placement spec; CADCLAW regenerates configured outputs and reports declared findings; a qualified human reviews the evidence and decides whether to accept another iteration. Passing checks means only that the supplied artifact passed the configured gates. It does not establish native-model parity, manufacturability, safety, or physical performance.</p>
 <h2 id="7-case-study-validating-m3-crete">7. Case study: validating M3-CRETE</h2>
 <p>CADCLAW was developed alongside <a href="https://m3-crete.com/">M3-CRETE</a>, Sunnyday Technologies' open-source concrete 3D printer, and that project is the published deployment we have permission to cite. M3-CRETE is exactly the assembly density at which manual visual review breaks down: a pallet-scale gantry with NEMA23 motors on every motion axis, V-wheels on both faces of the X-rail, anti-racking belt drives on Y, self-tramming belt drives on Z, and a forest of mounts, brackets, and shims. The pattern generalises to any mechanical-hardware project with a non-trivial part count and a CAD-driven manufacturing pipeline.</p>
-<p>A version-specific CADCLAW development exercise used M3-CRETE artifacts rather than only fixtures. The package version for this release cut is 0.11.0 (PyPI publish follows tag v0.11.0; previous published: 0.10.0). The observations below are historical and method-specific; they do not demonstrate current M3-CRETE production deployment, physical validation, or universal behavior across assemblies.</p>
+<p>A version-specific CADCLAW development exercise used M3-CRETE artifacts rather than only fixtures. The observations below are historical and method-specific; they do not demonstrate current M3-CRETE production deployment, physical validation, or universal behavior across assemblies.</p>
 <p><strong>Verified working (the regression-test surface):</strong></p>
 <ul>
 <li>Tests exercised configured BOM publication-boundary rules and redaction behavior. This supports the tested paths and fixtures only; it is not a guarantee that every current or future output path removes all sensitive data.</li>
@@ -346,17 +349,17 @@ jobs:
 <li>The MCP server started and registered its available CADCLAW tools.</li>
 </ul>
 <p><strong>Historical interference observation.</strong> A retained development report describes the configured interference gate flagging an overlap between an X-carriage gantry plate and rear rail, with overlap geometry and a candidate shift direction. After the assembly artifact changed, the same configured condition no longer failed. This supports the gate's behavior in that versioned exercise; it does not establish what would have happened in fabrication or quantify avoided cost, labor, delay, or risk.</p>
-<p>Other development notes motivated checks for rail, mount, connector, carriage, export-parity, placement, and BOM-drift conditions. Treat those notes as inputs to test design—not as claims that CADCLAW caught every regression, ran on every commit, or prevented a shipped defect. Current repository tests, versioned reports, and each project's configured CI are the controlling evidence.</p>
+<p>Other development notes motivated checks for rail, mount, connector, carriage, export-parity, placement, and BOM-drift conditions. Treat those notes as inputs to test design, not as claims that CADCLAW caught every regression, ran on every commit, or prevented a shipped defect. Current repository tests, versioned reports, and each project's configured CI are the controlling evidence.</p>
 <p><strong>False-positives the field test surfaced (and the next-version backlog).</strong> The v0.6 field test caught its own bugs, too, and that is the right kind of honesty for a CI tool. <code>forbidden_terms</code> substring matching flagged the BOM's intentional anti-substitution warnings ("do not substitute the belt used on Y/Z here") because the dumb match treated negation and assertion as equivalent. <code>claim_audit.stale_terms</code> flagged the README's CC BY-SA 4.0 attribution to OpenBuilds, deletion of which would itself be a license violation. The default <code>forbidden_absolute "validated"</code> flagged a sentence that described a third-party service's training data, not an M3-CRETE claim. <code>cad.count_mismatch</code> reported per-rule against the same label, producing redundant findings rather than one aggregated diff. Each of these shipped in v0.7 (negation-aware matching, attribution-block exemption, configurable absolute terms, and rule aggregation).</p>
 <p>A new finding surfaced during cleanup that the field test had not anticipated: the BOM legitimately specifies a small spare-part quantity on top of the design count for some line items (because some suppliers only sell in pairs, or to leave a margin for kit packaging), and the v0.6 rule schema conflates design count with order count. Workarounds against the v0.6 surface failed, and the right fix is a rule-schema change adding <code>expected_design_qty</code> and <code>spare_qty</code> fields. That shipped in v0.7.</p>
 <p>Teams working on bracketry, robotics chassis, industrial fixtures, optical mounts, instruments, printers, machine-tool fixtures, or research apparatus can evaluate whether their authored STEP exports and declared rules fit this approach. Suitability, economic value, and required review depend on the assembly, failure modes, evidence quality, and deployment controls; no return, defect-prevention, or fabrication outcome is guaranteed.</p>
 <h2 id="8-where-cadclaw-is-going">8. Where CADCLAW is going</h2>
-<p>CADCLAW 0.11.0 ships two narrow AP242 gates. <code>PMI_PRESENT_SEMANTIC</code> reports declared class presence for dimensions, geometric tolerances, and datums. Opt-in <code>ROUNDTRIP_STEP</code> performs an actual OCCT XCAF import, AP242 export, and reimport, then compares CADCLAW's deduplicated imported renderable-shape count, bounded geometry measures, declared interface gaps, and source-present supported semantic-PMI class counts. The method count is not an authoritative STEP product count. Minimum-cost one-to-one matching is limited to 256 shapes; larger equal-count comparisons error before quadratic allocation rather than being sampled. These methods do not inspect graphical PMI, materials, process/general notes, validation properties, PMI values or associations, native-CAD correctness, verified translator identity, or standards conformance. Active backlog items include using supported semantic values in dimensional/tolerance calculations, parametric assembly diff'ing, expanded structural gates for rotational axes and ball-screw drives, full-travel kinematic checks, and tighter BOM-audit integration.</p>
+<p>The <a href="https://github.com/sunnyday-technologies/CADCLAW/releases/tag/v0.11.0">v0.11.0 GitHub release</a> adds two narrow AP242 gates. <code>PMI_PRESENT_SEMANTIC</code> reports declared class presence for dimensions, geometric tolerances, and datums. Opt-in <code>ROUNDTRIP_STEP</code> performs an actual OCCT XCAF import, AP242 export, and reimport, then compares CADCLAW's deduplicated imported renderable-shape count, bounded geometry measures, declared interface gaps, and source-present supported semantic-PMI class counts. The method count is not an authoritative STEP product count. Minimum-cost one-to-one matching is limited to 256 shapes; larger equal-count comparisons error before quadratic allocation rather than being sampled. These methods do not inspect graphical PMI, materials, process/general notes, validation properties, PMI values or associations, native-CAD correctness, verified translator identity, or standards conformance. Neither gate is part of the published 0.10.0 package. Active backlog items include using supported semantic values in dimensional/tolerance calculations, parametric assembly diff'ing, expanded structural gates for rotational axes and ball-screw drives, full-travel kinematic checks, and tighter BOM-audit integration.</p>
 <p>Further out, the most interesting unknowns are not technical but social. CAD CI works well for an open-source hardware project with a coherent CadQuery placement layer and a Git-tracked STEP. It does not yet have a clean answer for shops that operate entirely inside SolidWorks PDM, where the canonical model is a binary native file and the STEP is an export artefact rather than a source of truth. The honest answer there is the same as for any CI tool: validation runs against the artefact you ship, and if your artefact diverges from your authoring, you have a process problem upstream of the test runner. CADCLAW's <code>parity</code> gate, which compares two STEP exports for signature drift, is the small first step toward catching that divergence in CI rather than at the fabricator. Track the roadmap in the GitHub milestones.</p>
 <h2 id="install">Install</h2>
-<pre><code class="language-bash">pip install cadclaw
+<p>Create <code>cadclaw.yaml</code> as shown in the <a href="/#quick-start">quick start</a>. The source repository also includes <code>examples/init_rules.py</code> to scaffold rules from your STEP and BOM files.</p>
+<pre><code class="language-bash">python -m pip install cadclaw==0.10.0
 cadclaw doctor                              # verify environment
-python examples/init_rules.py --step my.step --bom bom.json   # scaffold cadclaw.yaml
 cadclaw harness --rules cadclaw.yaml        # run every declared gate
 cadclaw bom-audit --rules cadclaw.yaml      # run the BOM-vs-CAD audit standalone
 </code></pre>
@@ -380,10 +383,12 @@ DOI: 10.5281/zenodo.19647390
       "name": "CADCLAW",
       "applicationCategory": "DeveloperApplication",
       "applicationSubCategory": "CAD assembly automation and validation framework",
+      "softwareVersion": "0.10.0",
+      "installUrl": "https://pypi.org/project/cadclaw/0.10.0/",
       "operatingSystem": "Linux, macOS, Windows",
       "description": "Automated assembly and validation framework for STEP-based CAD. Compiles a declarative assembly spec into a STEP file by placing authored parts on connector frames and datum chains, then runs pytest-style gates for interference, inventory, adjacency, dimensional, orientation, floating-part, color/material, structural, tolerance, BOM-vs-CAD, parity, and disassembly checks. Includes an MCP server exposing core CADCLAW checks to AI coding assistants.",
       "url": "https://cadclaw.io/",
-      "downloadUrl": "https://pypi.org/project/cadclaw/",
+      "downloadUrl": "https://pypi.org/project/cadclaw/0.10.0/",
       "codeRepository": "https://github.com/sunnyday-technologies/CADCLAW",
       "license": "https://spdx.org/licenses/MIT.html",
       "programmingLanguage": "Python",
